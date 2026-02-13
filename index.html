@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Script Writer — Wildlife Scriptment Engine</title>
+  <meta name="description"
+    content="A multi-agent AI system for developing blue-chip natural history film scriptments." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎬</text></svg>" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+
+<body>
+
+  <!-- ═══════ Top Nav Bar ═══════ -->
+  <nav id="top-nav" class="top-nav">
+    <div class="nav-brand">🎬 <span>ScriptWriter</span></div>
+    <div class="nav-actions">
+      <button id="btn-dryrun" class="nav-btn" title="Dryrun Benchmark">
+        🧪 <span class="nav-btn-label">Dryrun</span>
+      </button>
+      <button id="btn-knowledge" class="nav-btn" title="Knowledge Base">
+        📚 <span class="nav-btn-label">Knowledge</span>
+        <span id="kb-badge" class="nav-badge hidden">0</span>
+      </button>
+      <button id="btn-history" class="nav-btn" title="Run History">
+        🕓 <span class="nav-btn-label">History</span>
+        <span id="history-badge" class="nav-badge hidden">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════ Knowledge Panel (Right Slide) ═══════ -->
+  <aside id="knowledge-panel" class="side-panel hidden">
+    <div class="panel-header">
+      <h3>📚 Knowledge Base</h3>
+      <button class="panel-close" data-close="knowledge-panel">✕</button>
+    </div>
+    <div class="panel-body">
+      <p class="panel-description">Upload research papers, market briefs, or scripts (.txt, .md). Agents will reference
+        this knowledge via RAG.</p>
+      <div id="upload-zone" class="upload-zone">
+        <input type="file" id="file-input" accept=".txt,.md,.text,.markdown" multiple hidden />
+        <div class="upload-zone-content">
+          <span class="upload-icon">⬆</span>
+          <span>Drop files here or <button id="browse-btn" class="link-btn">browse</button></span>
+        </div>
+      </div>
+      <div id="upload-progress" class="upload-progress hidden">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <span id="progress-text" class="progress-text">Embedding...</span>
+      </div>
+      <div id="doc-list" class="doc-list"></div>
+    </div>
+  </aside>
+
+  <!-- ═══════ History Panel (Right Slide) ═══════ -->
+  <aside id="history-panel" class="side-panel hidden">
+    <div class="panel-header">
+      <h3>🕓 Run History</h3>
+      <button class="panel-close" data-close="history-panel">✕</button>
+    </div>
+    <div class="panel-body">
+      <div id="history-list" class="history-list"></div>
+      <p id="history-empty" class="panel-empty">No runs yet. Launch a simulation to see results here.</p>
+    </div>
+  </aside>
+
+  <!-- ═══════ Panel Overlay ═══════ -->
+  <div id="panel-overlay" class="panel-overlay hidden"></div>
+
+  <!-- ═══════ Hero Section ═══════ -->
+  <header id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-badge">Multi-Agent AI System</div>
+      <h1><span class="title-accent">Script</span>Writer</h1>
+      <p class="hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
+      <p class="hero-description">
+        Enter a seed idea or paste an existing script. Six AI agents — an Analyst, Scientist,
+        Field Producer, Story Producer, a ruthless Commissioning Editor, and a Showrunner — will
+        debate, reject, revise, and ultimately greenlight your wildlife film pitch.
+      </p>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-tab active" data-mode="seed">🌱 Seed Idea</button>
+        <button class="mode-tab" data-mode="script">📝 Assess Script</button>
+      </div>
+
+      <form id="seed-form">
+        <div class="input-group">
+          <div id="year-field" class="year-field hidden">
+            <label for="production-year">📅 Production Year <span class="year-hint">(optional — calibrates market
+                expectations to this era)</span></label>
+            <input type="number" id="production-year" min="1990" max="2030" placeholder="e.g., 2016">
+          </div>
+          <textarea id="seed-input" placeholder="e.g., A sequence about survival in the deep ocean abyss…" rows="3"
+            required></textarea>
+          <button type="submit" class="btn-primary btn-launch" id="launch-btn">
+            <span class="btn-text">Launch Simulation</span>
+            <span class="btn-icon">→</span>
+          </button>
+        </div>
+      </form>
+
+      <div class="agent-roster">
+        <div class="agent-chip" style="--agent-color: #00d4aa">📊 Analyst</div>
+        <div class="agent-chip" style="--agent-color: #4dabf7">🔬 Scientist</div>
+        <div class="agent-chip" style="--agent-color: #ffa94d">🎥 Field Producer</div>
+        <div class="agent-chip" style="--agent-color: #da77f2">✍️ Story Producer</div>
+        <div class="agent-chip" style="--agent-color: #ff6b6b">⚔️ Editor</div>
+        <div class="agent-chip" style="--agent-color: #ffd43b">🎬 Showrunner</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════ Simulation Viewport ═══════ -->
+  <main id="simulation" class="hidden">
+    <div class="simulation-header">
+      <h2>Mission Control</h2>
+      <div id="phase-indicator" class="phase-indicator">
+        <span class="phase-dot" data-phase="1">1</span>
+        <span class="phase-connector"></span>
+        <span class="phase-dot" data-phase="2">2</span>
+        <span class="phase-connector"></span>
+        <span class="phase-dot" data-phase="3">3</span>
+        <span class="phase-connector"></span>
+        <span class="phase-dot" data-phase="4">4</span>
+        <span class="phase-connector"></span>
+        <span class="phase-dot" data-phase="5">5</span>
+      </div>
+    </div>
+    <div id="timeline" class="timeline"></div>
+  </main>
+
+  <!-- ═══════ Final Pitch Deck ═══════ -->
+  <section id="pitch-deck" class="hidden">
+    <div class="pitch-deck-header">
+      <h2>📋 Master Pitch Deck</h2>
+      <p>Greenlit & Approved</p>
+    </div>
+    <div id="pitch-deck-content" class="pitch-deck-content"></div>
+
+    <!-- ═══════ Results Q&A Chat ═══════ -->
+    <div id="qa-chat" class="qa-chat">
+      <div class="qa-chat-header">
+        <span class="qa-chat-icon">💬</span>
+        <span>Ask about these results</span>
+      </div>
+      <div id="qa-messages" class="qa-messages"></div>
+      <form id="qa-form" class="qa-form">
+        <input type="text" id="qa-input" class="qa-input" placeholder="Ask a question about the pitch deck…"
+          autocomplete="off" />
+        <button type="submit" class="qa-send" id="qa-send">→</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ═══════ Quality Scorecard (inline, after pitch deck) ═══════ -->
+  <section id="scorecard" class="scorecard-section hidden">
+    <div class="scorecard-header">
+      <h3>🎯 Quality Scorecard</h3>
+      <span id="scorecard-overall" class="scorecard-overall"></span>
+    </div>
+    <div id="scorecard-dims" class="scorecard-dims"></div>
+    <div id="scorecard-recs" class="scorecard-recs"></div>
+  </section>
+
+  <!-- ═══════ Dryrun Report Modal ═══════ -->
+  <div id="dryrun-overlay" class="dryrun-overlay hidden">
+    <div class="dryrun-modal">
+      <div class="dryrun-modal-header">
+        <h3>🧪 Dryrun Benchmark</h3>
+        <button id="dryrun-close" class="panel-close">✕</button>
+      </div>
+      <div class="dryrun-modal-body">
+        <p class="panel-description">
+          Runs 3 diverse test seeds through the full pipeline, evaluates each output across 6 quality dimensions,
+          and surfaces aggregate scores + optimization recommendations.
+        </p>
+        <div id="dryrun-start-area">
+          <button id="dryrun-start" class="btn-primary btn-launch">
+            <span class="btn-text">Start Benchmark</span>
+            <span class="btn-icon">→</span>
+          </button>
+        </div>
+        <div id="dryrun-progress" class="dryrun-progress hidden">
+          <div class="progress-bar">
+            <div id="dryrun-progress-fill" class="progress-fill"></div>
+          </div>
+          <span id="dryrun-progress-text" class="progress-text">Starting…</span>
+        </div>
+        <div id="dryrun-results" class="dryrun-results hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ Error Toast ═══════ -->
+  <div id="error-toast" class="error-toast hidden">
+    <span id="error-message"></span>
+    <button id="error-dismiss" class="error-dismiss">✕</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
