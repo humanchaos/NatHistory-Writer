@@ -6,15 +6,17 @@ import {
     STORY_PRODUCER,
     COMMISSIONING_EDITOR,
     SHOWRUNNER,
+    ADVERSARY,
 } from './personas.js';
 import { retrieveContext } from '../knowledge/rag.js';
 
 /**
  * Helper: show a thinking card, call the agent, then fill the card.
+ * Optionally accepts agentOpts.tools for Gemini tool use (e.g. Google Search).
  */
-async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }) {
+async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }, agentOpts = {}) {
     onAgentThinking(agent);
-    const result = await callAgent(agent.systemPrompt, prompt);
+    const result = await callAgent(agent.systemPrompt, prompt, agentOpts);
     onAgentOutput(agent, result);
     return result;
 }
@@ -38,7 +40,24 @@ function detectRejection(agentOutput) {
 }
 
 /**
- * Run the full 5-phase multi-agent pipeline.
+ * Extract a numeric score from agent output (e.g., "Score: 72/100" or "Greenlight Score: 85/100").
+ * Returns the score as a number, or null if not found.
+ */
+function extractScore(agentOutput) {
+    const patterns = [
+        /Score:\s*(\d{1,3})\s*\/\s*100/i,
+        /Greenlight\s*Score:\s*(\d{1,3})\s*\/\s*100/i,
+        /(\d{1,3})\s*\/\s*100/,
+    ];
+    for (const pattern of patterns) {
+        const match = agentOutput.match(pattern);
+        if (match) return parseInt(match[1], 10);
+    }
+    return null;
+}
+
+/**
+ * Run the full 6-phase multi-agent pipeline.
  *
  * @param {string} seedIdea — the user's seed idea
  * @param {object} cbs
@@ -46,10 +65,19 @@ function detectRejection(agentOutput) {
  * @param {function} cbs.onAgentThinking — (agent) — fired BEFORE the API call
  * @param {function} cbs.onAgentOutput — (agent, outputText) — fired AFTER the API call
  * @param {function} cbs.onPhaseComplete — (phaseNumber)
+ * @param {object} [opts] — optional overrides
+ * @param {string|null} [opts.platform] — target platform (e.g., 'Netflix')
+ * @param {number|null} [opts.year] — target production year
  * @returns {Promise<string>} — the final Master Pitch Deck
  */
-export async function runPipeline(seedIdea, cbs) {
+export async function runPipeline(seedIdea, cbs, opts = {}) {
     const ctx = { seedIdea };
+    const { platform = null, year = null } = opts;
+
+    // Build optional context strings
+    const platformNote = platform ? `\n\n🎯 TARGET PLATFORM: This pitch is being developed specifically for **${platform}**. Tailor all recommendations — tone, format, budget tier, episode structure — to ${platform}'s commissioning style and audience.\n` : '';
+    const yearNote = year ? `\n📅 TARGET PRODUCTION YEAR: ${year}. Calibrate all technology, market, and trend references to this year.\n` : '';
+    const optionsSuffix = platformNote + yearNote;
 
     // Retrieve relevant knowledge from the vector store (no-op if empty)
     let knowledgeContext = '';
@@ -68,14 +96,16 @@ export async function runPipeline(seedIdea, cbs) {
 
     ctx.marketMandate = await agentStep(
         MARKET_ANALYST,
-        `The seed idea is: "${seedIdea}"${kbBlock}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
-        cbs
+        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
+        cbs,
+        { tools: [{ googleSearch: {} }] }
     );
 
     ctx.animalFactSheet = await agentStep(
         CHIEF_SCIENTIST,
-        `The seed idea is: "${seedIdea}"${kbBlock}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
-        cbs
+        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+        cbs,
+        { tools: [{ googleSearch: {} }] }
     );
 
     // ─── KILL SWITCH: Check for scientific rejection ──────
@@ -186,9 +216,17 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(2, 'Draft V1');
 
+    // ─── SPECIES DRIFT GUARD ─────────────────────────────
+    // Extract the hero species from the Scientist's output to enforce Zero Species Drift
+    const speciesMatch = ctx.animalFactSheet.match(/(?:Primary Species|Hero Species|Hero Animal)[^:]*:\s*\**([^(*\n]+)/i);
+    const heroSpecies = speciesMatch ? speciesMatch[1].trim().replace(/\*+$/, '').trim() : null;
+    const speciesGuard = heroSpecies
+        ? `\n\n⚠️ ZERO SPECIES DRIFT ENFORCEMENT: Your hero species MUST be "${heroSpecies}" as identified by the Chief Scientist. If you change, swap, or substitute this species for a different animal, your output will be flagged as SPECIES DRIFT and REJECTED. You may creatively reinterpret the angle, but the animal stays.\n`
+        : '';
+
     ctx.draftV1 = await agentStep(
         STORY_PRODUCER,
-        `The seed idea is: "${seedIdea}"\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into:\n1. A 3-Act narrative outline with a SPECIFIC ticking clock, at least 3 escalating obstacles in Act 2, a midpoint reversal, and a resonant closing image\n2. 3 visual signature "hero shots" described with camera angle, lens, and biological action\n3. A dual-column A/V script excerpt (minimum 8 rows) with sound design notes\n\nCRITICAL CINEMATIC STANDARD: Treat the animal as a cinematic protagonist in a GENRE (thriller, survival epic, heist, horror chase). The iguana vs. snakes in Planet Earth II was a HORROR-THRILLER ESCAPE, not a "predator-prey study." Genre-ify your narrative.\n\nCamera language must emphasize PROXIMITY and SUBJECTIVE POV — ground-level gimbal tracking, not clinical observation from distance. The audience must feel the terrain, the heat, the urgency.\n\nDefine a HYPER-REAL SOUNDSCAPE — claws scraping on rock, heartbeats in moments of exhaustion, wind fading. Not generic ambient audio.\n\nNarration must be SPARSE and POETIC. Cut expository lines. Let silences breathe. "He is a trespasser in his own land" > "The lizard must compete for territory."\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+        `The seed idea is: "${seedIdea}"${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into:\n1. A 3-Act narrative outline with a SPECIFIC ticking clock, at least 3 escalating obstacles in Act 2, a midpoint reversal, and a resonant closing image\n2. 3 visual signature "hero shots" described with camera angle, lens, and biological action\n3. A dual-column A/V script excerpt (minimum 8 rows) with sound design notes\n\nCRITICAL CINEMATIC STANDARD: Treat the animal as a cinematic protagonist in a GENRE (thriller, survival epic, heist, horror chase). The iguana vs. snakes in Planet Earth II was a HORROR-THRILLER ESCAPE, not a "predator-prey study." Genre-ify your narrative.\n\nCamera language must emphasize PROXIMITY and SUBJECTIVE POV — ground-level gimbal tracking, not clinical observation from distance. The audience must feel the terrain, the heat, the urgency.\n\nDefine a HYPER-REAL SOUNDSCAPE — claws scraping on rock, heartbeats in moments of exhaustion, wind fading. Not generic ambient audio.\n\nNarration must be SPARSE and POETIC. Cut expository lines. Let silences breathe. "He is a trespasser in his own land" > "The lizard must compete for territory."\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
         cbs
     );
 
@@ -232,7 +270,7 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
 
     ctx.draftV2 = await agentStep(
         STORY_PRODUCER,
-        `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. CINEMATIC UPGRADE CHECKLIST:\n✓ Genre energy — this must feel like a [thriller/survival epic/heist], not a biology lecture\n✓ Proximity POV — ground-level, gimbal-tracking, subjective camera, not clinical wide shots\n✓ Hyper-real foley — every key moment has a defined sound (claws, heartbeats, wind)\n✓ Sparse narration — cut expository lines, use short poetic phrases, let silences work\n✓ B-Story woven in — the secondary species raises stakes for the primary, not just backup\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
+        `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. CINEMATIC UPGRADE CHECKLIST:\n✓ Genre energy — this must feel like a [thriller/survival epic/heist], not a biology lecture\n✓ Proximity POV — ground-level, gimbal-tracking, subjective camera, not clinical wide shots\n✓ Hyper-real foley — every key moment has a defined sound (claws, heartbeats, wind)\n✓ Sparse narration — cut expository lines, use short poetic phrases, let silences work\n✓ B-Story woven in — the secondary species raises stakes for the primary, not just backup\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
         cbs
     );
 
@@ -241,6 +279,46 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
         `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does it now feel CINEMATIC — like a genre piece, not a biology lecture?\n3. Camera language: proximity/subjective POV achieved?\n4. Sound design: hyper-real foley defined?\n5. Narration: sparse/poetic, not expository?\n\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
         cbs
     );
+
+    // ─── QUALITY GATE: Check V2 review score ──────────────
+    const v2Score = extractScore(ctx.greenlightReview);
+    if (v2Score !== null && v2Score < 70) {
+        cbs.onPhaseComplete(4);
+
+        cbs.onPhaseStart(5, '⛔ Pipeline Halted — Failed Quality Gate');
+
+        ctx.finalPitchDeck = await agentStep(
+            SHOWRUNNER,
+            `## ⛔ PIPELINE HALTED — FAILED QUALITY GATE
+
+The Commissioning Editor scored Draft V2 at ${v2Score}/100, which is below the minimum quality threshold of 70/100. After one full revision cycle, this pitch has failed to meet broadcast standards.
+
+### Original Seed Idea
+"${seedIdea}"
+
+### Editor's V1 Rejection
+${ctx.rejectionMemo}
+
+### Editor's V2 Review (${v2Score}/100)
+${ctx.greenlightReview}
+
+### Draft V2 Script
+${ctx.draftV2}
+
+Your job: Write a FINAL INTERNAL MEMO that:
+1. **Acknowledges the persistent weaknesses** — quote the Editor's specific unresolved concerns
+2. **Diagnoses root cause** — why couldn't the team fix these issues in one revision cycle?
+3. **Recommends disposition** — should this be shelved, fundamentally reconceived, or given to a different creative team?
+4. **Salvageable Elements** — if any individual component (science, market angle, visual approach) has value, name it
+5. **Final Score: ${v2Score}/100** — present this prominently
+
+This is not a rejection memo that kills the idea forever — it's a professional assessment that the CURRENT EXECUTION failed. The seed may have merit; the pitch does not.`,
+            cbs
+        );
+
+        cbs.onPhaseComplete(5);
+        return ctx.finalPitchDeck;
+    }
 
     cbs.onPhaseComplete(4);
 
@@ -298,7 +376,43 @@ This must read as ONE cohesive, polished document — not a collage of agent out
 
     cbs.onPhaseComplete(5);
 
-    return ctx.finalPitchDeck;
+    // ═══════════════════════════════════════════════════════
+    // PHASE 6 — THE GATEKEEPER
+    // ═══════════════════════════════════════════════════════
+    cbs.onPhaseStart(6, 'The Gatekeeper');
+
+    ctx.gatekeeperVerdict = await agentStep(
+        ADVERSARY,
+        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${optionsSuffix}
+
+Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.
+
+### The Pitch Deck to Review
+${ctx.finalPitchDeck}
+
+### Original Seed Idea
+"${seedIdea}"
+
+Deliver your verdict in the specified format. Be brutal. Be specific. Cite exact series/episodes if this is derivative.`,
+        cbs
+    );
+
+    cbs.onPhaseComplete(6);
+
+    // ─── ADVERSARY ENFORCEMENT GATE ──────────────────────
+    const gatekeeperScore = extractScore(ctx.gatekeeperVerdict);
+    const verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
+    const isHardReject = verdictUpper.includes('BURN IT DOWN') ||
+        (verdictUpper.includes('REJECTED') && !verdictUpper.includes('GREENLIT'));
+    const isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
+
+    if (isHardReject || isFatalScore) {
+        // Gatekeeper killed it — replace polished deck with rejection
+        return `## ⛔ GATEKEEPER REJECTION — PITCH BLOCKED\n\nThe Gatekeeper has **rejected** this pitch with a score of **${gatekeeperScore ?? '?'}/100**. The Master Pitch Deck will NOT be forwarded to commissioners.\n\n---\n\n${ctx.gatekeeperVerdict}\n\n---\n\n### Archived Pitch Deck (For Reference Only)\n\n<details>\n<summary>Click to expand the rejected pitch deck</summary>\n\n${ctx.finalPitchDeck}\n\n</details>`;
+    }
+
+    // Append the Gatekeeper's verdict to the final deck
+    return ctx.finalPitchDeck + '\n\n---\n\n' + ctx.gatekeeperVerdict;
 }
 
 /**

@@ -102,6 +102,47 @@ export const BENCHMARK_SEEDS = [
  * @param {function} onProgress — (current, total, seedName, status) callback
  * @returns {Promise<object>} — { results: [...], aggregate }
  */
+/**
+ * Detect if a pipeline output is a rejection memo rather than a pitch deck.
+ */
+function isRejectionMemo(output) {
+    const upper = output.toUpperCase();
+    return (
+        upper.includes('⛔ SCIENTIFIC REJECTION') ||
+        upper.includes('⛔ ETHICAL REJECTION') ||
+        upper.includes('PIPELINE HALT') ||
+        upper.includes('DEAD ON ARRIVAL') ||
+        upper.includes('INTERNAL REJECTION MEMO')
+    );
+}
+
+/**
+ * Build a synthetic scorecard for a rejected seed.
+ */
+function buildRejectionScorecard(pitchDeck) {
+    const isScienceReject = pitchDeck.toUpperCase().includes('SCIENTIFIC REJECTION');
+    const type = isScienceReject ? 'Scientific' : 'Ethical';
+    return {
+        dimensions: [
+            { name: 'Narrative Structure', score: null, rationale: `${type} rejection — not evaluated` },
+            { name: 'Scientific Rigor', score: null, rationale: `${type} rejection — not evaluated` },
+            { name: 'Market Viability', score: null, rationale: `${type} rejection — not evaluated` },
+            { name: 'Production Feasibility', score: null, rationale: `${type} rejection — not evaluated` },
+            { name: 'Originality', score: null, rationale: `${type} rejection — not evaluated` },
+            { name: 'Presentation Quality', score: null, rationale: `${type} rejection — not evaluated` },
+        ],
+        overall: null,
+        summary: `Pipeline halted: ${type} rejection. The premise was deemed fundamentally invalid and no pitch deck was produced.`,
+        recommendations: [
+            `Revisit the core premise — the ${type.toLowerCase()} viability gate rejected this concept.`,
+            'Consider adjusting the seed idea to address the specific issues flagged in the rejection memo.',
+            'Review the rejection memo for details on what exactly failed the gate.',
+        ],
+        rejected: true,
+        rejectionType: type,
+    };
+}
+
 export async function runDryrun(runFn, onProgress) {
     const results = [];
 
@@ -118,6 +159,18 @@ export async function runDryrun(runFn, onProgress) {
             onPhaseComplete() { },
         });
 
+        // Check if the output is a rejection memo instead of a pitch deck
+        if (isRejectionMemo(pitchDeck)) {
+            onProgress(i + 1, BENCHMARK_SEEDS.length, seed.name, '⛔ Rejected by pipeline');
+            results.push({
+                seed,
+                pitchDeck,
+                scorecard: buildRejectionScorecard(pitchDeck),
+                rejected: true,
+            });
+            continue;
+        }
+
         onProgress(i + 1, BENCHMARK_SEEDS.length, seed.name, 'Evaluating quality…');
 
         const scorecard = await evaluatePitchDeck(pitchDeck, seed.seed);
@@ -126,25 +179,37 @@ export async function runDryrun(runFn, onProgress) {
             seed,
             pitchDeck,
             scorecard,
+            rejected: false,
         });
     }
 
-    // Compute aggregate
-    const dimNames = results[0].scorecard.dimensions.map(d => d.name);
+    // Compute aggregate — only from non-rejected results
+    const scoredResults = results.filter(r => !r.rejected);
+    const rejectedResults = results.filter(r => r.rejected);
+
+    const dimNames = ['Narrative Structure', 'Scientific Rigor', 'Market Viability', 'Production Feasibility', 'Originality', 'Presentation Quality'];
+
     const aggregate = {
-        overall: Math.round(results.reduce((s, r) => s + r.scorecard.overall, 0) / results.length),
+        overall: scoredResults.length > 0
+            ? Math.round(scoredResults.reduce((s, r) => s + r.scorecard.overall, 0) / scoredResults.length)
+            : null,
         dimensions: dimNames.map(name => {
-            const scores = results.map(r => r.scorecard.dimensions.find(d => d.name === name).score);
+            const scores = scoredResults
+                .map(r => r.scorecard.dimensions.find(d => d.name === name)?.score)
+                .filter(s => s != null);
             return {
                 name,
-                avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-                min: Math.min(...scores),
-                max: Math.max(...scores),
+                avg: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
+                min: scores.length > 0 ? Math.min(...scores) : null,
+                max: scores.length > 0 ? Math.max(...scores) : null,
             };
         }),
         allRecommendations: results.flatMap(r =>
             r.scorecard.recommendations.map(rec => ({ seed: r.seed.name, recommendation: rec }))
         ),
+        scored: scoredResults.length,
+        rejected: rejectedResults.length,
+        total: results.length,
     };
 
     return { results, aggregate };

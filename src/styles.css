@@ -331,43 +331,68 @@ h4 {
   font-weight: 600;
 }
 
-/* ─── Production Year Field ────────────────────────── */
-.year-field {
-  margin-bottom: 0.75rem;
+/* ─── Optional Parameters ──────────────────────────── */
+.optional-params {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.year-field label {
+.param-field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.param-field label {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--text-secondary);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.35rem;
 }
 
-.year-hint {
+.param-hint {
   font-weight: 400;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
-.year-field input {
-  width: 120px;
+.param-field select,
+.param-field input {
+  width: 100%;
   padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.year-field input:focus {
+.param-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.param-field select option {
+  background: #1a1b2e;
+  color: var(--text-primary);
+}
+
+.param-field select:focus,
+.param-field input:focus {
   outline: none;
   border-color: var(--accent-gold);
 }
 
-.year-field input::placeholder {
+.param-field input::placeholder {
   color: var(--text-muted);
   opacity: 0.6;
 }
@@ -776,6 +801,54 @@ h4 {
   color: var(--accent-green);
   font-weight: 500;
   font-size: 0.9rem;
+}
+
+.gatekeeper-badges {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+
+.gatekeeper-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 1rem;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.gatekeeper-score {
+  color: #fff;
+}
+
+.gatekeeper-score.score-green {
+  background: linear-gradient(135deg, #2b8a3e, #37b24d);
+  box-shadow: 0 0 12px rgba(55, 178, 77, 0.3);
+}
+
+.gatekeeper-score.score-amber {
+  background: linear-gradient(135deg, #e67700, #f59f00);
+  box-shadow: 0 0 12px rgba(245, 159, 0, 0.3);
+}
+
+.gatekeeper-score.score-orange {
+  background: linear-gradient(135deg, #d9480f, #e8590c);
+  box-shadow: 0 0 12px rgba(232, 89, 12, 0.3);
+}
+
+.gatekeeper-score.score-red {
+  background: linear-gradient(135deg, #c92a2a, #e03131);
+  box-shadow: 0 0 12px rgba(224, 49, 49, 0.3);
+}
+
+.gatekeeper-platform {
+  background: rgba(77, 171, 247, 0.12);
+  color: #4dabf7;
+  border: 1px solid rgba(77, 171, 247, 0.25);
 }
 
 .pitch-deck-content {
@@ -1534,6 +1607,24 @@ h4 {
 .score-weak {
   background: rgba(255, 107, 107, 0.1);
   color: #ff6b6b;
+}
+
+.score-rejected {
+  background: rgba(255, 107, 107, 0.15);
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.score-na {
+  color: var(--text-muted);
+}
+
+.dryrun-seed-rejected {
+  border-color: rgba(255, 107, 107, 0.3);
+  background: rgba(255, 107, 107, 0.04);
 }
 
 .scorecard-dims {

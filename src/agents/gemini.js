@@ -17,18 +17,24 @@ export function initGemini() {
 /**
  * Call an agent with the given system prompt and user message.
  * Creates a fresh model instance per call with the system instruction baked in.
+ * Optionally accepts tools (e.g. Google Search grounding).
  * Returns the response text.
  */
-export async function callAgent(systemPrompt, userMessage, retries = 2) {
+export async function callAgent(systemPrompt, userMessage, { retries = 2, tools = [] } = {}) {
     if (!genAI) initGemini();
+
+    const modelConfig = {
+        model: 'gemini-2.0-flash',
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+    };
+
+    if (tools.length > 0) {
+        modelConfig.tools = tools;
+    }
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-            // Create a model with this agent's system instruction
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-2.0-flash',
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-            });
+            const model = genAI.getGenerativeModel(modelConfig);
 
             const result = await model.generateContent(userMessage);
             const response = await result.response;

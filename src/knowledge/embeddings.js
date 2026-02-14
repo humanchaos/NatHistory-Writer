@@ -7,7 +7,7 @@ let embeddingModel = null;
 function getModel() {
     if (!embeddingModel) {
         const genAI = new GoogleGenerativeAI(API_KEY);
-        embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+        embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
     }
     return embeddingModel;
 }

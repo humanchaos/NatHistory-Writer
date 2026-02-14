@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.21.0"
   },
   "devDependencies": {
+    "vercel": "^50.17.1",
     "vite": "^6.1.0"
   }
 }

@@ -415,6 +415,10 @@ function showSavedPitchDeck(run) {
     simulationEl.classList.add('hidden');
     pitchDeckContent.innerHTML = md(run.finalPitchDeck);
     pitchDeckEl.classList.remove('hidden');
+
+    // Extract and display Gatekeeper badges
+    updateGatekeeperBadges(run.finalPitchDeck);
+
     pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
 
     // Initialize Q&A chat for the saved run
@@ -422,10 +426,48 @@ function showSavedPitchDeck(run) {
 }
 
 // ─── Mode Toggle ──────────────────────────────────────
+
+/**
+ * Extract the Gatekeeper's score, verdict, and platform from the final output
+ * and populate the header badges.
+ */
+function updateGatekeeperBadges(text) {
+    const badgesEl = document.getElementById('gatekeeper-badges');
+    const scoreBadge = document.getElementById('gatekeeper-score-badge');
+    const platformBadge = document.getElementById('gatekeeper-platform-badge');
+
+    const scoreMatch = text.match(/Score:\s*(\d{1,3})\s*\/\s*100/i);
+    const platformMatch = text.match(/Ideal\s+For:\s*\*{0,2}([^*\n]+)\*{0,2}/i);
+    const verdictMatch = text.match(/The\s+Verdict:\s*\*{0,2}(GREENLIT|REJECTED|BURN IT DOWN)[^*]*\*{0,2}/i);
+
+    if (scoreMatch || platformMatch) {
+        badgesEl.classList.remove('hidden');
+
+        if (scoreMatch) {
+            const score = parseInt(scoreMatch[1], 10);
+            const verdict = verdictMatch ? verdictMatch[1].trim().toUpperCase() : '';
+            let colorClass = 'score-red';
+            if (score >= 80) colorClass = 'score-green';
+            else if (score >= 60) colorClass = 'score-amber';
+            else if (score >= 40) colorClass = 'score-orange';
+
+            const verdictLabel = verdict.includes('GREENLIT') ? '✅' : verdict.includes('BURN') ? '🔥' : '⛔';
+            scoreBadge.textContent = `${verdictLabel} ${score}/100`;
+            scoreBadge.className = `gatekeeper-badge gatekeeper-score ${colorClass}`;
+        }
+
+        if (platformMatch) {
+            platformBadge.textContent = `📺 Ideal for ${platformMatch[1].trim()}`;
+            platformBadge.className = 'gatekeeper-badge gatekeeper-platform';
+        }
+    } else {
+        badgesEl.classList.add('hidden');
+    }
+}
 let currentMode = 'seed'; // 'seed' or 'script'
 const phaseIndicator = document.getElementById('phase-indicator');
-const yearField = document.getElementById('year-field');
 const productionYearInput = document.getElementById('production-year');
+const targetPlatformInput = document.getElementById('target-platform');
 
 document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -437,13 +479,10 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
             seedInput.placeholder = 'Paste your existing wildlife script or draft here…';
             seedInput.rows = 10;
             launchBtn.querySelector('.btn-text').textContent = 'Assess & Optimize →';
-            yearField.classList.remove('hidden');
         } else {
             seedInput.placeholder = 'e.g., A sequence about survival in the deep ocean abyss…';
             seedInput.rows = 3;
             launchBtn.querySelector('.btn-text').textContent = 'Launch Simulation';
-            yearField.classList.add('hidden');
-            productionYearInput.value = '';
         }
     });
 });
@@ -492,7 +531,7 @@ seedForm.addEventListener('submit', async (e) => {
     if (!inputText) return;
 
     const isAssessment = currentMode === 'script';
-    const totalPhases = isAssessment ? 4 : 5;
+    const totalPhases = isAssessment ? 4 : 6;
 
     // Disable form
     launchBtn.disabled = true;
@@ -512,9 +551,10 @@ seedForm.addEventListener('submit', async (e) => {
 
     try {
         const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
+        const targetPlatform = targetPlatformInput.value || null;
         const finalPitchDeck = isAssessment
             ? await runAssessment(inputText, pipelineCallbacks, prodYear)
-            : await runPipeline(inputText, pipelineCallbacks);
+            : await runPipeline(inputText, pipelineCallbacks, { platform: targetPlatform, year: prodYear });
 
         // Save to history
         saveRun({ seedIdea: inputText, finalPitchDeck });
@@ -522,6 +562,10 @@ seedForm.addEventListener('submit', async (e) => {
         // Show pitch deck
         pitchDeckContent.innerHTML = md(finalPitchDeck);
         pitchDeckEl.classList.remove('hidden');
+
+        // Extract and display Gatekeeper badges
+        updateGatekeeperBadges(finalPitchDeck);
+
         pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
 
         // Initialize Q&A chat
@@ -681,33 +725,52 @@ dryrunStart.addEventListener('click', async () => {
 
         // Render results
         dryrunResults.classList.remove('hidden');
+
+        const hasScored = aggregate.overall != null;
+        const aggregateLabel = aggregate.rejected > 0
+            ? `Aggregate Quality Score (${aggregate.scored}/${aggregate.total} scored, ${aggregate.rejected} rejected)`
+            : 'Aggregate Quality Score';
+
         dryrunResults.innerHTML = `
             <div class="dryrun-aggregate">
-                <div class="dryrun-aggregate-score ${scoreClass(aggregate.overall)}">${aggregate.overall}</div>
-                <div class="dryrun-aggregate-label">Aggregate Quality Score</div>
+                <div class="dryrun-aggregate-score ${hasScored ? scoreClass(aggregate.overall) : 'score-na'}">${hasScored ? aggregate.overall : '—'}</div>
+                <div class="dryrun-aggregate-label">${aggregateLabel}</div>
             </div>
 
             <div class="dryrun-dim-grid">
                 ${aggregate.dimensions.map(d => `
                     <div class="dryrun-dim-card">
                         <div class="dryrun-dim-name">${d.name}</div>
-                        <div class="dryrun-dim-avg ${scoreClass(d.avg)}">${d.avg}</div>
-                        <div class="dryrun-dim-range">${d.min}–${d.max}</div>
+                        <div class="dryrun-dim-avg ${d.avg != null ? scoreClass(d.avg) : 'score-na'}">${d.avg != null ? d.avg : '—'}</div>
+                        <div class="dryrun-dim-range">${d.min != null ? `${d.min}–${d.max}` : 'N/A'}</div>
                     </div>
                 `).join('')}
             </div>
 
             <div class="dryrun-seed-results">
                 <h4>Individual Results</h4>
-                ${results.map(r => `
-                    <div class="dryrun-seed-card">
-                        <div class="dryrun-seed-card-header">
-                            <span class="dryrun-seed-name">${r.seed.name}</span>
-                            <span class="dryrun-seed-score ${scoreClass(r.scorecard.overall)}">${r.scorecard.overall}</span>
+                ${results.map(r => {
+            if (r.rejected) {
+                return `
+                            <div class="dryrun-seed-card dryrun-seed-rejected">
+                                <div class="dryrun-seed-card-header">
+                                    <span class="dryrun-seed-name">${r.seed.name}</span>
+                                    <span class="dryrun-seed-score score-rejected">⛔ REJECTED</span>
+                                </div>
+                                <div class="dryrun-seed-summary">${r.scorecard.summary}</div>
+                            </div>
+                        `;
+            }
+            return `
+                        <div class="dryrun-seed-card">
+                            <div class="dryrun-seed-card-header">
+                                <span class="dryrun-seed-name">${r.seed.name}</span>
+                                <span class="dryrun-seed-score ${scoreClass(r.scorecard.overall)}">${r.scorecard.overall}</span>
+                            </div>
+                            <div class="dryrun-seed-summary">${r.scorecard.summary}</div>
                         </div>
-                        <div class="dryrun-seed-summary">${r.scorecard.summary}</div>
-                    </div>
-                `).join('')}
+                    `;
+        }).join('')}
             </div>
 
             <div class="dryrun-recs">

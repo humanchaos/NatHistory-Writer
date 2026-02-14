@@ -86,9 +86,9 @@
       <h1><span class="title-accent">Script</span>Writer</h1>
       <p class="hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
       <p class="hero-description">
-        Enter a seed idea or paste an existing script. Six AI agents — an Analyst, Scientist,
-        Field Producer, Story Producer, a ruthless Commissioning Editor, and a Showrunner — will
-        debate, reject, revise, and ultimately greenlight your wildlife film pitch.
+        Enter a seed idea or paste an existing script. Seven AI agents — an Analyst, Scientist,
+        Field Producer, Story Producer, a ruthless Commissioning Editor, a Showrunner, and
+        a cynical Gatekeeper — will debate, reject, revise, and ultimately greenlight your wildlife film pitch.
       </p>
 
       <!-- Mode Toggle -->
@@ -99,13 +99,29 @@
 
       <form id="seed-form">
         <div class="input-group">
-          <div id="year-field" class="year-field hidden">
-            <label for="production-year">📅 Production Year <span class="year-hint">(optional — calibrates market
-                expectations to this era)</span></label>
-            <input type="number" id="production-year" min="1990" max="2030" placeholder="e.g., 2016">
-          </div>
           <textarea id="seed-input" placeholder="e.g., A sequence about survival in the deep ocean abyss…" rows="3"
             required></textarea>
+          <div class="optional-params">
+            <div class="param-field">
+              <label for="target-platform">📺 Platform <span class="param-hint">(optional)</span></label>
+              <select id="target-platform">
+                <option value="">Auto-detect best fit</option>
+                <option value="Netflix">Netflix</option>
+                <option value="Apple TV+">Apple TV+</option>
+                <option value="BBC Studios">BBC Studios</option>
+                <option value="Disney+">Disney+ / National Geographic</option>
+                <option value="Amazon Prime">Amazon Prime</option>
+                <option value="ZDF / ARTE">ZDF / ARTE</option>
+                <option value="Channel 4">Channel 4</option>
+                <option value="Smithsonian Channel">Smithsonian Channel</option>
+                <option value="PBS">PBS</option>
+              </select>
+            </div>
+            <div class="param-field">
+              <label for="production-year">📅 Year <span class="param-hint">(optional)</span></label>
+              <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2027">
+            </div>
+          </div>
           <button type="submit" class="btn-primary btn-launch" id="launch-btn">
             <span class="btn-text">Launch Simulation</span>
             <span class="btn-icon">→</span>
@@ -120,6 +136,7 @@
         <div class="agent-chip" style="--agent-color: #da77f2">✍️ Story Producer</div>
         <div class="agent-chip" style="--agent-color: #ff6b6b">⚔️ Editor</div>
         <div class="agent-chip" style="--agent-color: #ffd43b">🎬 Showrunner</div>
+        <div class="agent-chip" style="--agent-color: #e03131">🛡️ Gatekeeper</div>
       </div>
     </div>
   </header>
@@ -147,6 +164,10 @@
   <section id="pitch-deck" class="hidden">
     <div class="pitch-deck-header">
       <h2>📋 Master Pitch Deck</h2>
+      <div id="gatekeeper-badges" class="gatekeeper-badges hidden">
+        <span id="gatekeeper-score-badge" class="gatekeeper-badge gatekeeper-score"></span>
+        <span id="gatekeeper-platform-badge" class="gatekeeper-badge gatekeeper-platform"></span>
+      </div>
       <p>Greenlit & Approved</p>
     </div>
     <div id="pitch-deck-content" class="pitch-deck-content"></div>
