@@ -162,18 +162,51 @@ Do NOT suggest alternative ideas. Do NOT try to salvage any element. This idea i
         cbs
     );
 
-    // ─── KILL SWITCH: Check for ethical rejection ─────────
+    // ─── ETHICAL GATE: Two-stage revision loop ─────────
     const ethicsCheck = detectRejection(ctx.logisticsBreakdown);
     if (ethicsCheck.rejected) {
-        cbs.onPhaseComplete(1);
+        // STAGE 1: Give Field Producer a second chance with explicit calibration
+        cbs.onPhaseStart(2, '🔄 Ethical Review — Proportionality Check');
 
-        cbs.onPhaseStart(2, '⛔ Pipeline Halted — Ethical Rejection');
+        ctx.logisticsBreakdown = await agentStep(
+            FIELD_PRODUCER,
+            `## ETHICAL PROPORTIONALITY RE-CHECK
 
-        ctx.finalPitchDeck = await agentStep(
-            SHOWRUNNER,
-            `## ⛔ PIPELINE HALTED — ETHICAL REJECTION
+Your initial assessment flagged ethical concerns and triggered a pipeline halt. Before we kill this idea, we need you to re-evaluate with a PROPORTIONALITY TEST.
 
-The Field Producer has REJECTED this idea due to severe ethical violations. The pipeline is being terminated.
+### Your Original Rejection:
+${ctx.logisticsBreakdown}
+
+### The Seed Idea:
+"${seedIdea}"
+
+### The Scientist's Fact Sheet:
+${ctx.animalFactSheet}
+
+RE-EVALUATE by answering these questions:
+1. **Are the "violations" about filming NATURALLY OCCURRING behavior?** If yes, this is NOT an ethical violation. Planet Earth, Dynasties, and Frozen Planet all film natural predation, death, and distress. Observing nature is not causing it.
+2. **Are you rejecting based on ANOTHER AGENT'S suggestion?** If the Scientist suggested something questionable (e.g., "clear ant nests"), that's THEIR suggestion — simply don't include it in YOUR logistics plan. Don't reject the whole concept because of someone else's idea.
+3. **Could you film this concept ethically using standard observational techniques?** Remote cameras, hides, autonomous drones, probe lenses, long-lens observation — would any of these work without the problematic methods?
+
+If the concept CAN be filmed ethically by removing specific problematic methods → PROCEED with a full logistics plan that EXCLUDES those methods. Note what you excluded and why.
+
+If the concept FUNDAMENTALLY REQUIRES unethical methods (there is NO observational alternative) → Re-issue your ⛔ ETHICAL REJECTION.`,
+            cbs
+        );
+
+        cbs.onPhaseComplete(2);
+
+        // STAGE 2: Check if the revised assessment still rejects
+        const ethicsRecheck = detectRejection(ctx.logisticsBreakdown);
+        if (ethicsRecheck.rejected) {
+            // Genuine ethical rejection — halt the pipeline
+            cbs.onPhaseStart(3, '⛔ Pipeline Halted — Ethical Rejection');
+
+            ctx.finalPitchDeck = await agentStep(
+                SHOWRUNNER,
+                `## ⛔ PIPELINE HALTED — ETHICAL REJECTION (CONFIRMED)
+
+The Field Producer has TWICE rejected this idea due to severe ethical violations — even after a proportionality re-check. This is a genuine ethical failure, not a false positive. The pipeline is being terminated.
 
 ### Original Seed Idea
 "${seedIdea}"
@@ -181,7 +214,7 @@ The Field Producer has REJECTED this idea due to severe ethical violations. The 
 ### Chief Scientist's Assessment
 ${ctx.animalFactSheet}
 
-### Field Producer's REJECTION
+### Field Producer's CONFIRMED REJECTION
 ${ctx.logisticsBreakdown}
 
 Your job: Write a BRUTAL, no-nonsense INTERNAL REJECTION MEMO.
@@ -191,22 +224,24 @@ Format it as:
 **TO:** Creative Development Team
 **FROM:** Executive Producer (Showrunner)
 **PROJECT:** [derive name from seed idea]
-**STATUS:** DEAD ON ARRIVAL — ETHICAL VIOLATION
+**STATUS:** DEAD ON ARRIVAL — ETHICAL VIOLATION (CONFIRMED AFTER REVIEW)
 **FINAL SCORE: 0/100**
 
 Include:
 1. **The Verdict** — one scathing paragraph on the ethical failures
 2. **Ethical Violations** — itemize every violation the Field Producer identified
-3. **Legal & PR Exposure** — what lawsuits, permit revocations, or PR disasters would result
-4. **Industry Consequences** — how this would affect the production company's reputation and future commissions
-5. **Final Note** — a memorable closing line
+3. **Proportionality Review** — note that this was re-checked and the rejection stands
+4. **Legal & PR Exposure** — what lawsuits, permit revocations, or PR disasters would result
+5. **Industry Consequences** — how this would affect the production company's reputation
+6. **Final Note** — a memorable closing line
 
 Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEAD.`,
-            cbs
-        );
+                cbs
+            );
 
-        cbs.onPhaseComplete(2);
-        return ctx.finalPitchDeck;
+            cbs.onPhaseComplete(3);
+            return ctx.finalPitchDeck;
+        }
     }
 
     cbs.onPhaseComplete(1);
