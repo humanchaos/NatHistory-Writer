@@ -651,6 +651,7 @@ USE MODE 3 when the user's request involves ANY of these:
 - Pivoting the entire concept direction
 - Any change that would affect MORE than 3 sections of the deck
 - The user says "implement all suggestions" or asks for sweeping changes
+- The user asks to reach a specific score target (e.g., "get it to 90", "reach 85")
 
 YOUR OUTPUT MUST contain this EXACT XML tag — this is machine-parsed, not human-read:
 
@@ -676,6 +677,7 @@ DECISION GUIDE — REWRITE vs RERUN:
 - "Frame it as a survival thriller" → RERUN (genre pivot, affects all sections)
 - "Make the narration more poetic" → REWRITE (style, localized)
 - "Implement all suggestions" → RERUN (sweeping multi-section changes)
+- "Can you get it to 90?" → RERUN (score-target improvement across all sections)
 
 CRITICAL RULES:
 - If the user says "rewrite", "change", "make it", "improve", "sharpen", "fix" — evaluate scope first
@@ -1006,6 +1008,18 @@ qaForm.addEventListener('submit', async (e) => {
                 const scorecard = await evaluatePitchDeck(lastPitchDeck, 'Refinement evaluation');
                 renderScorecard(scorecard);
                 scorecardEl.classList.remove('hidden');
+
+                // Sync the header badge with the evaluator score
+                const scoreBadge = document.getElementById('gatekeeper-score-badge');
+                const badgesEl = document.getElementById('gatekeeper-badges');
+                if (scoreBadge && badgesEl) {
+                    const s = scorecard.overall;
+                    const icon = s >= 80 ? '✅' : s >= 60 ? '⚠️' : '⛔';
+                    scoreBadge.textContent = `${icon} ${s}/100`;
+                    scoreBadge.className = `gatekeeper-badge gatekeeper-score ${s >= 80 ? 'score-green' : s >= 60 ? 'score-amber' : s >= 40 ? 'score-orange' : 'score-red'}`;
+                    badgesEl.classList.remove('hidden');
+                }
+
                 typingMsg.innerHTML = md(`✓ Quality Scorecard updated — Overall: **${scorecard.overall}/100**`);
             } catch (err) {
                 typingMsg.innerHTML = `<em>Error running evaluator: ${err.message}</em>`;
@@ -1180,6 +1194,17 @@ async function autoScore(pitchDeck, seedIdea) {
     try {
         const scorecard = await evaluatePitchDeck(pitchDeck, seedIdea);
         renderScorecard(scorecard);
+
+        // Sync the header badge with the evaluator score
+        const scoreBadge = document.getElementById('gatekeeper-score-badge');
+        const badgesEl = document.getElementById('gatekeeper-badges');
+        if (scoreBadge && badgesEl) {
+            const s = scorecard.overall;
+            const icon = s >= 80 ? '✅' : s >= 60 ? '⚠️' : '⛔';
+            scoreBadge.textContent = `${icon} ${s}/100`;
+            scoreBadge.className = `gatekeeper-badge gatekeeper-score ${s >= 80 ? 'score-green' : s >= 60 ? 'score-amber' : s >= 40 ? 'score-orange' : 'score-red'}`;
+            badgesEl.classList.remove('hidden');
+        }
     } catch (err) {
         console.warn('Auto-scoring failed:', err.message);
     }
