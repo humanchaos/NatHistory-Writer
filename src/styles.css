@@ -1731,6 +1731,38 @@ h4 {
   opacity: 0.5;
 }
 
+/* ─── Rerun Proposals (blue, distinct from rewrites) ── */
+.rerun-proposal {
+  border-color: rgba(66, 165, 245, 0.35) !important;
+  background: rgba(66, 165, 245, 0.06) !important;
+}
+
+.rerun-proposal .rewrite-header {
+  background: rgba(66, 165, 245, 0.12);
+  border-bottom-color: rgba(66, 165, 245, 0.2);
+}
+
+.rerun-proposal .rewrite-section {
+  color: #42a5f5;
+}
+
+.rerun-proposal .rewrite-rationale {
+  border-bottom-color: rgba(66, 165, 245, 0.12);
+}
+
+.rerun-proposal .rewrite-actions {
+  border-top-color: rgba(66, 165, 245, 0.2);
+}
+
+.rerun-proposal .rewrite-accept {
+  background: rgba(66, 165, 245, 0.15);
+  color: #42a5f5;
+}
+
+.rerun-proposal .rewrite-accept:hover {
+  background: rgba(66, 165, 245, 0.3);
+}
+
 /* ─── Agent Results ────────────────────────────────── */
 .agent-result-header {
   display: flex;

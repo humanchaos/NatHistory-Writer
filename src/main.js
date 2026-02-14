@@ -597,10 +597,9 @@ const AGENT_COMMANDS = {
     '/gatekeeper': { agent: ADVERSARY, label: '🛡️ Gatekeeper', tools: [] },
 };
 
-// Build the refinement system prompt
 function buildRefinementPrompt(deck) {
     return `You are a senior wildlife documentary consultant helping refine a Master Pitch Deck.
-You operate in two modes based on the user's input:
+You operate in THREE modes based on the user's input:
 
 ═══════════════════════════════════════════
 MODE 1 — ANSWER (default)
@@ -609,10 +608,12 @@ When the user asks a QUESTION (who, what, why, how, explain, tell me, etc.), ans
 from context. Be concise, use markdown formatting.
 
 ═══════════════════════════════════════════
-MODE 2 — REWRITE
+MODE 2 — REWRITE (surface edits)
 ═══════════════════════════════════════════
-When the user asks you to CHANGE, REWRITE, IMPROVE, EDIT, or MAKE something different
-in the deck, you MUST respond with a rewrite block in this EXACT format:
+For SMALL, LOCALIZED changes — improving wording, sharpening a logline, fixing a specific
+paragraph, tweaking tone. These are cosmetic edits that don't change the fundamental concept.
+
+Respond with a rewrite block in this EXACT format:
 
 <rewrite>
 <section>The section title or description being replaced (e.g., "Logline", "Act 2", "A/V Script")</section>
@@ -628,11 +629,45 @@ Your rewritten version in full markdown
 You can include multiple <rewrite> blocks if the edit affects multiple sections.
 You may add brief commentary BEFORE the rewrite block, but the block itself must be present.
 
+═══════════════════════════════════════════
+MODE 3 — RERUN (fundamental changes)
+═══════════════════════════════════════════
+For FUNDAMENTAL changes that affect the entire pitch — changing the narrative angle,
+adding/changing a host or presenter, switching species, changing the story structure,
+pivoting the concept, changing the target audience, or any request that would require
+ALL sections of the deck to be reconsidered.
+
+These changes CANNOT be handled by swapping a few paragraphs. They require the entire
+multi-agent pipeline to re-run with the new creative direction.
+
+USE MODE 3 when the user's request involves ANY of these:
+- Changing the narrative perspective or angle (e.g., "make it about a host")
+- Adding or changing a presenter/host character
+- Fundamentally changing the story structure (e.g., "make it a heist movie")
+- Switching primary species or location
+- Pivoting the entire concept direction
+- Any change that would affect MORE than 3 sections of the deck
+
+Respond with EXACTLY this format:
+
+<rerun>The user's creative direction summarized as a clear, actionable directive for the production team</rerun>
+
+Followed by a brief explanation of why this requires a full pipeline rerun.
+
+DECISION GUIDE — REWRITE vs RERUN:
+- "Sharpen the logline" → REWRITE (one section, cosmetic)
+- "Make Act 2 more tense" → REWRITE (one section, tone)
+- "Add a host who explores the wild" → RERUN (fundamental narrative shift)
+- "Change the species to snow leopards" → RERUN (changes everything)
+- "Frame it as a survival thriller" → RERUN (genre pivot, affects all sections)
+- "Make the narration more poetic" → REWRITE (style, localized)
+- "Center the story on human-wildlife conflict" → RERUN (concept pivot)
+
 CRITICAL RULES:
-- If the user says "rewrite", "change", "make it", "improve", "sharpen", "fix" — use MODE 2
-- The <original> text must be a real excerpt from the current deck (does not need to be exact, just identifiable)
-- The <revised> text must be a complete replacement, not a diff
-- Never use MODE 2 when the user is just asking a question
+- If the user says "rewrite", "change", "make it", "improve", "sharpen", "fix" — evaluate scope first
+- The <original> text in REWRITE must be a real excerpt from the current deck
+- Never use MODE 2 or MODE 3 when the user is just asking a question
+- When in doubt between REWRITE and RERUN, prefer RERUN — it's better to rebuild than to patch
 
 ═══════════════════════════════════════════
 CURRENT PITCH DECK
@@ -946,26 +981,114 @@ qaForm.addEventListener('submit', async (e) => {
         else if (AGENT_COMMANDS[lowerQ]) {
             await handleAgentCommand(lowerQ, typingMsg);
         }
-        // Regular chat (questions + edit directives)
+        // Regular chat (questions + edit directives + auto-rerun detection)
         else {
             const response = await chatSession.send(question);
 
-            // Check for rewrite blocks
-            const blocks = parseRewriteBlocks(response);
-            const commentary = getCommentary(response);
+            // Check for <rerun> tag first (Mode 3 — fundamental changes)
+            const rerunMatch = response.match(/<rerun>([\s\S]*?)<\/rerun>/i);
+            if (rerunMatch && lastSeedIdea) {
+                const directive = rerunMatch[1].trim();
+                const commentary = response.replace(/<rerun>[\s\S]*?<\/rerun>/gi, '').trim();
 
-            if (blocks.length > 0) {
-                // Has rewrite proposals
                 typingMsg.className = 'qa-msg assistant';
-                typingMsg.innerHTML = commentary ? md(commentary) : '';
+                typingMsg.innerHTML = `
+                    ${commentary ? md(commentary) : ''}
+                    <div class="rewrite-proposal rerun-proposal">
+                        <div class="rewrite-header">
+                            <span class="rewrite-icon">🔄</span>
+                            <span class="rewrite-section">Full Pipeline Rerun</span>
+                        </div>
+                        <div class="rewrite-rationale">${directive}</div>
+                        <div class="rewrite-actions">
+                            <button class="rewrite-accept rerun-accept-btn">🚀 Rerun Pipeline</button>
+                            <button class="rewrite-reject rerun-reject-btn">✗ Cancel</button>
+                        </div>
+                    </div>
+                `;
 
-                for (const block of blocks) {
-                    renderRewriteProposal(block, typingMsg);
-                }
+                // Wire up the rerun accept button
+                typingMsg.querySelector('.rerun-accept-btn').addEventListener('click', async () => {
+                    const actionsEl = typingMsg.querySelector('.rewrite-actions');
+                    actionsEl.innerHTML = '<span class="rewrite-status accepted">🔄 Running full pipeline…</span>';
+
+                    // Save current deck for undo
+                    revisionHistory.push(lastPitchDeck);
+
+                    // Add progress log
+                    const logEl = document.createElement('div');
+                    logEl.className = 'rerun-log';
+                    logEl.id = 'rerun-log-auto';
+                    typingMsg.querySelector('.rerun-proposal').appendChild(logEl);
+
+                    const addLog = (msg) => {
+                        const entry = document.createElement('div');
+                        entry.className = 'rerun-log-entry';
+                        entry.innerHTML = msg;
+                        logEl.appendChild(entry);
+                        qaMessages.scrollTop = qaMessages.scrollHeight;
+                    };
+
+                    try {
+                        const rerunCallbacks = {
+                            onPhaseStart: (n, name) => addLog(`<span class="rerun-phase">Phase ${n}:</span> ${name}`),
+                            onAgentThinking: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> thinking…`),
+                            onAgentOutput: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> ✓ complete`),
+                            onPhaseComplete: () => { },
+                        };
+
+                        const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
+                        const targetPlatform = targetPlatformInput.value || null;
+
+                        const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
+                            platform: targetPlatform,
+                            year: prodYear,
+                            directive: directive,
+                        });
+
+                        // Update everything
+                        lastPitchDeck = newDeck;
+                        pitchDeckContent.innerHTML = md(newDeck);
+                        pitchDeckContent.classList.add('deck-updated');
+                        setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
+                        updateGatekeeperBadges(newDeck);
+                        updateRevisionBadge();
+                        saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
+
+                        // Rebuild chat session with new deck
+                        chatSession = createChat(buildRefinementPrompt(newDeck));
+                        chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
+
+                        addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
+                    } catch (err) {
+                        addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
+                    }
+                });
+
+                // Wire up cancel button
+                typingMsg.querySelector('.rerun-reject-btn').addEventListener('click', () => {
+                    typingMsg.querySelector('.rewrite-actions').innerHTML = '<span class="rewrite-status rejected">✗ Cancelled</span>';
+                    typingMsg.querySelector('.rerun-proposal').classList.add('rewrite-rejected');
+                });
+
             } else {
-                // Pure Q&A response
-                typingMsg.className = 'qa-msg assistant';
-                typingMsg.innerHTML = md(response);
+                // Check for rewrite blocks (Mode 2)
+                const blocks = parseRewriteBlocks(response);
+                const commentary = getCommentary(response);
+
+                if (blocks.length > 0) {
+                    // Has rewrite proposals
+                    typingMsg.className = 'qa-msg assistant';
+                    typingMsg.innerHTML = commentary ? md(commentary) : '';
+
+                    for (const block of blocks) {
+                        renderRewriteProposal(block, typingMsg);
+                    }
+                } else {
+                    // Pure Q&A response (Mode 1)
+                    typingMsg.className = 'qa-msg assistant';
+                    typingMsg.innerHTML = md(response);
+                }
             }
         }
     } catch (err) {
