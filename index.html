@@ -169,18 +169,24 @@
         <span id="gatekeeper-platform-badge" class="gatekeeper-badge gatekeeper-platform"></span>
       </div>
       <p>Greenlit & Approved</p>
+      <div class="deck-actions">
+        <button id="btn-copy-deck" class="deck-action-btn" title="Copy to clipboard">📋 Copy</button>
+        <button id="btn-export-docx" class="deck-action-btn" title="Export as DOCX">📄 Export DOCX</button>
+      </div>
     </div>
     <div id="pitch-deck-content" class="pitch-deck-content"></div>
 
-    <!-- ═══════ Results Q&A Chat ═══════ -->
+    <!-- ═══════ Refinement Chat ═══════ -->
     <div id="qa-chat" class="qa-chat">
       <div class="qa-chat-header">
-        <span class="qa-chat-icon">💬</span>
-        <span>Ask about these results</span>
+        <span class="qa-chat-icon">🔧</span>
+        <span>Refine this pitch deck</span>
+        <span id="revision-badge" class="revision-badge hidden">v1</span>
+        <button id="btn-chat-help" class="chat-help-btn" title="Show commands">/help</button>
       </div>
       <div id="qa-messages" class="qa-messages"></div>
       <form id="qa-form" class="qa-form">
-        <input type="text" id="qa-input" class="qa-input" placeholder="Ask a question about the pitch deck…"
+        <input type="text" id="qa-input" class="qa-input" placeholder="Ask, edit, or type /help for commands…"
           autocomplete="off" />
         <button type="submit" class="qa-send" id="qa-send">→</button>
       </form>

@@ -9,7 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0"
+    "@google/generative-ai": "^0.21.0",
+    "docx": "^9.5.2",
+    "file-saver": "^2.0.5",
+    "marked": "^17.0.2"
   },
   "devDependencies": {
     "vercel": "^50.17.1",

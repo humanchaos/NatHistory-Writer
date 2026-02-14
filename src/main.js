@@ -1,68 +1,28 @@
-import { initGemini, createChat } from './agents/gemini.js';
+import { initGemini, createChat, callAgent } from './agents/gemini.js';
 import { runPipeline, runAssessment } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById } from './history.js';
 import { chunkText } from './knowledge/chunker.js';
 import { embedBatch } from './knowledge/embeddings.js';
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
 import { evaluatePitchDeck, runDryrun } from './quality/evaluator.js';
+import {
+    MARKET_ANALYST,
+    CHIEF_SCIENTIST,
+    FIELD_PRODUCER,
+    STORY_PRODUCER,
+    COMMISSIONING_EDITOR,
+    SHOWRUNNER,
+    ADVERSARY,
+} from './agents/personas.js';
+import { marked } from 'marked';
+import { exportDOCX } from './export.js';
 
-// ─── Markdown Renderer ────────────────────────────────
+// ─── Markdown Renderer (powered by marked) ───────────
+marked.setOptions({ breaks: true, gfm: true });
+
 function md(text) {
     if (!text) return '';
-    let html = text
-        // Escape HTML
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Tables — convert pipe-delimited rows
-    html = html.replace(
-        /^(\|.+\|)\n(\|[\s:|-]+\|)\n((?:\|.+\|\n?)*)/gm,
-        (_, headerRow, _sep, bodyRows) => {
-            const headers = headerRow.split('|').filter(Boolean).map(h => h.trim());
-            const thCells = headers.map(h => `<th>${h}</th>`).join('');
-            const rows = bodyRows.trim().split('\n').map(row => {
-                const cells = row.split('|').filter(Boolean).map(c => `<td>${c.trim()}</td>`).join('');
-                return `<tr>${cells}</tr>`;
-            }).join('');
-            return `<table><thead><tr>${thCells}</tr></thead><tbody>${rows}</tbody></table>`;
-        }
-    );
-
-    // Headers
-    html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-    // Bold & italic
-    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Blockquotes
-    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-
-    // Horizontal rules
-    html = html.replace(/^---$/gm, '<hr>');
-
-    // Lists
-    html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
-    html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/((?:<li>.+<\/li>\n?)+)/g, '<ul>$1</ul>');
-
-    // Paragraphs
-    html = html.replace(/\n{2,}/g, '</p><p>');
-    html = '<p>' + html + '</p>';
-    html = html.replace(/<p>\s*<(h[1-4]|table|ul|ol|blockquote|hr)/g, '<$1');
-    html = html.replace(/<\/(h[1-4]|table|ul|ol|blockquote)>\s*<\/p>/g, '</$1>');
-    html = html.replace(/<hr>\s*<\/p>/g, '<hr>');
-    html = html.replace(/<p>\s*<\/p>/g, '');
-
-    return html;
+    return marked.parse(text);
 }
 
 // ─── Init ─────────────────────────────────────────────
@@ -118,6 +78,40 @@ const qaSend = document.getElementById('qa-send');
 // Chat state
 let chatSession = null;
 let lastPitchDeck = '';
+
+// Deck action buttons
+const btnCopyDeck = document.getElementById('btn-copy-deck');
+const btnExportDOCX = document.getElementById('btn-export-docx');
+const btnChatHelp = document.getElementById('btn-chat-help');
+
+btnCopyDeck.addEventListener('click', async () => {
+    if (!lastPitchDeck) return;
+    try {
+        await navigator.clipboard.writeText(lastPitchDeck);
+        btnCopyDeck.textContent = '✓ Copied!';
+        setTimeout(() => { btnCopyDeck.textContent = '📋 Copy'; }, 2000);
+    } catch {
+        showError('Failed to copy to clipboard');
+    }
+});
+
+btnExportDOCX.addEventListener('click', async () => {
+    if (!lastPitchDeck) return;
+    try {
+        btnExportDOCX.textContent = '⏳ Exporting…';
+        await exportDOCX(lastPitchDeck, 'Master Pitch Deck');
+        btnExportDOCX.textContent = '✓ Exported!';
+        setTimeout(() => { btnExportDOCX.textContent = '📄 Export DOCX'; }, 2000);
+    } catch (err) {
+        showError(`Export failed: ${err.message}`);
+        btnExportDOCX.textContent = '📄 Export DOCX';
+    }
+});
+
+btnChatHelp.addEventListener('click', () => {
+    qaInput.value = '/help';
+    qaForm.dispatchEvent(new Event('submit'));
+});
 
 // Scorecard elements
 const scorecardEl = document.getElementById('scorecard');
@@ -584,24 +578,235 @@ seedForm.addEventListener('submit', async (e) => {
     }
 });
 
-// ─── Results Q&A Chat ─────────────────────────────────
-function initChatSession(pitchDeck) {
-    lastPitchDeck = pitchDeck;
-    qaMessages.innerHTML = '';
+// ─── Chat Refinement Engine ───────────────────────────
+// Revision history for undo support
+let revisionHistory = [];
 
-    chatSession = createChat(
-        `You are a helpful assistant discussing the results of a wildlife film scriptment process.
-You have access to the complete Master Pitch Deck that was generated. Answer questions about the content,
-explain creative decisions, suggest improvements, compare alternatives, or help refine specific sections.
-Be concise but thorough. Use markdown formatting for clarity.
+// Agent-on-demand lookup table
+const AGENT_COMMANDS = {
+    '/market': { agent: MARKET_ANALYST, label: '📊 Market Analyst', tools: [{ googleSearch: {} }] },
+    '/science': { agent: CHIEF_SCIENTIST, label: '🔬 Chief Scientist', tools: [{ googleSearch: {} }] },
+    '/producer': { agent: FIELD_PRODUCER, label: '🎥 Field Producer', tools: [] },
+    '/story': { agent: STORY_PRODUCER, label: '✍️ Story Producer', tools: [] },
+    '/editor': { agent: COMMISSIONING_EDITOR, label: '⚔️ Commissioning Editor', tools: [] },
+    '/showrunner': { agent: SHOWRUNNER, label: '🎬 Showrunner', tools: [] },
+    '/gatekeeper': { agent: ADVERSARY, label: '🛡️ Gatekeeper', tools: [] },
+};
 
-Here is the full Master Pitch Deck:\n\n${pitchDeck}`
-    );
+// Build the refinement system prompt
+function buildRefinementPrompt(deck) {
+    return `You are a senior wildlife documentary consultant helping refine a Master Pitch Deck.
+You operate in two modes based on the user's input:
 
-    // Send an initial context-setting message silently
-    chatSession.send('I have received the Master Pitch Deck. I\'m ready to answer questions about it.').catch(() => { });
+═══════════════════════════════════════════
+MODE 1 — ANSWER (default)
+═══════════════════════════════════════════
+When the user asks a QUESTION (who, what, why, how, explain, tell me, etc.), answer it
+from context. Be concise, use markdown formatting.
+
+═══════════════════════════════════════════
+MODE 2 — REWRITE
+═══════════════════════════════════════════
+When the user asks you to CHANGE, REWRITE, IMPROVE, EDIT, or MAKE something different
+in the deck, you MUST respond with a rewrite block in this EXACT format:
+
+<rewrite>
+<section>The section title or description being replaced (e.g., "Logline", "Act 2", "A/V Script")</section>
+<original>
+The exact original text being replaced (copy from the current deck)
+</original>
+<revised>
+Your rewritten version in full markdown
+</revised>
+<rationale>One sentence explaining what changed and why</rationale>
+</rewrite>
+
+You can include multiple <rewrite> blocks if the edit affects multiple sections.
+You may add brief commentary BEFORE the rewrite block, but the block itself must be present.
+
+CRITICAL RULES:
+- If the user says "rewrite", "change", "make it", "improve", "sharpen", "fix" — use MODE 2
+- The <original> text must be a real excerpt from the current deck (does not need to be exact, just identifiable)
+- The <revised> text must be a complete replacement, not a diff
+- Never use MODE 2 when the user is just asking a question
+
+═══════════════════════════════════════════
+CURRENT PITCH DECK
+═══════════════════════════════════════════
+
+${deck}`;
 }
 
+function initChatSession(pitchDeck) {
+    lastPitchDeck = pitchDeck;
+    revisionHistory = [];
+    qaMessages.innerHTML = '';
+
+    chatSession = createChat(buildRefinementPrompt(pitchDeck));
+
+    // Send an initial context-setting message silently
+    chatSession.send('I have received the Master Pitch Deck. I am ready to answer questions about it or make refinements. The user can also use slash commands like /gatekeeper, /market, /science, /editor to invoke specific agents.').catch(() => { });
+
+    // Update the revision badge
+    updateRevisionBadge();
+}
+
+function updateRevisionBadge() {
+    const badge = document.getElementById('revision-badge');
+    if (badge) {
+        if (revisionHistory.length > 0) {
+            badge.textContent = `v${revisionHistory.length + 1}`;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+// Parse <rewrite> blocks from assistant response
+function parseRewriteBlocks(text) {
+    const blocks = [];
+    const regex = /<rewrite>([\s\S]*?)<\/rewrite>/gi;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        const inner = match[1];
+        const section = inner.match(/<section>([\s\S]*?)<\/section>/i)?.[1]?.trim() || 'Unknown Section';
+        const original = inner.match(/<original>([\s\S]*?)<\/original>/i)?.[1]?.trim() || '';
+        const revised = inner.match(/<revised>([\s\S]*?)<\/revised>/i)?.[1]?.trim() || '';
+        const rationale = inner.match(/<rationale>([\s\S]*?)<\/rationale>/i)?.[1]?.trim() || '';
+        blocks.push({ section, original, revised, rationale, fullMatch: match[0] });
+    }
+    return blocks;
+}
+
+// Get text outside of rewrite blocks (commentary)
+function getCommentary(text) {
+    return text.replace(/<rewrite>[\s\S]*?<\/rewrite>/gi, '').trim();
+}
+
+// Apply a rewrite to the live deck
+function applyRewrite(original, revised) {
+    // Save current state for undo
+    revisionHistory.push(lastPitchDeck);
+
+    // Try exact match first, then fuzzy (first 80 chars)
+    if (lastPitchDeck.includes(original)) {
+        lastPitchDeck = lastPitchDeck.replace(original, revised);
+    } else {
+        // Fuzzy: find the closest matching section by looking for the first line
+        const firstLine = original.split('\n')[0].trim();
+        if (firstLine && lastPitchDeck.includes(firstLine)) {
+            // Find the paragraph containing this line and replace it
+            const sections = lastPitchDeck.split(/\n(?=#{1,4} )/);
+            for (let i = 0; i < sections.length; i++) {
+                if (sections[i].includes(firstLine)) {
+                    sections[i] = revised;
+                    break;
+                }
+            }
+            lastPitchDeck = sections.join('\n');
+        } else {
+            // Fallback: append the revision
+            lastPitchDeck += '\n\n' + revised;
+        }
+    }
+
+    // Re-render the pitch deck
+    pitchDeckContent.innerHTML = md(lastPitchDeck);
+
+    // Pulse animation on the deck
+    pitchDeckContent.classList.add('deck-updated');
+    setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
+
+    // Update badges
+    updateGatekeeperBadges(lastPitchDeck);
+    updateRevisionBadge();
+
+    // Update the chat session's context with the new deck
+    chatSession = createChat(buildRefinementPrompt(lastPitchDeck));
+    chatSession.send('The deck has been updated with the accepted revision. I am ready for further refinements.').catch(() => { });
+}
+
+// Render a rewrite proposal with Accept/Reject
+function renderRewriteProposal(block, container) {
+    const proposal = document.createElement('div');
+    proposal.className = 'rewrite-proposal';
+    proposal.innerHTML = `
+        <div class="rewrite-header">
+            <span class="rewrite-icon">✏️</span>
+            <span class="rewrite-section">${block.section}</span>
+        </div>
+        <div class="rewrite-rationale">${block.rationale}</div>
+        <div class="rewrite-content">${md(block.revised)}</div>
+        <div class="rewrite-actions">
+            <button class="rewrite-accept">✓ Accept</button>
+            <button class="rewrite-reject">✗ Reject</button>
+        </div>
+    `;
+
+    proposal.querySelector('.rewrite-accept').addEventListener('click', () => {
+        applyRewrite(block.original, block.revised);
+        proposal.classList.add('rewrite-accepted');
+        proposal.querySelector('.rewrite-actions').innerHTML = '<span class="rewrite-status accepted">✓ Applied to deck</span>';
+    });
+
+    proposal.querySelector('.rewrite-reject').addEventListener('click', () => {
+        proposal.classList.add('rewrite-rejected');
+        proposal.querySelector('.rewrite-actions').innerHTML = '<span class="rewrite-status rejected">✗ Discarded</span>';
+    });
+
+    container.appendChild(proposal);
+}
+
+// Handle agent-on-demand slash commands
+async function handleAgentCommand(command, typingMsg) {
+    const cmd = AGENT_COMMANDS[command];
+    if (!cmd) return false;
+
+    typingMsg.className = 'qa-msg assistant agent-result';
+    typingMsg.innerHTML = `<div class="agent-invoking"><span class="dots"><span></span><span></span><span></span></span> Invoking ${cmd.label}…</div>`;
+
+    try {
+        const agentPrompt = `You are reviewing the following Master Pitch Deck. Run your full analysis and provide your assessment.
+
+### Master Pitch Deck
+${lastPitchDeck}
+
+Deliver your complete analysis in your standard format.`;
+
+        const result = await callAgent(cmd.agent.systemPrompt, agentPrompt, { tools: cmd.tools });
+
+        typingMsg.innerHTML = `
+            <div class="agent-result-header">
+                <span class="agent-result-icon">${cmd.agent.icon}</span>
+                <span class="agent-result-name">${cmd.agent.name}</span>
+            </div>
+            <div class="agent-result-content">${md(result)}</div>
+        `;
+    } catch (err) {
+        typingMsg.innerHTML = `<em>Error invoking ${cmd.label}: ${err.message}</em>`;
+    }
+
+    return true;
+}
+
+// Handle /undo command
+function handleUndo() {
+    if (revisionHistory.length === 0) return 'No revisions to undo.';
+
+    lastPitchDeck = revisionHistory.pop();
+    pitchDeckContent.innerHTML = md(lastPitchDeck);
+    updateGatekeeperBadges(lastPitchDeck);
+    updateRevisionBadge();
+
+    // Update chat context
+    chatSession = createChat(buildRefinementPrompt(lastPitchDeck));
+    chatSession.send('The deck has been reverted to the previous version.').catch(() => { });
+
+    return `✓ Reverted to v${revisionHistory.length + 1}. ${revisionHistory.length} revision(s) remaining in history.`;
+}
+
+// Main chat submit handler
 qaForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const question = qaInput.value.trim();
@@ -626,11 +831,77 @@ qaForm.addEventListener('submit', async (e) => {
     qaInput.disabled = true;
 
     try {
-        const response = await chatSession.send(question);
+        const lowerQ = question.toLowerCase().trim();
 
-        // Replace typing with response
-        typingMsg.className = 'qa-msg assistant';
-        typingMsg.innerHTML = md(response);
+        // Handle /undo
+        if (lowerQ === '/undo') {
+            typingMsg.className = 'qa-msg assistant';
+            typingMsg.innerHTML = md(handleUndo());
+        }
+        // Handle /help
+        else if (lowerQ === '/help') {
+            typingMsg.className = 'qa-msg assistant';
+            typingMsg.innerHTML = md(`**Available commands:**
+- \`/market\` — Re-run Market Analyst assessment
+- \`/science\` — Re-run Chief Scientist verification
+- \`/producer\` — Re-run Field Producer logistics
+- \`/story\` — Re-run Story Producer review
+- \`/editor\` — Re-run Commissioning Editor critique
+- \`/showrunner\` — Re-run Showrunner analysis
+- \`/gatekeeper\` — Re-run Gatekeeper audit
+- \`/score\` — Re-run Quality Evaluator
+- \`/undo\` — Revert last accepted edit
+- \`/copy\` — Copy deck to clipboard
+- \`/export\` — Export as DOCX
+
+**Edit directives:** "Rewrite the logline", "Make Act 2 darker", "Sharpen the hook"
+**Questions:** "Why this species?", "Explain the market positioning"`);
+        }
+        // Handle /copy
+        else if (lowerQ === '/copy') {
+            await navigator.clipboard.writeText(lastPitchDeck);
+            typingMsg.className = 'qa-msg assistant';
+            typingMsg.innerHTML = md('✓ Pitch deck copied to clipboard.');
+        }
+        // Handle /score
+        else if (lowerQ === '/score') {
+            typingMsg.className = 'qa-msg assistant';
+            typingMsg.innerHTML = '<div class="agent-invoking"><span class="dots"><span></span><span></span><span></span></span> Running Quality Evaluator…</div>';
+            try {
+                const scorecard = await evaluatePitchDeck(lastPitchDeck, 'Refinement evaluation');
+                renderScorecard(scorecard);
+                scorecardEl.classList.remove('hidden');
+                typingMsg.innerHTML = md(`✓ Quality Scorecard updated — Overall: **${scorecard.overall}/100**`);
+            } catch (err) {
+                typingMsg.innerHTML = `<em>Error running evaluator: ${err.message}</em>`;
+            }
+        }
+        // Handle agent commands
+        else if (AGENT_COMMANDS[lowerQ]) {
+            await handleAgentCommand(lowerQ, typingMsg);
+        }
+        // Regular chat (questions + edit directives)
+        else {
+            const response = await chatSession.send(question);
+
+            // Check for rewrite blocks
+            const blocks = parseRewriteBlocks(response);
+            const commentary = getCommentary(response);
+
+            if (blocks.length > 0) {
+                // Has rewrite proposals
+                typingMsg.className = 'qa-msg assistant';
+                typingMsg.innerHTML = commentary ? md(commentary) : '';
+
+                for (const block of blocks) {
+                    renderRewriteProposal(block, typingMsg);
+                }
+            } else {
+                // Pure Q&A response
+                typingMsg.className = 'qa-msg assistant';
+                typingMsg.innerHTML = md(response);
+            }
+        }
     } catch (err) {
         typingMsg.className = 'qa-msg assistant';
         typingMsg.innerHTML = `<em>Error: ${err.message}</em>`;

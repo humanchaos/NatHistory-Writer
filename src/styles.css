@@ -1557,6 +1557,232 @@ h4 {
   cursor: not-allowed;
 }
 
+/* ─── Deck Action Buttons ──────────────────────────── */
+.deck-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.deck-action-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.deck-action-btn:hover {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+/* ─── Revision Badge ───────────────────────────────── */
+.revision-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Chat Help Button ─────────────────────────────── */
+.chat-help-btn {
+  margin-left: auto;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.chat-help-btn:hover {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+/* ─── Rewrite Proposals ────────────────────────────── */
+.rewrite-proposal {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(218, 165, 32, 0.05);
+  animation: cardFadeIn 0.3s var(--ease-out);
+}
+
+.rewrite-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: rgba(218, 165, 32, 0.1);
+  border-bottom: 1px solid rgba(218, 165, 32, 0.15);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.rewrite-icon {
+  font-size: 1rem;
+}
+
+.rewrite-section {
+  color: var(--accent-gold);
+}
+
+.rewrite-rationale {
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  border-bottom: 1px solid rgba(218, 165, 32, 0.1);
+}
+
+.rewrite-content {
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.rewrite-content h1,
+.rewrite-content h2,
+.rewrite-content h3,
+.rewrite-content h4 {
+  color: var(--text-primary);
+  margin-top: 0.5rem;
+}
+
+.rewrite-content strong {
+  color: var(--text-primary);
+}
+
+.rewrite-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid rgba(218, 165, 32, 0.15);
+}
+
+.rewrite-accept,
+.rewrite-reject {
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.rewrite-accept {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+}
+
+.rewrite-accept:hover {
+  background: rgba(76, 175, 80, 0.3);
+}
+
+.rewrite-reject {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+.rewrite-reject:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+.rewrite-status {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.rewrite-status.accepted {
+  color: #4CAF50;
+}
+
+.rewrite-status.rejected {
+  color: var(--text-muted);
+}
+
+.rewrite-proposal.rewrite-accepted {
+  border-color: rgba(76, 175, 80, 0.3);
+  background: rgba(76, 175, 80, 0.03);
+}
+
+.rewrite-proposal.rewrite-rejected {
+  opacity: 0.5;
+}
+
+/* ─── Agent Results ────────────────────────────────── */
+.agent-result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.agent-result-icon {
+  font-size: 1.2rem;
+}
+
+.agent-result-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.agent-result-content {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.agent-invoking {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Deck Updated Pulse ───────────────────────────── */
+@keyframes deckPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(218, 165, 32, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(218, 165, 32, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(218, 165, 32, 0);
+  }
+}
+
+.deck-updated {
+  animation: deckPulse 1.5s ease-out;
+}
+
 /* ─── Quality Scorecard ─────────────────────────────── */
 .scorecard-section {
   max-width: 900px;
