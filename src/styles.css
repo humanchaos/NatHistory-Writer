@@ -1783,6 +1783,30 @@ h4 {
   animation: deckPulse 1.5s ease-out;
 }
 
+/* ─── Rerun Progress Log ───────────────────────────── */
+.rerun-log {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.rerun-log-entry {
+  padding: 0.15rem 0;
+  color: var(--text-muted);
+  animation: cardFadeIn 0.2s var(--ease-out);
+}
+
+.rerun-phase {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.rerun-agent {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 /* ─── Quality Scorecard ─────────────────────────────── */
 .scorecard-section {
   max-width: 900px;

@@ -74,12 +74,13 @@ function extractScore(agentOutput) {
  */
 export async function runPipeline(seedIdea, cbs, opts = {}) {
     const ctx = { seedIdea };
-    const { platform = null, year = null } = opts;
+    const { platform = null, year = null, directive = null } = opts;
 
     // Build optional context strings
     const platformNote = platform ? `\n\n🎯 TARGET PLATFORM: This pitch is being developed specifically for **${platform}**. Tailor all recommendations — tone, format, budget tier, episode structure — to ${platform}'s commissioning style and audience.\n` : '';
     const yearNote = year ? `\n📅 TARGET PRODUCTION YEAR: ${year}. Calibrate all technology, market, and trend references to this year.\n` : '';
-    const optionsSuffix = platformNote + yearNote;
+    const directiveNote = directive ? `\n\n🎯 CREATIVE DIRECTIVE (MANDATORY): ${directive}\nThis directive comes directly from the executive producer. ALL agents must incorporate this requirement into their analysis and output. It is non-negotiable.\n` : '';
+    const optionsSuffix = platformNote + yearNote + directiveNote;
 
     // Retrieve relevant knowledge from the vector store (no-op if empty)
     let knowledgeContext = '';

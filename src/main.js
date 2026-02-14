@@ -78,6 +78,7 @@ const qaSend = document.getElementById('qa-send');
 // Chat state
 let chatSession = null;
 let lastPitchDeck = '';
+let lastSeedIdea = '';
 
 // Deck action buttons
 const btnCopyDeck = document.getElementById('btn-copy-deck');
@@ -550,6 +551,9 @@ seedForm.addEventListener('submit', async (e) => {
             ? await runAssessment(inputText, pipelineCallbacks, prodYear)
             : await runPipeline(inputText, pipelineCallbacks, { platform: targetPlatform, year: prodYear });
 
+        // Track the seed idea for /rerun
+        lastSeedIdea = inputText;
+
         // Save to history
         saveRun({ seedIdea: inputText, finalPitchDeck });
 
@@ -838,6 +842,67 @@ qaForm.addEventListener('submit', async (e) => {
             typingMsg.className = 'qa-msg assistant';
             typingMsg.innerHTML = md(handleUndo());
         }
+        // Handle /rerun
+        else if (lowerQ.startsWith('/rerun')) {
+            const directive = question.slice(6).trim();
+            if (!directive) {
+                typingMsg.className = 'qa-msg assistant';
+                typingMsg.innerHTML = md('**Usage:** `/rerun <your creative direction>`\n\nExample: `/rerun The story must center on a host who leaves the studio and confronts the wild`');
+            } else if (!lastSeedIdea) {
+                typingMsg.className = 'qa-msg assistant';
+                typingMsg.innerHTML = md('No previous pipeline run found. Run the pipeline first, then use `/rerun`.');
+            } else {
+                // Save current deck for undo
+                revisionHistory.push(lastPitchDeck);
+
+                typingMsg.className = 'qa-msg assistant rerun-progress';
+                typingMsg.innerHTML = `<div class="agent-invoking"><span class="dots"><span></span><span></span><span></span></span> Re-running full pipeline with directive…</div><div class="rerun-log" id="rerun-log"></div>`;
+
+                const rerunLog = typingMsg.querySelector('#rerun-log');
+                const addLog = (msg) => {
+                    const entry = document.createElement('div');
+                    entry.className = 'rerun-log-entry';
+                    entry.innerHTML = msg;
+                    rerunLog.appendChild(entry);
+                    qaMessages.scrollTop = qaMessages.scrollHeight;
+                };
+
+                try {
+                    const rerunCallbacks = {
+                        onPhaseStart: (n, name) => addLog(`<span class="rerun-phase">Phase ${n}:</span> ${name}`),
+                        onAgentThinking: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> thinking…`),
+                        onAgentOutput: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> ✓ complete`),
+                        onPhaseComplete: () => { },
+                    };
+
+                    const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
+                    const targetPlatform = targetPlatformInput.value || null;
+
+                    const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
+                        platform: targetPlatform,
+                        year: prodYear,
+                        directive: directive,
+                    });
+
+                    // Update everything
+                    lastPitchDeck = newDeck;
+                    pitchDeckContent.innerHTML = md(newDeck);
+                    pitchDeckContent.classList.add('deck-updated');
+                    setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
+                    updateGatekeeperBadges(newDeck);
+                    updateRevisionBadge();
+                    saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
+
+                    // Rebuild chat session with new deck
+                    chatSession = createChat(buildRefinementPrompt(newDeck));
+                    chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
+
+                    addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
+                } catch (err) {
+                    addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
+                }
+            }
+        }
         // Handle /help
         else if (lowerQ === '/help') {
             typingMsg.className = 'qa-msg assistant';
@@ -850,6 +915,7 @@ qaForm.addEventListener('submit', async (e) => {
 - \`/showrunner\` — Re-run Showrunner analysis
 - \`/gatekeeper\` — Re-run Gatekeeper audit
 - \`/score\` — Re-run Quality Evaluator
+- \`/rerun <direction>\` — **Re-run full pipeline** with creative direction
 - \`/undo\` — Revert last accepted edit
 - \`/copy\` — Copy deck to clipboard
 - \`/export\` — Export as DOCX
