@@ -644,18 +644,29 @@ These changes CANNOT be handled by swapping a few paragraphs. They require the e
 multi-agent pipeline to re-run with the new creative direction.
 
 USE MODE 3 when the user's request involves ANY of these:
-- Changing the narrative perspective or angle (e.g., "make it about a host")
+- Changing the narrative perspective or angle
 - Adding or changing a presenter/host character
-- Fundamentally changing the story structure (e.g., "make it a heist movie")
+- Fundamentally changing the story structure
 - Switching primary species or location
 - Pivoting the entire concept direction
 - Any change that would affect MORE than 3 sections of the deck
+- The user says "implement all suggestions" or asks for sweeping changes
 
-Respond with EXACTLY this format:
+YOUR OUTPUT MUST contain this EXACT XML tag — this is machine-parsed, not human-read:
 
-<rerun>The user's creative direction summarized as a clear, actionable directive for the production team</rerun>
+<rerun>your one-paragraph directive summarizing the creative change</rerun>
 
-Followed by a brief explanation of why this requires a full pipeline rerun.
+EXAMPLE 1 — User says "Add a host who confronts the wild":
+<rerun>Restructure the entire pitch around a charismatic presenter-host who leaves the studio and enters the field. All sections must be rewritten to feature the host's journey as the narrative spine, with species encounters framed through the host's perspective rather than pure observational wildlife filmmaking.</rerun>
+
+This requires a full rerun because adding a host changes the narrative structure, scriptment, visual approach, and talent requirements across every section.
+
+EXAMPLE 2 — User says "implement all the suggestions to reach score 85":
+<rerun>Apply all identified improvements: strengthen the ecological imperative with verified conservation data, elevate existential stakes beyond simple survival, substantiate key animal behaviors with peer-reviewed sources, and ensure the host/presenter profile is compelling for the target platform. Target overall quality score of 85+.</rerun>
+
+This requires a full rerun because the changes span every section of the deck.
+
+CRITICAL: You MUST output the <rerun>...</rerun> XML tag. Do NOT describe what a rerun would do in plain text. The tag triggers an automated pipeline — without it, nothing happens.
 
 DECISION GUIDE — REWRITE vs RERUN:
 - "Sharpen the logline" → REWRITE (one section, cosmetic)
@@ -664,13 +675,14 @@ DECISION GUIDE — REWRITE vs RERUN:
 - "Change the species to snow leopards" → RERUN (changes everything)
 - "Frame it as a survival thriller" → RERUN (genre pivot, affects all sections)
 - "Make the narration more poetic" → REWRITE (style, localized)
-- "Center the story on human-wildlife conflict" → RERUN (concept pivot)
+- "Implement all suggestions" → RERUN (sweeping multi-section changes)
 
 CRITICAL RULES:
 - If the user says "rewrite", "change", "make it", "improve", "sharpen", "fix" — evaluate scope first
 - The <original> text in REWRITE must be a real excerpt from the current deck
 - Never use MODE 2 or MODE 3 when the user is just asking a question
 - When in doubt between REWRITE and RERUN, prefer RERUN — it's better to rebuild than to patch
+- NEVER output the phrase "The user's creative direction summarized" — that is a template instruction, not output
 
 ═══════════════════════════════════════════
 CURRENT PITCH DECK
