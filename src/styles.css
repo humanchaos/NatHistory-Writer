@@ -1466,6 +1466,58 @@ h4 {
   color: var(--text-primary);
 }
 
+/* ─── Chat Welcome & Suggestions ───────────────────── */
+.chat-welcome {
+  max-width: 100% !important;
+  background: transparent !important;
+  padding: 0.5rem 0 !important;
+}
+
+.welcome-text {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+}
+
+.suggestion-group {
+  margin-bottom: 0.6rem;
+}
+
+.suggestion-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 0.35rem;
+}
+
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.suggestion-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+
+.suggestion-chip:hover {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  transform: translateY(-1px);
+}
+
 .qa-msg.typing {
   color: var(--text-muted);
   font-style: italic;

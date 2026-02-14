@@ -686,6 +686,55 @@ function initChatSession(pitchDeck) {
     // Send an initial context-setting message silently
     chatSession.send('I have received the Master Pitch Deck. I am ready to answer questions about it or make refinements. The user can also use slash commands like /gatekeeper, /market, /science, /editor to invoke specific agents.').catch(() => { });
 
+    // Add welcome message with suggestion chips
+    const welcomeMsg = document.createElement('div');
+    welcomeMsg.className = 'qa-msg assistant chat-welcome';
+    welcomeMsg.innerHTML = `
+        <div class="welcome-text">Ready to refine your pitch deck. Try one of these:</div>
+        <div class="suggestion-group">
+            <div class="suggestion-label">💬 Ask</div>
+            <div class="suggestion-chips">
+                <button class="suggestion-chip" data-msg="Why this species over other options?">Why this species?</button>
+                <button class="suggestion-chip" data-msg="Explain the market positioning">Market positioning?</button>
+                <button class="suggestion-chip" data-msg="What makes this pitch unique?">What's unique?</button>
+            </div>
+        </div>
+        <div class="suggestion-group">
+            <div class="suggestion-label">✏️ Edit</div>
+            <div class="suggestion-chips">
+                <button class="suggestion-chip" data-msg="Sharpen the logline to be more cinematic">Sharpen the logline</button>
+                <button class="suggestion-chip" data-msg="Make Act 2 more tense and dramatic">Make Act 2 darker</button>
+                <button class="suggestion-chip" data-msg="Improve the executive summary to hook commissioners faster">Improve exec summary</button>
+            </div>
+        </div>
+        <div class="suggestion-group">
+            <div class="suggestion-label">🔄 Transform</div>
+            <div class="suggestion-chips">
+                <button class="suggestion-chip" data-msg="Add a host who leaves the studio and confronts the wild firsthand">Add a presenter host</button>
+                <button class="suggestion-chip" data-msg="Frame this as a survival thriller, not a nature documentary">Make it a thriller</button>
+            </div>
+        </div>
+        <div class="suggestion-group">
+            <div class="suggestion-label">🤖 Agents</div>
+            <div class="suggestion-chips">
+                <button class="suggestion-chip" data-msg="/gatekeeper">/gatekeeper</button>
+                <button class="suggestion-chip" data-msg="/market">/market</button>
+                <button class="suggestion-chip" data-msg="/score">/score</button>
+                <button class="suggestion-chip" data-msg="/help">/help</button>
+            </div>
+        </div>
+    `;
+
+    // Wire up chip clicks
+    welcomeMsg.querySelectorAll('.suggestion-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            qaInput.value = chip.dataset.msg;
+            qaInput.focus();
+        });
+    });
+
+    qaMessages.appendChild(welcomeMsg);
+
     // Update the revision badge
     updateRevisionBadge();
 }
