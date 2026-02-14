@@ -797,6 +797,13 @@ h4 {
   color: var(--accent-gold);
 }
 
+.deck-version-badge {
+  font-size: 0.9rem;
+  color: rgba(212, 175, 55, 0.6);
+  font-weight: 400;
+  margin-left: 0.25rem;
+}
+
 .pitch-deck-header p {
   color: var(--accent-green);
   font-weight: 500;

@@ -721,13 +721,20 @@ function initChatSession(pitchDeck) {
 
 function updateRevisionBadge() {
     const badge = document.getElementById('revision-badge');
+    const deckBadge = document.getElementById('deck-version-badge');
+    const version = revisionHistory.length + 1;
+
     if (badge) {
         if (revisionHistory.length > 0) {
-            badge.textContent = `v${revisionHistory.length + 1}`;
+            badge.textContent = `v${version}`;
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
         }
+    }
+
+    if (deckBadge) {
+        deckBadge.textContent = revisionHistory.length > 0 ? `v${version}` : '';
     }
 }
 
