@@ -21,6 +21,8 @@ async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }, agen
     return result;
 }
 
+const MAX_REVISIONS = 3;
+
 /**
  * Detect if an agent output contains a ⛔ REJECTION signal.
  * Returns { rejected: boolean, type: string|null }
@@ -108,52 +110,39 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         { tools: [{ googleSearch: {} }] }
     );
 
-    // ─── KILL SWITCH: Check for scientific rejection ──────
-    const scienceCheck = detectRejection(ctx.animalFactSheet);
-    if (scienceCheck.rejected) {
-        cbs.onPhaseComplete(1);
+    // ─── SCIENCE GATE: Pivot loop instead of kill switch ──────
+    let scienceAttempts = 0;
+    while (detectRejection(ctx.animalFactSheet).rejected && scienceAttempts < MAX_REVISIONS) {
+        scienceAttempts++;
+        cbs.onPhaseStart(1, `🔄 Science Pivot — Attempt ${scienceAttempts}/${MAX_REVISIONS}`);
 
-        // Skip straight to final output — a brutal rejection memo
-        cbs.onPhaseStart(2, '⛔ Pipeline Halted — Scientific Rejection');
+        // Ask the Scientist to propose the closest viable alternative
+        ctx.animalFactSheet = await agentStep(
+            CHIEF_SCIENTIST,
+            `## SCIENCE PIVOT REQUIRED
 
-        ctx.finalPitchDeck = await agentStep(
-            SHOWRUNNER,
-            `## ⛔ PIPELINE HALTED — SCIENTIFIC REJECTION
+Your previous assessment flagged this idea as scientifically problematic:
 
-The Chief Scientist has REJECTED this idea as scientifically invalid. The pipeline is being terminated.
-
-### Original Seed Idea
-"${seedIdea}"
-
-### Market Analyst's Assessment
-${ctx.marketMandate}
-
-### Chief Scientist's REJECTION
+### Your Rejection:
 ${ctx.animalFactSheet}
 
-Your job: Write a BRUTAL, no-nonsense INTERNAL REJECTION MEMO.
+### Original Seed Idea:
+"${seedIdea}"
 
-Format it as:
-## INTERNAL REJECTION MEMO
-**TO:** Creative Development Team
-**FROM:** Executive Producer (Showrunner)
-**PROJECT:** [derive name from seed idea]
-**STATUS:** DEAD ON ARRIVAL
-**FINAL SCORE: 0/100**
+### Market Context:
+${ctx.marketMandate}
 
-Include:
-1. **The Verdict** — one scathing paragraph summarizing why this is dead
-2. **Scientific Impossibilities** — itemize every scientific failure the Scientist identified
-3. **Why This Cannot Be Fixed** — explain why no amount of revision can save a fundamentally impossible premise
-4. **Reputational Risk** — what would happen to the production company if this were pitched to Disney+/BBC/Netflix
-5. **Final Note** — a memorable closing line that makes it clear this idea should never be resurrected
+The pipeline does NOT kill ideas — it ITERATES them. Your job now:
 
-Do NOT suggest alternative ideas. Do NOT try to salvage any element. This idea is DEAD.`,
-            cbs
+1. **Identify what IS scientifically valid** in the seed idea — what elements can be preserved?
+2. **Propose the CLOSEST viable alternative** — keep the spirit/theme of the original idea but make it scientifically sound. If the user wanted "deep ocean survival," find a real deep ocean survival behavior. If they wanted "predator-prey in the Arctic," find one that exists.
+3. **Maintain the user's intent** — they chose this topic for a reason. Don't pivot to something completely unrelated.
+4. **Produce a complete Animal Fact Sheet** with all required sections (Primary Species, Antagonist, Vulnerability Window, Novelty, B-Story, Biome, Ethics, Visual Payoff)
+
+You are a CREATIVE SCIENTIST, not a gatekeeper. Find a way to make it work.`,
+            cbs,
+            { tools: [{ googleSearch: {} }] }
         );
-
-        cbs.onPhaseComplete(2);
-        return ctx.finalPitchDeck;
     }
 
     ctx.logisticsBreakdown = await agentStep(
@@ -196,51 +185,45 @@ If the concept FUNDAMENTALLY REQUIRES unethical methods (there is NO observation
 
         cbs.onPhaseComplete(2);
 
-        // STAGE 2: Check if the revised assessment still rejects
-        const ethicsRecheck = detectRejection(ctx.logisticsBreakdown);
-        if (ethicsRecheck.rejected) {
-            // Genuine ethical rejection — halt the pipeline
-            cbs.onPhaseStart(3, '⛔ Pipeline Halted — Ethical Rejection');
+        // STAGE 2: If still rejected, iterate with Scientist proposing ethical alternatives
+        let ethicsAttempts = 0;
+        while (detectRejection(ctx.logisticsBreakdown).rejected && ethicsAttempts < MAX_REVISIONS) {
+            ethicsAttempts++;
+            cbs.onPhaseStart(1, `🔄 Ethical Pivot — Attempt ${ethicsAttempts}/${MAX_REVISIONS}`);
 
-            ctx.finalPitchDeck = await agentStep(
-                SHOWRUNNER,
-                `## ⛔ PIPELINE HALTED — ETHICAL REJECTION (CONFIRMED)
+            // Ask the Scientist to propose an ethically filmable approach
+            ctx.animalFactSheet = await agentStep(
+                CHIEF_SCIENTIST,
+                `## ETHICAL PIVOT REQUIRED
 
-The Field Producer has TWICE rejected this idea due to severe ethical violations — even after a proportionality re-check. This is a genuine ethical failure, not a false positive. The pipeline is being terminated.
+The Field Producer has flagged ethical concerns with the proposed filming approach — even after a proportionality re-check. We need an alternative approach that preserves the core idea but is ethically filmable using standard observational techniques.
 
-### Original Seed Idea
-"${seedIdea}"
-
-### Chief Scientist's Assessment
-${ctx.animalFactSheet}
-
-### Field Producer's CONFIRMED REJECTION
+### Field Producer's Ethical Concerns:
 ${ctx.logisticsBreakdown}
 
-Your job: Write a BRUTAL, no-nonsense INTERNAL REJECTION MEMO.
+### Your Previous Fact Sheet:
+${ctx.animalFactSheet}
 
-Format it as:
-## INTERNAL REJECTION MEMO
-**TO:** Creative Development Team
-**FROM:** Executive Producer (Showrunner)
-**PROJECT:** [derive name from seed idea]
-**STATUS:** DEAD ON ARRIVAL — ETHICAL VIOLATION (CONFIRMED AFTER REVIEW)
-**FINAL SCORE: 0/100**
+### Original Seed Idea:
+"${seedIdea}"
 
-Include:
-1. **The Verdict** — one scathing paragraph on the ethical failures
-2. **Ethical Violations** — itemize every violation the Field Producer identified
-3. **Proportionality Review** — note that this was re-checked and the rejection stands
-4. **Legal & PR Exposure** — what lawsuits, permit revocations, or PR disasters would result
-5. **Industry Consequences** — how this would affect the production company's reputation
-6. **Final Note** — a memorable closing line
+Your job:
+1. **Keep the core idea** — same general theme, location, or species if possible
+2. **Remove or replace any methods the Field Producer flagged** — propose filming approaches that use ONLY observational techniques (remote cameras, hides, long lenses, autonomous drones, probe lenses)
+3. **If the specific behavior is the problem**, propose a DIFFERENT behavior of the same or closely related species that achieves the same cinematic effect without ethical issues
+4. **Produce a revised complete Animal Fact Sheet** — ensure the ethical red flags section explicitly addresses the Field Producer's concerns with specific mitigation protocols
 
-Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEAD.`,
-                cbs
+The pipeline iterates, it does not kill. Find a way.`,
+                cbs,
+                { tools: [{ googleSearch: {} }] }
             );
 
-            cbs.onPhaseComplete(3);
-            return ctx.finalPitchDeck;
+            // Re-run Field Producer on the revised approach
+            ctx.logisticsBreakdown = await agentStep(
+                FIELD_PRODUCER,
+                `The seed idea is: "${seedIdea}"${kbBlock}\n\nHere is the REVISED Animal Fact Sheet from the Chief Scientist (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your full Logistics & Feasibility Breakdown.`,
+                cbs
+            );
         }
     }
 
@@ -315,45 +298,64 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
         cbs
     );
 
-    // ─── QUALITY GATE: Check V2 review score ──────────────
-    const v2Score = extractScore(ctx.greenlightReview);
-    if (v2Score !== null && v2Score < 70) {
-        cbs.onPhaseComplete(4);
+    // ─── QUALITY GATE: Multi-draft revision loop ──────────────
+    let currentDraft = ctx.draftV2;
+    let currentReview = ctx.greenlightReview;
+    let currentScore = extractScore(currentReview);
+    let draftNumber = 2;
+    let bestDraft = currentDraft;
+    let bestScore = currentScore ?? 0;
+    let bestReview = currentReview;
 
-        cbs.onPhaseStart(5, '⛔ Pipeline Halted — Failed Quality Gate');
+    while (currentScore !== null && currentScore < 70 && draftNumber < 2 + MAX_REVISIONS) {
+        draftNumber++;
+        cbs.onPhaseStart(4, `🔄 Quality Revision — Draft V${draftNumber}`);
 
-        ctx.finalPitchDeck = await agentStep(
+        // Showrunner issues tighter revision directives
+        const tighterDirectives = await agentStep(
             SHOWRUNNER,
-            `## ⛔ PIPELINE HALTED — FAILED QUALITY GATE
+            `The Commissioning Editor scored Draft V${draftNumber - 1} at ${currentScore}/100 — below the 70/100 threshold. This is revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.
 
-The Commissioning Editor scored Draft V2 at ${v2Score}/100, which is below the minimum quality threshold of 70/100. After one full revision cycle, this pitch has failed to meet broadcast standards.
+### Editor's Review (${currentScore}/100):
+${currentReview}
 
-### Original Seed Idea
+### The Draft That Failed:
+${currentDraft}
+
+### Original Seed Idea:
 "${seedIdea}"
 
-### Editor's V1 Rejection
-${ctx.rejectionMemo}
-
-### Editor's V2 Review (${v2Score}/100)
-${ctx.greenlightReview}
-
-### Draft V2 Script
-${ctx.draftV2}
-
-Your job: Write a FINAL INTERNAL MEMO that:
-1. **Acknowledges the persistent weaknesses** — quote the Editor's specific unresolved concerns
-2. **Diagnoses root cause** — why couldn't the team fix these issues in one revision cycle?
-3. **Recommends disposition** — should this be shelved, fundamentally reconceived, or given to a different creative team?
-4. **Salvageable Elements** — if any individual component (science, market angle, visual approach) has value, name it
-5. **Final Score: ${v2Score}/100** — present this prominently
-
-This is not a rejection memo that kills the idea forever — it's a professional assessment that the CURRENT EXECUTION failed. The seed may have merit; the pitch does not.`,
+Issue SURGICAL revision directives. Focus ONLY on the specific failings the Editor identified. Do not request a complete rewrite — target the exact weaknesses.`,
             cbs
         );
 
-        cbs.onPhaseComplete(5);
-        return ctx.finalPitchDeck;
+        // Story Producer writes the next draft
+        currentDraft = await agentStep(
+            STORY_PRODUCER,
+            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
+            cbs
+        );
+
+        // Editor reviews the new draft
+        currentReview = await agentStep(
+            COMMISSIONING_EDITOR,
+            `This is Draft V${draftNumber} — revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.\n\nPrevious review (V${draftNumber - 1}, ${currentScore}/100):\n${currentReview}\n\n### Draft Script (V${draftNumber}):\n${currentDraft}\n\nReview the revisions. Have the specific failings been addressed? Score the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what SPECIFICALLY still needs work.`,
+            cbs
+        );
+
+        currentScore = extractScore(currentReview);
+
+        // Track the best version
+        if (currentScore !== null && currentScore > bestScore) {
+            bestScore = currentScore;
+            bestDraft = currentDraft;
+            bestReview = currentReview;
+        }
     }
+
+    // Use the best draft achieved
+    ctx.draftV2 = bestDraft;
+    ctx.greenlightReview = bestReview;
 
     cbs.onPhaseComplete(4);
 
@@ -434,19 +436,69 @@ Deliver your verdict in the specified format. Be brutal. Be specific. Cite exact
 
     cbs.onPhaseComplete(6);
 
-    // ─── ADVERSARY ENFORCEMENT GATE ──────────────────────
-    const gatekeeperScore = extractScore(ctx.gatekeeperVerdict);
-    const verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
-    const isHardReject = verdictUpper.includes('BURN IT DOWN') ||
+    // ─── ADVERSARY GATE: Revision loop instead of kill switch ──────
+    let gatekeeperScore = extractScore(ctx.gatekeeperVerdict);
+    let verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
+    let isHardReject = verdictUpper.includes('BURN IT DOWN') ||
         (verdictUpper.includes('REJECTED') && !verdictUpper.includes('GREENLIT'));
-    const isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
+    let isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
+    let adversaryAttempts = 0;
 
-    if (isHardReject || isFatalScore) {
-        // Gatekeeper killed it — replace polished deck with rejection
-        return `## ⛔ GATEKEEPER REJECTION — PITCH BLOCKED\n\nThe Gatekeeper has **rejected** this pitch with a score of **${gatekeeperScore ?? '?'}/100**. The Master Pitch Deck will NOT be forwarded to commissioners.\n\n---\n\n${ctx.gatekeeperVerdict}\n\n---\n\n### Archived Pitch Deck (For Reference Only)\n\n<details>\n<summary>Click to expand the rejected pitch deck</summary>\n\n${ctx.finalPitchDeck}\n\n</details>`;
+    while ((isHardReject || isFatalScore) && adversaryAttempts < MAX_REVISIONS) {
+        adversaryAttempts++;
+        cbs.onPhaseStart(6, `🔄 Gatekeeper Revision — Attempt ${adversaryAttempts}/${MAX_REVISIONS}`);
+
+        // Feed Adversary critique back to Showrunner for revision
+        ctx.finalPitchDeck = await agentStep(
+            SHOWRUNNER,
+            `The Gatekeeper has REJECTED this pitch (${gatekeeperScore ?? '?'}/100). This is revision attempt ${adversaryAttempts} of ${MAX_REVISIONS}.
+
+### Gatekeeper's Critique:
+${ctx.gatekeeperVerdict}
+
+### Current Pitch Deck:
+${ctx.finalPitchDeck}
+
+### Original Seed Idea:
+"${seedIdea}"
+
+Address the Gatekeeper's SPECIFIC concerns:
+1. If they flagged derivative content — differentiate more aggressively, find a unique angle
+2. If they flagged market saturation — pivot the positioning or target a different platform
+3. If they flagged scientific/factual issues — correct them using the approved science
+4. If they flagged boring/generic — sharpen the hook, raise the stakes, add cinematic specificity
+
+Produce a REVISED Master Pitch Deck. Do not just change wording — address the structural concerns.`,
+            cbs
+        );
+
+        // Adversary reviews the revision
+        ctx.gatekeeperVerdict = await agentStep(
+            ADVERSARY,
+            `You previously REJECTED this pitch (${gatekeeperScore ?? '?'}/100). The Showrunner has revised it based on your critique. This is revision ${adversaryAttempts} of ${MAX_REVISIONS}.${kbBlock}${optionsSuffix}
+
+### Your Previous Critique:
+${ctx.gatekeeperVerdict}
+
+### REVISED Pitch Deck:
+${ctx.finalPitchDeck}
+
+### Original Seed Idea:
+"${seedIdea}"
+
+Re-evaluate. Have your core concerns been addressed? Run your full audit again. If the revision genuinely fixes the problems, you MAY upgrade your verdict. If the core issues persist, explain what SPECIFICALLY still fails.`,
+            cbs
+        );
+
+        // Re-evaluate
+        gatekeeperScore = extractScore(ctx.gatekeeperVerdict);
+        verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
+        isHardReject = verdictUpper.includes('BURN IT DOWN') ||
+            (verdictUpper.includes('REJECTED') && !verdictUpper.includes('GREENLIT'));
+        isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
     }
 
-    // Append the Gatekeeper's verdict to the final deck
+    // Always append the Gatekeeper's verdict — never block
     return ctx.finalPitchDeck + '\n\n---\n\n' + ctx.gatekeeperVerdict;
 }
 

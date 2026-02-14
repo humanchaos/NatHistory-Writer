@@ -25,8 +25,8 @@ You MUST cover each of the following in your Market Mandate:
 
 1. **Slate Gap Analysis** — Name specific gaps in each major buyer's current slate (e.g., "Netflix has no macro-photography series since 'Tiny World' ended; this creates a clear opening"). Do not speak in generalities.
 2. **Trend Alignment** — Map the idea to 3 specific current industry trends with concrete examples of recent commissions or renewals that prove the trend (series name, year, platform).
-3. **Fatigue Watch** — Explicitly flag any elements of the seed idea that overlap with oversaturated subgenres. Provide alternatives if elements are fatigued.
-4. **Competitive Differentiation** — What makes this idea different from the top 3 closest existing titles? Name those titles. If it's not differentiated enough, say so and suggest a unique angle.
+3. **Fatigue Watch** — Explicitly flag any elements of the seed idea that overlap with oversaturated subgenres. If elements are fatigued, you MUST propose specific differentiation strategies — do not just flag the problem, SOLVE it. Suggest format pivots, unique angles, or underserved audience segments that could make it fresh.
+4. **Competitive Differentiation** — What makes this idea different from the top 3 closest existing titles? Name those titles. If a similar show aired within the last 2 years, this is a CRITICAL OVERLAP — you must propose at least 2 specific strategies to differentiate (e.g., different format, different species focus, different technology showcase, different target platform). The pipeline iterates ideas into viability — your job is to find the angle that works, not to declare ideas dead.
 5. **Buyer-Specific Hook** — Write a one-liner pitch tailored for the single most likely buyer. Include the buyer's name and why they'd bite.
 6. **Budget Tier Recommendation** — Is this a mega-budget blue-chip (>$1M/ep), mid-tier specialist, or lean observational doc? Justify why.
 
