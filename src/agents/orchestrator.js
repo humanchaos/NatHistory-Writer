@@ -158,7 +158,7 @@ Do NOT suggest alternative ideas. Do NOT try to salvage any element. This idea i
 
     ctx.logisticsBreakdown = await agentStep(
         FIELD_PRODUCER,
-        `The seed idea is: "${seedIdea}"\n\nHere is the Animal Fact Sheet from the Chief Scientist:\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your full Logistics & Feasibility Breakdown.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}\n\nHere is the Animal Fact Sheet from the Chief Scientist:\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your full Logistics & Feasibility Breakdown.`,
         cbs
     );
 
@@ -226,7 +226,7 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
 
     ctx.draftV1 = await agentStep(
         STORY_PRODUCER,
-        `The seed idea is: "${seedIdea}"${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into:\n1. A 3-Act narrative outline with a SPECIFIC ticking clock, at least 3 escalating obstacles in Act 2, a midpoint reversal, and a resonant closing image\n2. 3 visual signature "hero shots" described with camera angle, lens, and biological action\n3. A dual-column A/V script excerpt (minimum 8 rows) with sound design notes\n\nCRITICAL CINEMATIC STANDARD: Treat the animal as a cinematic protagonist in a GENRE (thriller, survival epic, heist, horror chase). The iguana vs. snakes in Planet Earth II was a HORROR-THRILLER ESCAPE, not a "predator-prey study." Genre-ify your narrative.\n\nCamera language must emphasize PROXIMITY and SUBJECTIVE POV — ground-level gimbal tracking, not clinical observation from distance. The audience must feel the terrain, the heat, the urgency.\n\nDefine a HYPER-REAL SOUNDSCAPE — claws scraping on rock, heartbeats in moments of exhaustion, wind fading. Not generic ambient audio.\n\nNarration must be SPARSE and POETIC. Cut expository lines. Let silences breathe. "He is a trespasser in his own land" > "The lizard must compete for territory."\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into:\n1. A 3-Act narrative outline with a SPECIFIC ticking clock, at least 3 escalating obstacles in Act 2, a midpoint reversal, and a resonant closing image\n2. 3 visual signature "hero shots" described with camera angle, lens, and biological action\n3. A dual-column A/V script excerpt (minimum 8 rows) with sound design notes\n\nCRITICAL CINEMATIC STANDARD: Treat the animal as a cinematic protagonist in a GENRE (thriller, survival epic, heist, horror chase). The iguana vs. snakes in Planet Earth II was a HORROR-THRILLER ESCAPE, not a "predator-prey study." Genre-ify your narrative.\n\nCamera language must emphasize PROXIMITY and SUBJECTIVE POV — ground-level gimbal tracking, not clinical observation from distance. The audience must feel the terrain, the heat, the urgency.\n\nDefine a HYPER-REAL SOUNDSCAPE — claws scraping on rock, heartbeats in moments of exhaustion, wind fading. Not generic ambient audio.\n\nNarration must be SPARSE and POETIC. Cut expository lines. Let silences breathe. "He is a trespasser in his own land" > "The lizard must compete for territory."\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
         cbs
     );
 
@@ -239,7 +239,7 @@ Do NOT suggest ethical alternatives. Do NOT try to salvage. This approach is DEA
 
     ctx.rejectionMemo = await agentStep(
         COMMISSIONING_EDITOR,
-        `Review the following Draft V1 pitch package:\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 6 vectors: Cliché Detector, Unicorn Hunt, Disneyfication Scan, Budget Reality Check, Narrative Integrity, and PR/Ethics Risk.\n\nADDITIONALLY test the CINEMATIC STANDARD:\n- Does it feel like a GENRE piece (thriller, survival epic) or a clinical biology lecture?\n- Camera language: proximity/subjective POV or clinical observation from distance?\n- Sound design: hyper-real foley or generic ambient?\n- Narration: sparse/poetic or expository?\n- B-Story: woven in or just listed as backup?\n\nQuote specific failing passages. Find at LEAST two substantive flaws and score UNDER 85.`,
+        `Review the following Draft V1 pitch package:${kbBlock}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 6 vectors: Cliché Detector, Unicorn Hunt, Disneyfication Scan, Budget Reality Check, Narrative Integrity, and PR/Ethics Risk.\n\nADDITIONALLY test the CINEMATIC STANDARD:\n- Does it feel like a GENRE piece (thriller, survival epic) or a clinical biology lecture?\n- Camera language: proximity/subjective POV or clinical observation from distance?\n- Sound design: hyper-real foley or generic ambient?\n- Narration: sparse/poetic or expository?\n- B-Story: woven in or just listed as backup?\n\nQuote specific failing passages. Find at LEAST two substantive flaws and score UNDER 85.`,
         cbs
     );
 
@@ -329,7 +329,7 @@ This is not a rejection memo that kills the idea forever — it's a professional
 
     ctx.finalPitchDeck = await agentStep(
         SHOWRUNNER,
-        `The Commissioning Editor has given the Greenlight. Compile the final Master Pitch Deck.
+        `The Commissioning Editor has given the Greenlight. Compile the final Master Pitch Deck.${kbBlock}
 
 Use ALL of the following approved materials:
 
@@ -383,7 +383,7 @@ This must read as ONE cohesive, polished document — not a collage of agent out
 
     ctx.gatekeeperVerdict = await agentStep(
         ADVERSARY,
-        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${optionsSuffix}
+        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${kbBlock}${optionsSuffix}
 
 Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.
 
