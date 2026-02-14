@@ -50,16 +50,22 @@ export async function callAgent(systemPrompt, userMessage, { retries = 2, tools 
 
 /**
  * Create a multi-turn chat session with a system prompt.
+ * Optionally accepts tools (e.g. Google Search grounding).
  * Returns an object with send(message) → Promise<string>.
  */
-export function createChat(systemPrompt) {
+export function createChat(systemPrompt, { tools = [] } = {}) {
     if (!genAI) initGemini();
 
-    const model = genAI.getGenerativeModel({
+    const modelConfig = {
         model: 'gemini-2.0-flash',
         systemInstruction: { parts: [{ text: systemPrompt }] },
-    });
+    };
 
+    if (tools.length > 0) {
+        modelConfig.tools = tools;
+    }
+
+    const model = genAI.getGenerativeModel(modelConfig);
     const chat = model.startChat();
 
     return {

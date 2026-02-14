@@ -17,6 +17,9 @@ import {
 import { marked } from 'marked';
 import { exportDOCX } from './export.js';
 
+// Google Search grounding for the refinement chat
+const SEARCH_TOOLS = [{ googleSearch: {} }];
+
 // ─── Markdown Renderer (powered by marked) ───────────
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -681,7 +684,7 @@ function initChatSession(pitchDeck) {
     revisionHistory = [];
     qaMessages.innerHTML = '';
 
-    chatSession = createChat(buildRefinementPrompt(pitchDeck));
+    chatSession = createChat(buildRefinementPrompt(pitchDeck), { tools: SEARCH_TOOLS });
 
     // Send an initial context-setting message silently
     chatSession.send('I have received the Master Pitch Deck. I am ready to answer questions about it or make refinements. The user can also use slash commands like /gatekeeper, /market, /science, /editor to invoke specific agents.').catch(() => { });
@@ -776,8 +779,7 @@ function applyRewrite(original, revised) {
     updateRevisionBadge();
 
     // Update the chat session's context with the new deck
-    chatSession = createChat(buildRefinementPrompt(lastPitchDeck));
-    chatSession.send('The deck has been updated with the accepted revision. I am ready for further refinements.').catch(() => { });
+    chatSession = createChat(buildRefinementPrompt(lastPitchDeck), { tools: SEARCH_TOOLS });
 }
 
 // Render a rewrite proposal with Accept/Reject
@@ -853,8 +855,7 @@ function handleUndo() {
     updateRevisionBadge();
 
     // Update chat context
-    chatSession = createChat(buildRefinementPrompt(lastPitchDeck));
-    chatSession.send('The deck has been reverted to the previous version.').catch(() => { });
+    chatSession = createChat(buildRefinementPrompt(lastPitchDeck), { tools: SEARCH_TOOLS });
 
     return `✓ Reverted to v${revisionHistory.length + 1}. ${revisionHistory.length} revision(s) remaining in history.`;
 }
@@ -943,7 +944,7 @@ qaForm.addEventListener('submit', async (e) => {
                     saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
 
                     // Rebuild chat session with new deck
-                    chatSession = createChat(buildRefinementPrompt(newDeck));
+                    chatSession = createChat(buildRefinementPrompt(newDeck), { tools: SEARCH_TOOLS });
                     chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
 
                     addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
@@ -1070,7 +1071,7 @@ qaForm.addEventListener('submit', async (e) => {
                         saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
 
                         // Rebuild chat session with new deck
-                        chatSession = createChat(buildRefinementPrompt(newDeck));
+                        chatSession = createChat(buildRefinementPrompt(newDeck), { tools: SEARCH_TOOLS });
                         chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
 
                         addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
