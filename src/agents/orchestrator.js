@@ -408,7 +408,12 @@ Quality Checks Before Finalizing:
 - Camera language must emphasize proximity/subjective POV throughout
 - Narration in the script must be sparse and poetic, not expository
 
-This must read as ONE cohesive, polished document — not a collage of agent outputs.`,
+CRITICAL FORMAT RULES:
+- Output ONLY the pitch deck content — no preamble, no agent commentary, no "Okay, Showrunner here"
+- Do NOT include action items, revision directives, or routing instructions
+- Do NOT reference the pipeline process, other agents, or internal deliberation
+- Start directly with the Working Title, not with meta-commentary
+- This must read as ONE cohesive, polished document — not a collage of agent outputs.`,
         cbs
     );
 
@@ -469,7 +474,17 @@ Address the Gatekeeper's SPECIFIC concerns:
 3. If they flagged scientific/factual issues — correct them using the approved science
 4. If they flagged boring/generic — sharpen the hook, raise the stakes, add cinematic specificity
 
-Produce a REVISED Master Pitch Deck. Do not just change wording — address the structural concerns.`,
+Produce a REVISED Master Pitch Deck with the EXACT same format:
+1. Working Title
+2. Logline
+3. Market Attractiveness Rating
+4. Executive Summary
+5. Market Justification
+6. Scientific Backbone & Backup B-Story
+7. Logistics & Required Camera Tech
+8. The Final A/V Scriptment (3-Act Summary, Dual-Column Script Table, Visual Signature Moments)
+
+CRITICAL: Output ONLY the revised pitch deck. No preamble ("Okay, Showrunner here..."), no action items, no routing instructions, no agent meta-commentary. Start directly with the Working Title.`,
             cbs
         );
 
@@ -500,7 +515,31 @@ Re-evaluate. Have your core concerns been addressed? Run your full audit again. 
     }
 
     // Always append the Gatekeeper's verdict — never block
-    return ctx.finalPitchDeck + '\n\n---\n\n' + ctx.gatekeeperVerdict;
+    return sanitizeFinalOutput(ctx.finalPitchDeck) + '\n\n---\n\n' + ctx.gatekeeperVerdict;
+}
+
+/**
+ * Strip agent meta-commentary and roleplay preambles from the final deck output.
+ * These patterns occur when LLMs break character and narrate their process.
+ */
+function sanitizeFinalOutput(text) {
+    // Remove roleplay preambles like "Okay, Showrunner here. Processing the..."
+    let cleaned = text.replace(/^(?:Okay|Alright|Right)[,.]\s*(?:Showrunner|Editor|Scientist|Producer|Analyst|Gatekeeper)\s+here[.!]?[\s\S]*?(?=(?:^#|^\*\*Working Title))/mi, '');
+
+    // Remove "Action Items:" blocks that are routing instructions
+    cleaned = cleaned.replace(/\n*(?:^|\n)\*\*Action Items[:\s]*\*\*[\s\S]*?(?=(?:^#{1,3} |^\*\*(?:Working Title|Logline|Executive Summary)))/mi, '');
+    cleaned = cleaned.replace(/\n*(?:^|\n)Action Items:[\s\S]*?(?=(?:^#{1,3} |^\*\*(?:Working Title|Logline|Executive Summary)))/mi, '');
+
+    // Remove agent routing like "(Routed to Scientific Consultant/Scriptwriter)"
+    cleaned = cleaned.replace(/\(Routed to [^)]+\)/gi, '');
+
+    // Remove any remaining "Processing the..." preambles
+    cleaned = cleaned.replace(/^Processing the[\s\S]*?(?=(?:^#|^\*\*))/mi, '');
+
+    // Clean up excessive leading whitespace
+    cleaned = cleaned.replace(/^\s+/, '');
+
+    return cleaned;
 }
 
 /**
@@ -784,11 +823,16 @@ Quality Checks:
 - Narration must be sparse and poetic, not expository
 - Camera language must emphasize proximity and subjective POV
 
+CRITICAL FORMAT RULES:
+- Output ONLY the pitch deck content — no preamble, no agent commentary, no "Okay, Showrunner here"
+- Do NOT include action items, revision directives, or routing instructions  
+- Start directly with the Working Title, not with meta-commentary
+
 Make it presentation-ready.`,
         cbs
     );
 
     cbs.onPhaseComplete(4);
 
-    return ctx.finalPitchDeck;
+    return sanitizeFinalOutput(ctx.finalPitchDeck);
 }
