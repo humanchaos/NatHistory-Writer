@@ -125,9 +125,18 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         { tools: [{ googleSearch: {} }] }
     );
 
+    // ─── NARRATIVE MANDATE EXTRACTION ─────────────────────────────
+    // Extract the narrative strategy from the Market Analyst's output and thread it
+    // as a binding directive to all downstream agents (similar to speciesGuard).
+    const narrativeMatch = ctx.marketMandate.match(/(?:Narrative Strategy|Narrative Form|Recommended Form|Primary Recommendation)[^:]*:?\s*\**([^\n]+)/i);
+    const narrativeForm = narrativeMatch ? narrativeMatch[1].trim().replace(/\*+$/g, '').trim() : null;
+    const narrativeMandate = narrativeForm
+        ? `\n\n🎭 NARRATIVE MANDATE (BINDING): The Market Analyst has recommended the following narrative form: "${narrativeForm}". ALL agents MUST respect this form. Do NOT default to survival thriller unless this IS the recommended form. Your output — structure, tone, camera language, pacing, and scoring criteria — must serve this narrative form, not a generic thriller template.\n`
+        : '';
+
     ctx.animalFactSheet = await agentStep(
         CHIEF_SCIENTIST,
-        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
         cbs,
         { tools: [{ googleSearch: {} }] }
     );
@@ -266,7 +275,7 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.draftV1 = await agentStep(
         STORY_PRODUCER,
-        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless the Market Analyst specifically recommended it. If the Market Analyst recommended a Cross-Genre Import, adopt that borrowed genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless the Market Analyst specifically recommended it. If the Market Analyst recommended a Cross-Genre Import, adopt that borrowed genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
         cbs
     );
 
@@ -279,7 +288,7 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.rejectionMemo = await agentStep(
         COMMISSIONING_EDITOR,
-        `Review the following Draft V1 pitch package:${kbBlock}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 6 vectors: Cliché Detector, Unicorn Hunt, Disneyfication Scan, Budget Reality Check, Narrative Integrity, and PR/Ethics Risk.\n\nADDITIONALLY test the CINEMATIC STANDARD:\n- Does it feel like a GENRE piece (thriller, survival epic) or a clinical biology lecture?\n- Camera language: proximity/subjective POV or clinical observation from distance?\n- Sound design: hyper-real foley or generic ambient?\n- Narration: sparse/poetic or expository?\n- B-Story: woven in or just listed as backup?\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
+        `Review the following Draft V1 pitch package:${kbBlock}${narrativeMandate}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 14 vectors.\n\nCRITICAL FOR VECTORS 7 & 8: The Market Analyst declared a narrative form in the Market Mandate. Use THAT form's cinematic standard for your Narrative Integrity Test and Commission Test — do NOT default to survival thriller criteria unless that IS the declared form.\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
         cbs
     );
 
@@ -292,7 +301,7 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.revisionDirectives = await agentStep(
         SHOWRUNNER,
-        `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible. Include directives on:\n- Genre assignment (what cinematic genre should this embody?)\n- Camera language upgrade (proximity/subjective POV)\n- Sound design directive (hyper-real soundscape)\n- Narration style (sparse, let visuals breathe)\n\nOutput clear revision directives for each agent.`,
+        `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}${narrativeMandate}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible.\n\nCRITICAL: Review the Market Analyst's Narrative Mandate. Ensure ALL revision directives are consistent with the declared narrative form. Do NOT push the draft toward survival thriller unless that IS the mandate. Issue camera, sound, and narration directives appropriate to the form (e.g., a forensic investigation needs deliberate reveals and forensic precision, not proximity POV and hyper-real foley).\n\nOutput clear revision directives for each agent.`,
         cbs
     );
 
@@ -304,19 +313,19 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.revisedLogistics = await agentStep(
         FIELD_PRODUCER,
-        `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}\n\nYour original Logistics Breakdown was:\n${ctx.logisticsBreakdown}\n\nThe revised science is:\n${ctx.revisedScience}\n\nRevise your output. CRITICAL UPGRADES:\n- Add stabilized proximity rigs (gimbal, probe lens, low-angle tracking) to camera equipment\n- Include a dedicated sound recordist with contact microphone and hydrophone capabilities for hyper-real foley\n- Ensure contingency plans include B-roll backup sequences\n\nOutput a REVISED Logistics & Feasibility Breakdown.`,
+        `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${narrativeMandate}\n\nYour original Logistics Breakdown was:\n${ctx.logisticsBreakdown}\n\nThe revised science is:\n${ctx.revisedScience}\n\nRevise your output. Ensure camera, sound, and crew upgrades are appropriate to the declared narrative form — a forensic investigation may need macro-probe rigs and laboratory setups, while a vérité film needs long-lens patience rigs and minimal crew footprint. Ensure contingency plans include B-roll backup sequences.\n\nOutput a REVISED Logistics & Feasibility Breakdown.`,
         cbs
     );
 
     ctx.draftV2 = await agentStep(
         STORY_PRODUCER,
-        `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. CINEMATIC UPGRADE CHECKLIST:\n✓ Genre energy — this must feel like a [thriller/survival epic/heist], not a biology lecture\n✓ Proximity POV — ground-level, gimbal-tracking, subjective camera, not clinical wide shots\n✓ Hyper-real foley — every key moment has a defined sound (claws, heartbeats, wind)\n✓ Sparse narration — cut expository lines, use short poetic phrases, let silences work\n✓ B-Story woven in — the secondary species raises stakes for the primary, not just backup\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
+        `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the DECLARED narrative form:\n✓ Commit fully to the declared form's cinematic language (thriller = proximity/foley; investigation = evidence reveals; essay = argument-building; vérité = raw observation)\n✓ Every key moment must have defined visual AND audio signatures appropriate to the form\n✓ Narration style must match the form (thriller = sparse/poetic; investigation = deductive; essay = philosophical; vérité = minimal)\n✓ B-Story woven in — the secondary species must serve the chosen narrative form, not just be backup\n✓ Do NOT drift into survival thriller conventions unless that IS the declared form\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
         cbs
     );
 
     ctx.greenlightReview = await agentStep(
         COMMISSIONING_EDITOR,
-        `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does it now feel CINEMATIC — like a genre piece, not a biology lecture?\n3. Camera language: proximity/subjective POV achieved?\n4. Sound design: hyper-real foley defined?\n5. Narration: sparse/poetic, not expository?\n\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
+        `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}${narrativeMandate}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does the pitch NOW commit fully to its declared narrative form (not defaulting to thriller)?\n3. Camera, sound, and narration language — are they appropriate for the DECLARED form?\n4. B-Story: woven into the narrative form, not just listed as backup?\n\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
         cbs
     );
 
@@ -426,8 +435,8 @@ Quality Checks Before Finalizing:
 - Logline must accurately reflect what the script delivers
 - Budget tier must match market recommendation
 - Remove any remaining anthropomorphic language
-- Camera language must emphasize proximity/subjective POV throughout
-- Narration in the script must be sparse and poetic, not expository
+- Camera language and narration style must be consistent with the declared narrative form throughout
+- The pitch must commit fully to its form — no drifting into default thriller conventions unless thriller IS the form
 
 CRITICAL FORMAT RULES:
 - Output ONLY the pitch deck content — no preamble, no agent commentary, no "Okay, Showrunner here"

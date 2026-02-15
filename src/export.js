@@ -163,7 +163,7 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
             if (tableRowObjects.length > 0) {
                 docChildren.push(new Table({
                     rows: tableRowObjects,
-                    width: { size: 100, type: WidthType.PERCENTAGE },
+                    width: { size: 9360, type: WidthType.DXA },
                 }));
                 docChildren.push(new Paragraph({ spacing: { after: 100 } }));
             }

@@ -337,14 +337,6 @@ export const FAILURE_LIBRARY = [
         description: 'Presenter-heavy, animals became props to influencer energy. Lacked gravitas.',
         redFlags: ['celebrity-vehicle', 'shallow-opportunism'],
     },
-    {
-        id: 'fail-2025-deep-sea-hoax',
-        year: 2025,
-        name: 'Deep Sea Hoax',
-        failure: 'Pseudo-Nature',
-        description: 'AI-generated footage, fake scientists, manipulated audience trust in documentary format.',
-        redFlags: ['trust-breaking', 'spectacle-over-substance'],
-    },
 ];
 
 /**
