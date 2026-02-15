@@ -880,6 +880,132 @@ h4 {
   margin-top: 1rem;
 }
 
+/* ─── Floating Pipeline Status Bar ──────────────────── */
+.pipeline-status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.25rem;
+  background: rgba(15, 20, 40, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(212, 168, 83, 0.25);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.pipeline-status-bar.visible {
+  transform: translateY(0);
+}
+
+.psb-left,
+.psb-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.psb-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green, #22c55e);
+  animation: psb-pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes psb-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 4px var(--accent-green, #22c55e);
+  }
+
+  50% {
+    opacity: 0.4;
+    box-shadow: none;
+  }
+}
+
+.psb-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.psb-seed {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.psb-timer {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.psb-return {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-gold);
+  background: rgba(212, 168, 83, 0.12);
+  border: 1px solid rgba(212, 168, 83, 0.3);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.psb-return:hover {
+  background: rgba(212, 168, 83, 0.22);
+  border-color: rgba(212, 168, 83, 0.5);
+}
+
+.psb-cancel {
+  font-size: 0.82rem;
+  color: #e55;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.psb-cancel:hover {
+  background: rgba(220, 50, 50, 0.15);
+}
+
+@media (max-width: 640px) {
+  .psb-seed {
+    display: none;
+  }
+
+  .psb-label {
+    max-width: 180px;
+  }
+}
+
 .agent-output {
   font-size: 0.88rem;
   color: var(--text-secondary);

@@ -481,7 +481,11 @@ async function refreshHistoryList() {
 }
 
 function showSavedPitchDeck(run) {
-    simulationEl.classList.add('hidden');
+    // Don't hide the simulation if a pipeline is actively running —
+    // just scroll to the pitch deck and let the user return via the status bar
+    if (!pipelineRunning) {
+        simulationEl.classList.add('hidden');
+    }
     pitchDeckContent.innerHTML = md(run.finalPitchDeck);
     pitchDeckEl.classList.remove('hidden');
 
@@ -574,6 +578,68 @@ function buildPhaseIndicator(totalPhases) {
 
 // ─── Main Flow ────────────────────────────────────────
 let latestAgentCard = null;
+let pipelineRunning = false;
+let pipelineStatusBar = null;
+let pipelineStartTime = null;
+let pipelineTimerInterval = null;
+
+// ─── Floating Pipeline Status Bar ─────────────────────
+function createPipelineStatusBar(seedLabel) {
+    if (pipelineStatusBar) pipelineStatusBar.remove();
+    pipelineStartTime = Date.now();
+
+    const bar = document.createElement('div');
+    bar.className = 'pipeline-status-bar';
+    bar.innerHTML = `
+      <div class="psb-left">
+        <span class="psb-pulse"></span>
+        <span class="psb-label">Pipeline running…</span>
+        <span class="psb-seed">${seedLabel.length > 50 ? seedLabel.slice(0, 47) + '…' : seedLabel}</span>
+      </div>
+      <div class="psb-right">
+        <span class="psb-timer">0:00</span>
+        <button class="psb-return" title="Return to live pipeline">↗ Return to Pipeline</button>
+        <button class="psb-cancel" title="Cancel the running pipeline">✕</button>
+      </div>
+    `;
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => bar.classList.add('visible'));
+
+    // Return to simulation
+    bar.querySelector('.psb-return').addEventListener('click', () => {
+        simulationEl.classList.remove('hidden');
+        simulationEl.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Timer
+    pipelineTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - pipelineStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const timerEl = bar.querySelector('.psb-timer');
+        if (timerEl) timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+
+    pipelineStatusBar = bar;
+    return bar;
+}
+
+let _currentPhaseLabel = 'Pipeline running…';
+
+function updatePipelineStatusBar(phaseLabel, agentLabel) {
+    if (!pipelineStatusBar) return;
+    if (phaseLabel) _currentPhaseLabel = phaseLabel;
+    const label = pipelineStatusBar.querySelector('.psb-label');
+    if (label) label.textContent = agentLabel ? `${_currentPhaseLabel} — ${agentLabel}` : _currentPhaseLabel;
+}
+
+function removePipelineStatusBar() {
+    if (pipelineTimerInterval) { clearInterval(pipelineTimerInterval); pipelineTimerInterval = null; }
+    if (pipelineStatusBar) {
+        pipelineStatusBar.classList.remove('visible');
+        setTimeout(() => { pipelineStatusBar?.remove(); pipelineStatusBar = null; }, 300);
+    }
+}
 
 const pipelineCallbacks = {
     onPhaseStart(phaseNumber, phaseName) {
@@ -582,9 +648,11 @@ const pipelineCallbacks = {
         if (waitMsg) waitMsg.remove();
         setPhaseActive(phaseNumber);
         createPhaseBlock(phaseNumber, phaseName);
+        updatePipelineStatusBar(phaseName);
     },
     onAgentThinking(agent) {
         latestAgentCard = createAgentCard(agent);
+        updatePipelineStatusBar(null, `${agent.icon} ${agent.name}`);
     },
     onAgentOutput(agent, outputText) {
         if (latestAgentCard) {
@@ -610,6 +678,7 @@ seedForm.addEventListener('submit', async (e) => {
     const isBatch = seeds.length > 1;
 
     // Disable form
+    pipelineRunning = true;
     launchBtn.disabled = true;
     launchBtn.querySelector('.btn-text').textContent = isBatch ? `Running 0/${seeds.length}…` : 'Running…';
 
@@ -624,16 +693,22 @@ seedForm.addEventListener('submit', async (e) => {
     const abortController = new AbortController();
     setPipelineAbortSignal(abortController.signal);
 
-    // Cancel button
+    // Cancel button (inline in simulation)
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'cancel-pipeline-btn';
     cancelBtn.innerHTML = '✕ Cancel Pipeline';
-    cancelBtn.addEventListener('click', () => {
+    const doCancel = () => {
         abortController.abort();
         cancelBtn.textContent = 'Cancelling…';
         cancelBtn.disabled = true;
-    });
+    };
+    cancelBtn.addEventListener('click', doCancel);
     simulationEl.insertBefore(cancelBtn, simulationEl.firstChild);
+
+    // ─── FLOATING STATUS BAR ──────────────────────────────
+    const seedLabel = isBatch ? `${seeds.length} seeds` : seeds[0];
+    const statusBar = createPipelineStatusBar(seedLabel);
+    statusBar.querySelector('.psb-cancel').addEventListener('click', doCancel);
 
     // Add a coffee-break waiting message
     const waitTips = [
@@ -764,8 +839,10 @@ seedForm.addEventListener('submit', async (e) => {
         }
         if (batchBanner) batchBanner.remove();
     } finally {
+        pipelineRunning = false;
         setPipelineAbortSignal(null);
         simulationEl.querySelector('.cancel-pipeline-btn')?.remove();
+        removePipelineStatusBar();
         launchBtn.disabled = false;
         launchBtn.querySelector('.btn-text').textContent = isAssessment
             ? 'Assess & Optimize →'
