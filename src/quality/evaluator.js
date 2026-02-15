@@ -248,16 +248,26 @@ export const GOLD_STANDARD_LIBRARY = [
 ];
 
 /**
- * Get the calibration seed for the current dryrun.
- * Selects randomly from the library to ensure varied coverage across runs.
+ * Get the calibration seeds for the current dryrun.
+ * Returns TWO seeds: one fixed anchor (My Octopus Teacher) for longitudinal
+ * comparison across dryruns, plus one random seed for breadth.
  */
-export function getCalibrationSeed() {
-    const entry = GOLD_STANDARD_LIBRARY[Math.floor(Math.random() * GOLD_STANDARD_LIBRARY.length)];
-    return {
+export function getCalibrationSeeds() {
+    // Fixed anchor — always the same for longitudinal tracking
+    const anchor = GOLD_STANDARD_LIBRARY.find(e => e.id === 'gs-2020-my-octopus-teacher');
+    // Random from remaining library
+    const remaining = GOLD_STANDARD_LIBRARY.filter(e => e.id !== 'gs-2020-my-octopus-teacher');
+    const random = remaining[Math.floor(Math.random() * remaining.length)];
+    return [anchor, random].map(entry => ({
         ...entry,
         name: `🏆 ${entry.name}`,
         isCalibration: true,
-    };
+    }));
+}
+
+// Legacy compat — returns the fixed anchor only
+export function getCalibrationSeed() {
+    return getCalibrationSeeds()[0];
 }
 
 /**

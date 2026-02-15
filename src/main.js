@@ -1,5 +1,5 @@
 import { initGemini, createChat, callAgent } from './agents/gemini.js';
-import { runPipeline, runAssessment } from './agents/orchestrator.js';
+import { runPipeline, runAssessment, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
 import { chunkText } from './knowledge/chunker.js';
 import { embedBatch } from './knowledge/embeddings.js';
@@ -253,9 +253,10 @@ function createAgentCard(agent) {
     card.className = 'agent-card';
     card.style.setProperty('--agent-color', agent.color);
     card.innerHTML = `
-    <div class="agent-card-header">
+    <div class="agent-card-header" role="button" tabindex="0" title="Click to expand/collapse">
       <span class="agent-icon">${agent.icon}</span>
       <span class="agent-name" style="color: ${agent.color}">${agent.name}</span>
+      <span class="agent-collapse-icon">▼</span>
       <span class="agent-status thinking">Thinking…</span>
     </div>
     <div class="agent-card-body">
@@ -266,6 +267,11 @@ function createAgentCard(agent) {
       </div>
     </div>
   `;
+    // Collapse/expand on header click
+    const header = card.querySelector('.agent-card-header');
+    header.addEventListener('click', () => {
+        card.classList.toggle('collapsed');
+    });
     if (currentPhaseBlock) {
         currentPhaseBlock.appendChild(card);
     } else {
@@ -282,6 +288,8 @@ function fillAgentCard(card, outputText) {
     statusEl.textContent = 'Complete';
     statusEl.classList.remove('thinking');
     statusEl.classList.add('complete');
+    // Auto-collapse completed cards to keep the timeline compact
+    card.classList.add('collapsed');
 }
 
 // ─── Panel Controls ───────────────────────────────────
@@ -612,6 +620,21 @@ seedForm.addEventListener('submit', async (e) => {
     scorecardEl.classList.add('hidden');
     simulationEl.scrollIntoView({ behavior: 'smooth' });
 
+    // ─── ABORT CONTROLLER ─────────────────────────────────
+    const abortController = new AbortController();
+    setPipelineAbortSignal(abortController.signal);
+
+    // Cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'cancel-pipeline-btn';
+    cancelBtn.innerHTML = '✕ Cancel Pipeline';
+    cancelBtn.addEventListener('click', () => {
+        abortController.abort();
+        cancelBtn.textContent = 'Cancelling…';
+        cancelBtn.disabled = true;
+    });
+    simulationEl.insertBefore(cancelBtn, simulationEl.firstChild);
+
     // Add a coffee-break waiting message
     const waitTips = [
         '☕ Grab a cup of coffee while you wait.',
@@ -729,10 +752,20 @@ seedForm.addEventListener('submit', async (e) => {
         setTimeout(() => toast.classList.add('visible'), 100);
         setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 500); }, 6000);
     } catch (err) {
-        console.error('Pipeline error:', err);
-        showError(`Pipeline error: ${err.message}`);
+        if (err instanceof PipelineCancelled || err.name === 'PipelineCancelled') {
+            console.log('Pipeline cancelled by user.');
+            const cancelMsg = document.createElement('div');
+            cancelMsg.className = 'pipeline-cancelled-msg';
+            cancelMsg.textContent = '⚠️ Pipeline cancelled. Partial results may be available above.';
+            timelineEl.appendChild(cancelMsg);
+        } else {
+            console.error('Pipeline error:', err);
+            showError(`Pipeline error: ${err.message}`);
+        }
         if (batchBanner) batchBanner.remove();
     } finally {
+        setPipelineAbortSignal(null);
+        simulationEl.querySelector('.cancel-pipeline-btn')?.remove();
         launchBtn.disabled = false;
         launchBtn.querySelector('.btn-text').textContent = isAssessment
             ? 'Assess & Optimize →'

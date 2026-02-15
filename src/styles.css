@@ -824,10 +824,66 @@ h4 {
   padding: 1.25rem;
 }
 
+/* Collapse / Expand */
+.agent-card-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.agent-collapse-icon {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  margin-left: 0.25rem;
+}
+
+.agent-card.collapsed .agent-card-body {
+  display: none;
+}
+
+.agent-card.collapsed .agent-collapse-icon {
+  transform: rotate(-90deg);
+}
+
+/* Cancel Pipeline Button */
+.cancel-pipeline-btn {
+  display: block;
+  margin: 0 auto 1rem;
+  padding: 0.5rem 1.25rem;
+  background: rgba(220, 50, 50, 0.15);
+  color: #e55;
+  border: 1px solid rgba(220, 50, 50, 0.3);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-pipeline-btn:hover:not(:disabled) {
+  background: rgba(220, 50, 50, 0.25);
+  border-color: rgba(220, 50, 50, 0.5);
+}
+
+.cancel-pipeline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pipeline Cancelled Message */
+.pipeline-cancelled-msg {
+  text-align: center;
+  padding: 1rem;
+  color: var(--accent-gold);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
 .agent-output {
   font-size: 0.88rem;
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -839,7 +895,7 @@ h4 {
 .agent-output h4 {
   font-family: 'Inter', sans-serif;
   color: var(--text-primary);
-  margin: 1.25rem 0 0.5rem;
+  margin: 0.75rem 0 0.35rem;
 }
 
 .agent-output h1 {
@@ -855,17 +911,23 @@ h4 {
 }
 
 .agent-output p {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.4rem;
 }
 
 .agent-output ul,
 .agent-output ol {
   padding-left: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.35rem;
 }
 
 .agent-output li {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.15rem;
+}
+
+.agent-output li>ul,
+.agent-output li>ol {
+  margin-top: 0.1rem;
+  margin-bottom: 0.1rem;
 }
 
 .agent-output strong {

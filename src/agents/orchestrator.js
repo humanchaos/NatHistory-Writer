@@ -12,12 +12,33 @@ import {
 import { retrieveContext } from '../knowledge/rag.js';
 
 /**
+ * Custom error for pipeline cancellation.
+ */
+export class PipelineCancelled extends Error {
+    constructor() { super('Pipeline cancelled by user'); this.name = 'PipelineCancelled'; }
+}
+
+// Shared abort controller — set by the UI, checked by agentStep
+let _abortSignal = null;
+
+/**
+ * Set the AbortSignal that the pipeline should respect.
+ * Call with null to clear.
+ */
+export function setPipelineAbortSignal(signal) {
+    _abortSignal = signal;
+}
+
+/**
  * Helper: show a thinking card, call the agent, then fill the card.
+ * Checks the abort signal before making the API call.
  * Optionally accepts agentOpts.tools for Gemini tool use (e.g. Google Search).
  */
 async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }, agentOpts = {}) {
+    if (_abortSignal?.aborted) throw new PipelineCancelled();
     onAgentThinking(agent);
     const result = await callAgent(agent.systemPrompt, prompt, agentOpts);
+    if (_abortSignal?.aborted) throw new PipelineCancelled();
     onAgentOutput(agent, result);
     return result;
 }
@@ -108,7 +129,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         );
     } catch (e) {
         console.warn('Discovery Scout skipped:', e.message);
-        discoveryBrief = '(Discovery Scout: No results — proceeding without discovery brief.)';
+        discoveryBrief = '(Discovery Scout: No recent scientific discoveries found for this seed idea. Downstream agents should proceed using existing knowledge and the Market Analyst\'s own research. Do NOT treat this as a gap — it simply means no novel signals were found in the initial search.)';
     }
 
     const discoveryBlock = discoveryBrief ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n` : '';
@@ -395,14 +416,32 @@ Issue SURGICAL revision directives. Focus ONLY on the specific failings the Edit
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(5, 'Final Output — Master Pitch Deck');
 
+    // ─── CONTEXT COMPACTION ─────────────────────────────────
+    // The Showrunner doesn't need the full Market Mandate analysis (competitive
+    // landscape detail, slate gap analysis, etc.). Extract key directives only.
+    const compactMandate = (() => {
+        const sections = [];
+        // Extract narrative strategy section
+        const narrativeSection = ctx.marketMandate.match(/(?:#{1,3}\s*(?:\d+[\.\)]\s*)?(?:Narrative Strategy|Narrative Form|Narrative Architecture)[^\n]*\n)([\s\S]*?)(?=\n#{1,3}\s|\n\d+[\.\)]\s[A-Z]|$)/i);
+        if (narrativeSection) sections.push('**Narrative Strategy:** ' + narrativeSection[1].trim().substring(0, 500));
+        // Extract platform recommendation
+        const platformSection = ctx.marketMandate.match(/(?:#{1,3}\s*(?:\d+[\.\)]\s*)?(?:Platform|Buyer|Target)[^\n]*\n)([\s\S]*?)(?=\n#{1,3}\s|\n\d+[\.\)]\s[A-Z]|$)/i);
+        if (platformSection) sections.push('**Platform Fit:** ' + platformSection[1].trim().substring(0, 300));
+        // Extract budget tier
+        const budgetSection = ctx.marketMandate.match(/(?:#{1,3}\s*(?:\d+[\.\)]\s*)?(?:Budget)[^\n]*\n)([\s\S]*?)(?=\n#{1,3}\s|\n\d+[\.\)]\s[A-Z]|$)/i);
+        if (budgetSection) sections.push('**Budget:** ' + budgetSection[1].trim().substring(0, 200));
+        // Fallback: if extraction fails, use first 1000 chars
+        return sections.length > 0 ? sections.join('\n\n') : ctx.marketMandate.substring(0, 1000) + '\n\n[… truncated for context efficiency]';
+    })();
+
     ctx.finalPitchDeck = await agentStep(
         SHOWRUNNER,
         `The Commissioning Editor has given the Greenlight. Compile the final Master Pitch Deck.${kbBlock}
 
 Use ALL of the following approved materials:
 
-### Market Mandate
-${ctx.marketMandate}
+### Market Mandate (Key Directives)
+${compactMandate}
 
 ### Revised Scientific Backbone
 ${ctx.revisedScience}
