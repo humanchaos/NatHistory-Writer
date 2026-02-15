@@ -7,6 +7,7 @@ import {
     COMMISSIONING_EDITOR,
     SHOWRUNNER,
     ADVERSARY,
+    DISCOVERY_SCOUT,
 } from './personas.js';
 import { retrieveContext } from '../knowledge/rag.js';
 
@@ -69,7 +70,7 @@ function extractScore(agentOutput) {
  * @param {function} cbs.onPhaseComplete — (phaseNumber)
  * @param {object} [opts] — optional overrides
  * @param {string|null} [opts.platform] — target platform (e.g., 'Netflix')
- * @param {number|null} [opts.year] — target production year
+ * @param {number|null} [opts.year] — target delivery year (when the show airs/streams)
  * @returns {Promise<string>} — the final Master Pitch Deck
  */
 export async function runPipeline(seedIdea, cbs, opts = {}) {
@@ -78,7 +79,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
     // Build optional context strings
     const platformNote = platform ? `\n\n🎯 TARGET PLATFORM: This pitch is being developed specifically for **${platform}**. Tailor all recommendations — tone, format, budget tier, episode structure — to ${platform}'s commissioning style and audience.\n` : '';
-    const yearNote = year ? `\n📅 TARGET PRODUCTION YEAR: ${year}. Calibrate all technology, market, and trend references to this year.\n` : '';
+    const yearNote = year ? `\n📅 TARGET DELIVERY YEAR: ${year}. This is the year the show will AIR/STREAM — not when it's filmed. Calibrate all market analysis, audience trends, competitive landscape, and narrative strategy to what will be relevant WHEN THIS LAUNCHES. Technology references should reflect what will be cutting-edge at delivery, not today.\n` : '';
     const directiveNote = directive ? `\n\n🎯 CREATIVE DIRECTIVE (MANDATORY): ${directive}\nThis directive comes directly from the executive producer. ALL agents must incorporate this requirement into their analysis and output. It is non-negotiable.\n` : '';
     const optionsSuffix = platformNote + yearNote + directiveNote;
 
@@ -93,20 +94,40 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     const kbBlock = knowledgeContext ? `\n\n${knowledgeContext}\n\n` : '';
 
     // ═══════════════════════════════════════════════════════
+    // PHASE 0 — DISCOVERY SCOUT
+    // ═══════════════════════════════════════════════════════
+    cbs.onPhaseStart(0, '🔬 Scouting Recent Discoveries');
+
+    let discoveryBrief = '';
+    try {
+        discoveryBrief = await agentStep(
+            DISCOVERY_SCOUT,
+            `Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented. Return a structured Discovery Brief.`,
+            cbs,
+            { tools: [{ googleSearch: {} }] }
+        );
+    } catch (e) {
+        console.warn('Discovery Scout skipped:', e.message);
+        discoveryBrief = '(Discovery Scout: No results — proceeding without discovery brief.)';
+    }
+
+    const discoveryBlock = discoveryBrief ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n` : '';
+
+    // ═══════════════════════════════════════════════════════
     // PHASE 1 — THE BRAINSTORM
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(1, 'The Brainstorm');
 
     ctx.marketMandate = await agentStep(
         MARKET_ANALYST,
-        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
         cbs,
         { tools: [{ googleSearch: {} }] }
     );
 
     ctx.animalFactSheet = await agentStep(
         CHIEF_SCIENTIST,
-        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
         cbs,
         { tools: [{ googleSearch: {} }] }
     );
@@ -245,7 +266,7 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.draftV1 = await agentStep(
         STORY_PRODUCER,
-        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into:\n1. A 3-Act narrative outline with a SPECIFIC ticking clock, at least 3 escalating obstacles in Act 2, a midpoint reversal, and a resonant closing image\n2. 3 visual signature "hero shots" described with camera angle, lens, and biological action\n3. A dual-column A/V script excerpt (minimum 8 rows) with sound design notes\n\nCRITICAL CINEMATIC STANDARD: Treat the animal as a cinematic protagonist in a GENRE (thriller, survival epic, heist, horror chase). The iguana vs. snakes in Planet Earth II was a HORROR-THRILLER ESCAPE, not a "predator-prey study." Genre-ify your narrative.\n\nCamera language must emphasize PROXIMITY and SUBJECTIVE POV — ground-level gimbal tracking, not clinical observation from distance. The audience must feel the terrain, the heat, the urgency.\n\nDefine a HYPER-REAL SOUNDSCAPE — claws scraping on rock, heartbeats in moments of exhaustion, wind fading. Not generic ambient audio.\n\nNarration must be SPARSE and POETIC. Cut expository lines. Let silences breathe. "He is a trespasser in his own land" > "The lizard must compete for territory."\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless the Market Analyst specifically recommended it. If the Market Analyst recommended a Cross-Genre Import, adopt that borrowed genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
         cbs
     );
 
@@ -258,7 +279,7 @@ The pipeline iterates, it does not kill. Find a way.`,
 
     ctx.rejectionMemo = await agentStep(
         COMMISSIONING_EDITOR,
-        `Review the following Draft V1 pitch package:${kbBlock}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 6 vectors: Cliché Detector, Unicorn Hunt, Disneyfication Scan, Budget Reality Check, Narrative Integrity, and PR/Ethics Risk.\n\nADDITIONALLY test the CINEMATIC STANDARD:\n- Does it feel like a GENRE piece (thriller, survival epic) or a clinical biology lecture?\n- Camera language: proximity/subjective POV or clinical observation from distance?\n- Sound design: hyper-real foley or generic ambient?\n- Narration: sparse/poetic or expository?\n- B-Story: woven in or just listed as backup?\n\nQuote specific failing passages. Find at LEAST two substantive flaws and score UNDER 85.`,
+        `Review the following Draft V1 pitch package:${kbBlock}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 6 vectors: Cliché Detector, Unicorn Hunt, Disneyfication Scan, Budget Reality Check, Narrative Integrity, and PR/Ethics Risk.\n\nADDITIONALLY test the CINEMATIC STANDARD:\n- Does it feel like a GENRE piece (thriller, survival epic) or a clinical biology lecture?\n- Camera language: proximity/subjective POV or clinical observation from distance?\n- Sound design: hyper-real foley or generic ambient?\n- Narration: sparse/poetic or expository?\n- B-Story: woven in or just listed as backup?\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
         cbs
     );
 
@@ -308,14 +329,14 @@ The pipeline iterates, it does not kill. Find a way.`,
     let bestScore = currentScore ?? 0;
     let bestReview = currentReview;
 
-    while (currentScore !== null && currentScore < 70 && draftNumber < 2 + MAX_REVISIONS) {
+    while (currentScore !== null && currentScore < 80 && draftNumber < 2 + MAX_REVISIONS) {
         draftNumber++;
         cbs.onPhaseStart(4, `🔄 Quality Revision — Draft V${draftNumber}`);
 
         // Showrunner issues tighter revision directives
         const tighterDirectives = await agentStep(
             SHOWRUNNER,
-            `The Commissioning Editor scored Draft V${draftNumber - 1} at ${currentScore}/100 — below the 70/100 threshold. This is revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.
+            `The Commissioning Editor scored Draft V${draftNumber - 1} at ${currentScore}/100 — below the 80/100 threshold. This is revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.
 
 ### Editor's Review (${currentScore}/100):
 ${currentReview}
@@ -437,7 +458,8 @@ ${ctx.finalPitchDeck}
 "${seedIdea}"
 
 Deliver your verdict in the specified format. Be brutal. Be specific. Cite exact series/episodes if this is derivative.`,
-        cbs
+        cbs,
+        { tools: [{ googleSearch: {} }] }
     );
 
     cbs.onPhaseComplete(6);
@@ -503,7 +525,8 @@ ${ctx.finalPitchDeck}
 "${seedIdea}"
 
 Re-evaluate. Have your core concerns been addressed? Run your full audit again. If the revision genuinely fixes the problems, you MAY upgrade your verdict. If the core issues persist, explain what SPECIFICALLY still fails.`,
-            cbs
+            cbs,
+            { tools: [{ googleSearch: {} }] }
         );
 
         // Re-evaluate

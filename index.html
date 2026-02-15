@@ -99,8 +99,9 @@
 
       <form id="seed-form">
         <div class="input-group">
-          <textarea id="seed-input" placeholder="e.g., A sequence about survival in the deep ocean abyss…" rows="3"
-            required></textarea>
+          <textarea id="seed-input"
+            placeholder="One idea per line — each runs the full pipeline&#10;e.g., A sequence about survival in the deep ocean abyss…&#10;Arctic fox migration patterns in a warming world"
+            rows="4" required></textarea>
           <div class="optional-params">
             <div class="param-field">
               <label for="target-platform">📺 Platform <span class="param-hint">(optional)</span></label>
@@ -118,8 +119,8 @@
               </select>
             </div>
             <div class="param-field">
-              <label for="production-year">📅 Year <span class="param-hint">(optional)</span></label>
-              <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2027">
+              <label for="production-year">📅 Delivery Year <span class="param-hint">(optional)</span></label>
+              <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2028">
             </div>
           </div>
           <button type="submit" class="btn-primary btn-launch" id="launch-btn">
@@ -130,13 +131,13 @@
       </form>
 
       <div class="agent-roster">
-        <div class="agent-chip" style="--agent-color: #00d4aa">📊 Analyst</div>
-        <div class="agent-chip" style="--agent-color: #4dabf7">🔬 Scientist</div>
-        <div class="agent-chip" style="--agent-color: #ffa94d">🎥 Field Producer</div>
-        <div class="agent-chip" style="--agent-color: #da77f2">✍️ Story Producer</div>
-        <div class="agent-chip" style="--agent-color: #ff6b6b">⚔️ Editor</div>
-        <div class="agent-chip" style="--agent-color: #ffd43b">🎬 Showrunner</div>
-        <div class="agent-chip" style="--agent-color: #e03131">🛡️ Gatekeeper</div>
+        <div class="agent-chip" style="--agent-color: #00d4aa" data-agent-id="market-analyst">📊 Analyst</div>
+        <div class="agent-chip" style="--agent-color: #4dabf7" data-agent-id="chief-scientist">🔬 Scientist</div>
+        <div class="agent-chip" style="--agent-color: #ffa94d" data-agent-id="field-producer">🎥 Field Producer</div>
+        <div class="agent-chip" style="--agent-color: #da77f2" data-agent-id="story-producer">✍️ Story Producer</div>
+        <div class="agent-chip" style="--agent-color: #ff6b6b" data-agent-id="commissioning-editor">⚔️ Editor</div>
+        <div class="agent-chip" style="--agent-color: #ffd43b" data-agent-id="showrunner">🎬 Showrunner</div>
+        <div class="agent-chip" style="--agent-color: #e03131" data-agent-id="adversary">🛡️ Gatekeeper</div>
       </div>
     </div>
   </header>
@@ -168,7 +169,7 @@
         <span id="gatekeeper-score-badge" class="gatekeeper-badge gatekeeper-score"></span>
         <span id="gatekeeper-platform-badge" class="gatekeeper-badge gatekeeper-platform"></span>
       </div>
-      <p>Greenlit & Approved</p>
+      <p id="deck-verdict-text">Evaluating…</p>
       <div class="deck-actions">
         <button id="btn-copy-deck" class="deck-action-btn" title="Copy to clipboard">📋 Copy</button>
         <button id="btn-export-docx" class="deck-action-btn" title="Export as DOCX">📄 Export DOCX</button>
@@ -186,8 +187,8 @@
       </div>
       <div id="qa-messages" class="qa-messages"></div>
       <form id="qa-form" class="qa-form">
-        <input type="text" id="qa-input" class="qa-input" placeholder="Ask, edit, or type /help for commands…"
-          autocomplete="off" />
+        <textarea id="qa-input" class="qa-input" placeholder="Ask, edit, or type /help for commands…" rows="1"
+          autocomplete="off"></textarea>
         <button type="submit" class="qa-send" id="qa-send">→</button>
       </form>
     </div>
@@ -228,6 +229,30 @@
           <span id="dryrun-progress-text" class="progress-text">Starting…</span>
         </div>
         <div id="dryrun-results" class="dryrun-results hidden"></div>
+        <div id="dryrun-history"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ Prompt Editor Modal ═══════ -->
+  <div id="prompt-editor-overlay" class="prompt-editor-overlay hidden">
+    <div class="prompt-editor-modal">
+      <div class="prompt-editor-header">
+        <div class="prompt-editor-agent-info">
+          <span id="prompt-editor-icon" class="prompt-editor-icon"></span>
+          <span id="prompt-editor-name" class="prompt-editor-name"></span>
+        </div>
+        <button id="prompt-editor-close" class="panel-close">✕</button>
+      </div>
+      <div class="prompt-editor-body">
+        <textarea id="prompt-editor-textarea" class="prompt-editor-textarea" spellcheck="false"></textarea>
+      </div>
+      <div class="prompt-editor-footer">
+        <span id="prompt-editor-status" class="prompt-editor-status"></span>
+        <div class="prompt-editor-actions">
+          <button id="prompt-editor-cancel" class="prompt-editor-btn prompt-editor-btn-cancel">Cancel</button>
+          <button id="prompt-editor-save" class="prompt-editor-btn prompt-editor-btn-save">Save Prompt</button>
+        </div>
       </div>
     </div>
   </div>

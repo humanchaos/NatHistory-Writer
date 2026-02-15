@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
 
 /**
@@ -38,7 +38,8 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
     // Parse markdown lines
     let inList = false;
 
-    for (const rawLine of lines) {
+    for (let li = 0; li < lines.length; li++) {
+        const rawLine = lines[li];
         const line = rawLine.trim();
 
         // Skip empty lines
@@ -112,6 +113,70 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
                 children: parseInlineFormatting(prefix + text),
                 indent: { left: 360 },
                 spacing: { after: 60 },
+            }));
+            continue;
+        }
+
+        // Table detection — collect contiguous pipe-delimited lines
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const tableLines = [line];
+            // Look ahead for more table rows
+            let j = li + 1;
+            while (j < lines.length) {
+                const nextLine = lines[j].trim();
+                if (nextLine.startsWith('|') && nextLine.endsWith('|')) {
+                    tableLines.push(nextLine);
+                    j++;
+                } else {
+                    break;
+                }
+            }
+            // Advance loop index past consumed table lines
+            li = j - 1;
+
+            // Parse table
+            const parseCells = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+            const headerCells = parseCells(tableLines[0]);
+            const isSeparator = (row) => /^[\s|:-]+$/.test(row);
+            const dataRows = tableLines.filter((r, i) => i > 0 && !isSeparator(r)).map(parseCells);
+
+            const tableRowObjects = [];
+
+            // Header row
+            tableRowObjects.push(new TableRow({
+                children: headerCells.map(cell => new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: cell, bold: true, size: 20, font: 'Calibri' })] })],
+                    shading: { fill: 'F0F0F0' },
+                })),
+                tableHeader: true,
+            }));
+
+            // Data rows
+            for (const cells of dataRows) {
+                tableRowObjects.push(new TableRow({
+                    children: cells.map(cell => new TableCell({
+                        children: [new Paragraph({ children: parseInlineFormatting(cell) })],
+                    })),
+                }));
+            }
+
+            if (tableRowObjects.length > 0) {
+                docChildren.push(new Table({
+                    rows: tableRowObjects,
+                    width: { size: 100, type: WidthType.PERCENTAGE },
+                }));
+                docChildren.push(new Paragraph({ spacing: { after: 100 } }));
+            }
+            continue;
+        }
+
+        // Blockquote styling
+        const blockquoteMatch = line.match(/^>\s*(.+)$/);
+        if (blockquoteMatch) {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({ text: blockquoteMatch[1], italics: true, size: 22, font: 'Calibri', color: '555555' })],
+                indent: { left: 720 },
+                spacing: { after: 80 },
             }));
             continue;
         }

@@ -1,6 +1,6 @@
 import { initGemini, createChat, callAgent } from './agents/gemini.js';
 import { runPipeline, runAssessment } from './agents/orchestrator.js';
-import { saveRun, getRuns, deleteRun, getRunById } from './history.js';
+import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
 import { chunkText } from './knowledge/chunker.js';
 import { embedBatch } from './knowledge/embeddings.js';
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
@@ -13,6 +13,7 @@ import {
     COMMISSIONING_EDITOR,
     SHOWRUNNER,
     ADVERSARY,
+    ALL_AGENTS,
 } from './agents/personas.js';
 import { marked } from 'marked';
 import { exportDOCX } from './export.js';
@@ -133,6 +134,68 @@ const dryrunProgress = document.getElementById('dryrun-progress');
 const dryrunProgressFill = document.getElementById('dryrun-progress-fill');
 const dryrunProgressText = document.getElementById('dryrun-progress-text');
 const dryrunResults = document.getElementById('dryrun-results');
+const dryrunHistory = document.getElementById('dryrun-history');
+
+// Prompt editor elements
+const promptEditorOverlay = document.getElementById('prompt-editor-overlay');
+const promptEditorIcon = document.getElementById('prompt-editor-icon');
+const promptEditorName = document.getElementById('prompt-editor-name');
+const promptEditorTextarea = document.getElementById('prompt-editor-textarea');
+const promptEditorStatus = document.getElementById('prompt-editor-status');
+const promptEditorClose = document.getElementById('prompt-editor-close');
+const promptEditorCancel = document.getElementById('prompt-editor-cancel');
+const promptEditorSave = document.getElementById('prompt-editor-save');
+
+// Agent lookup map
+const AGENT_MAP = Object.fromEntries(ALL_AGENTS.map(a => [a.id, a]));
+let currentEditingAgent = null;
+
+function openPromptEditor(agent) {
+    currentEditingAgent = agent;
+    promptEditorIcon.textContent = agent.icon;
+    promptEditorName.textContent = agent.name;
+    promptEditorName.style.color = agent.color;
+    promptEditorTextarea.value = agent.systemPrompt;
+    promptEditorStatus.textContent = '';
+    promptEditorOverlay.classList.remove('hidden');
+    // Focus textarea after animation
+    setTimeout(() => promptEditorTextarea.focus(), 100);
+}
+
+function closePromptEditor() {
+    promptEditorOverlay.classList.add('hidden');
+    currentEditingAgent = null;
+}
+
+// Wire agent chip clicks
+document.querySelectorAll('.agent-chip[data-agent-id]').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const agent = AGENT_MAP[chip.dataset.agentId];
+        if (agent) openPromptEditor(agent);
+    });
+});
+
+// Save prompt
+promptEditorSave.addEventListener('click', () => {
+    if (!currentEditingAgent) return;
+    currentEditingAgent.systemPrompt = promptEditorTextarea.value;
+    promptEditorStatus.textContent = '✓ Prompt saved';
+    setTimeout(() => closePromptEditor(), 600);
+});
+
+// Cancel / close
+promptEditorCancel.addEventListener('click', closePromptEditor);
+promptEditorClose.addEventListener('click', closePromptEditor);
+promptEditorOverlay.addEventListener('click', (e) => {
+    if (e.target === promptEditorOverlay) closePromptEditor();
+});
+
+// Escape key closes
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !promptEditorOverlay.classList.contains('hidden')) {
+        closePromptEditor();
+    }
+});
 
 // ─── Error Handling ───────────────────────────────────
 function showError(msg) {
@@ -368,8 +431,8 @@ async function refreshDocList() {
 }
 
 // ─── History Panel ────────────────────────────────────
-function refreshHistoryList() {
-    const runs = getRuns();
+async function refreshHistoryList() {
+    const runs = await getRuns();
     historyList.innerHTML = '';
 
     // Update badge
@@ -400,10 +463,10 @@ function refreshHistoryList() {
             showSavedPitchDeck(run);
             closeAllPanels();
         });
-        item.querySelector('.history-item-delete').addEventListener('click', (e) => {
+        item.querySelector('.history-item-delete').addEventListener('click', async (e) => {
             e.stopPropagation();
-            deleteRun(run.id);
-            refreshHistoryList();
+            await deleteRun(run.id);
+            await refreshHistoryList();
         });
         historyList.appendChild(item);
     });
@@ -506,6 +569,9 @@ let latestAgentCard = null;
 
 const pipelineCallbacks = {
     onPhaseStart(phaseNumber, phaseName) {
+        // Remove the waiting message once work begins
+        const waitMsg = document.getElementById('pipeline-wait-msg');
+        if (waitMsg) waitMsg.remove();
         setPhaseActive(phaseNumber);
         createPhaseBlock(phaseNumber, phaseName);
     },
@@ -525,58 +591,147 @@ const pipelineCallbacks = {
 seedForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const inputText = seedInput.value.trim();
-    if (!inputText) return;
+    const rawInput = seedInput.value.trim();
+    if (!rawInput) return;
+
+    // Split by newlines, trim, remove blanks
+    const seeds = rawInput.split('\n').map(s => s.trim()).filter(Boolean);
+    if (seeds.length === 0) return;
 
     const isAssessment = currentMode === 'script';
-    const totalPhases = isAssessment ? 4 : 6;
+    const isBatch = seeds.length > 1;
 
     // Disable form
     launchBtn.disabled = true;
-    launchBtn.querySelector('.btn-text').textContent = 'Running…';
-
-    // Build phase indicator for the correct number of phases
-    buildPhaseIndicator(totalPhases);
+    launchBtn.querySelector('.btn-text').textContent = isBatch ? `Running 0/${seeds.length}…` : 'Running…';
 
     // Show simulation
     simulationEl.classList.remove('hidden');
     timelineEl.innerHTML = '';
     pitchDeckEl.classList.add('hidden');
     scorecardEl.classList.add('hidden');
-
-    // Scroll to simulation
     simulationEl.scrollIntoView({ behavior: 'smooth' });
 
+    // Add a coffee-break waiting message
+    const waitTips = [
+        '☕ Grab a cup of coffee while you wait.',
+        '🚶 Talk to a stranger. You might learn something.',
+        '🌿 Step outside and take a deep breath.',
+        '📖 Read a page of that book you\'ve been meaning to start.',
+        '🎧 Put on your favourite song — this takes about as long.',
+        '🧘 Close your eyes for 60 seconds. Seriously.',
+        '🪟 Look out the window. Notice something new.',
+    ];
+    const waitMsg = document.createElement('div');
+    waitMsg.className = 'pipeline-wait-msg';
+    waitMsg.id = 'pipeline-wait-msg';
+    waitMsg.innerHTML = `<span class="wait-spinner"></span> <span>${waitTips[Math.floor(Math.random() * waitTips.length)]}</span>`;
+    timelineEl.appendChild(waitMsg);
+
+    // Batch banner (only for multi-seed)
+    let batchBanner = null;
+    if (isBatch) {
+        batchBanner = document.createElement('div');
+        batchBanner.className = 'batch-banner';
+        batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed 1/${seeds.length}</span><span class="batch-seed-name">${seeds[0]}</span>`;
+        simulationEl.insertBefore(batchBanner, simulationEl.firstChild);
+    }
+
+    const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
+    const targetPlatform = targetPlatformInput.value || null;
+    const batchResults = []; // { seed, pitchDeck }
+
     try {
-        const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
-        const targetPlatform = targetPlatformInput.value || null;
-        const finalPitchDeck = isAssessment
-            ? await runAssessment(inputText, pipelineCallbacks, prodYear)
-            : await runPipeline(inputText, pipelineCallbacks, { platform: targetPlatform, year: prodYear });
+        for (let i = 0; i < seeds.length; i++) {
+            const seedText = seeds[i];
 
-        // Track the seed idea for /rerun
-        lastSeedIdea = inputText;
+            // Update batch banner
+            if (batchBanner) {
+                batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed ${i + 1}/${seeds.length}</span><span class="batch-seed-name">${seedText}</span>`;
+                launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/${seeds.length}…`;
+            }
 
-        // Save to history
-        saveRun({ seedIdea: inputText, finalPitchDeck });
+            // Reset phase indicator + timeline for each seed
+            autoImprovementAttempts = 0; // Reset for each new pipeline run
+            const totalPhases = isAssessment ? 4 : 6;
+            buildPhaseIndicator(totalPhases);
+            timelineEl.innerHTML = '';
 
-        // Show pitch deck
-        pitchDeckContent.innerHTML = md(finalPitchDeck);
-        pitchDeckEl.classList.remove('hidden');
+            const finalPitchDeck = isAssessment
+                ? await runAssessment(seedText, pipelineCallbacks, prodYear)
+                : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear });
 
-        // Extract and display Gatekeeper badges
-        updateGatekeeperBadges(finalPitchDeck);
+            batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
 
-        pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+            // Save each run to history individually
+            await saveRun({ seedIdea: seedText, finalPitchDeck });
 
-        // Initialize Q&A chat
-        initChatSession(finalPitchDeck);
+            // Auto-score each (non-blocking)
+            autoScore(finalPitchDeck, seedText);
+        }
 
-        // Auto-score quality (non-blocking)
-        autoScore(finalPitchDeck, inputText);
+        // Remove batch banner
+        if (batchBanner) batchBanner.remove();
+
+        // Track last seed for /rerun
+        lastSeedIdea = batchResults[batchResults.length - 1].seed;
+
+        // ─── Display results ───
+        if (batchResults.length === 1) {
+            // Single seed — classic display
+            const { pitchDeck } = batchResults[0];
+            pitchDeckContent.innerHTML = md(pitchDeck);
+            pitchDeckEl.classList.remove('hidden');
+            updateGatekeeperBadges(pitchDeck);
+            pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+            initChatSession(pitchDeck);
+        } else {
+            // Multi-seed — tabbed display
+            const tabBar = document.createElement('div');
+            tabBar.className = 'batch-tabs';
+            batchResults.forEach((r, idx) => {
+                const tab = document.createElement('button');
+                tab.className = `batch-tab${idx === 0 ? ' active' : ''}`;
+                tab.textContent = `🌱 ${r.seed.length > 40 ? r.seed.slice(0, 37) + '…' : r.seed}`;
+                tab.dataset.index = idx;
+                tab.addEventListener('click', () => {
+                    tabBar.querySelectorAll('.batch-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
+                    updateGatekeeperBadges(batchResults[idx].pitchDeck);
+                    initChatSession(batchResults[idx].pitchDeck);
+                    lastSeedIdea = batchResults[idx].seed;
+                });
+                tabBar.appendChild(tab);
+            });
+
+            // Remove any existing tab bar
+            pitchDeckEl.querySelector('.batch-tabs')?.remove();
+            pitchDeckEl.insertBefore(tabBar, pitchDeckContent);
+
+            // Show first result
+            pitchDeckContent.innerHTML = md(batchResults[0].pitchDeck);
+            pitchDeckEl.classList.remove('hidden');
+            updateGatekeeperBadges(batchResults[0].pitchDeck);
+            pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+            initChatSession(batchResults[0].pitchDeck);
+        }
+
+        // Show chat toast
+        const toast = document.createElement('div');
+        toast.className = 'chat-ready-toast';
+        toast.innerHTML = isBatch ? `💬 ${batchResults.length} pitch decks ready — refinement chat below` : '💬 Refinement chat ready below';
+        toast.addEventListener('click', () => {
+            document.getElementById('qa-section').scrollIntoView({ behavior: 'smooth' });
+            toast.remove();
+        });
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('visible'), 100);
+        setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 500); }, 6000);
     } catch (err) {
         console.error('Pipeline error:', err);
         showError(`Pipeline error: ${err.message}`);
+        if (batchBanner) batchBanner.remove();
     } finally {
         launchBtn.disabled = false;
         launchBtn.querySelector('.btn-text').textContent = isAssessment
@@ -761,19 +916,57 @@ function getCommentary(text) {
     return text.replace(/<rewrite>[\s\S]*?<\/rewrite>/gi, '').trim();
 }
 
+// Match a rewrite to a deck section by heading similarity
+function matchBySection(sectionHint, revised) {
+    const normalizedHint = sectionHint.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const sections = lastPitchDeck.split(/\n(?=#{1,4} )/);
+    let bestIdx = -1;
+    let bestScore = 0;
+
+    for (let i = 0; i < sections.length; i++) {
+        const heading = (sections[i].match(/^#{1,4}\s+(.+)$/m) || [])[1] || '';
+        const normalizedHeading = heading.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+        if (!normalizedHeading) continue;
+
+        // Score: exact match > contains > word overlap
+        if (normalizedHeading === normalizedHint) {
+            bestIdx = i; break;
+        }
+        const hintWords = normalizedHint.split(/\s+/);
+        const headingWords = normalizedHeading.split(/\s+/);
+        const overlap = hintWords.filter(w => headingWords.includes(w)).length;
+        const score = overlap / Math.max(hintWords.length, 1);
+        if (score > bestScore && score >= 0.5) {
+            bestScore = score;
+            bestIdx = i;
+        }
+    }
+
+    if (bestIdx >= 0) {
+        sections[bestIdx] = revised;
+        lastPitchDeck = sections.join('\n');
+        return true;
+    }
+    return false;
+}
+
 // Apply a rewrite to the live deck
-function applyRewrite(original, revised) {
+async function applyRewrite(original, revised, sectionHint) {
     // Save current state for undo
     revisionHistory.push(lastPitchDeck);
 
-    // Try exact match first, then fuzzy (first 80 chars)
+    // Strategy 1: Exact substring match (best case — LLM copied verbatim)
     if (lastPitchDeck.includes(original)) {
         lastPitchDeck = lastPitchDeck.replace(original, revised);
-    } else {
-        // Fuzzy: find the closest matching section by looking for the first line
+    }
+    // Strategy 2: Section-heading match using the <section> hint
+    else if (sectionHint && matchBySection(sectionHint, revised)) {
+        // matchBySection updates lastPitchDeck directly and returns true on success
+    }
+    // Strategy 3: First-line fuzzy match
+    else {
         const firstLine = original.split('\n')[0].trim();
         if (firstLine && lastPitchDeck.includes(firstLine)) {
-            // Find the paragraph containing this line and replace it
             const sections = lastPitchDeck.split(/\n(?=#{1,4} )/);
             for (let i = 0; i < sections.length; i++) {
                 if (sections[i].includes(firstLine)) {
@@ -783,8 +976,26 @@ function applyRewrite(original, revised) {
             }
             lastPitchDeck = sections.join('\n');
         } else {
-            // Fallback: append the revision
-            lastPitchDeck += '\n\n' + revised;
+            // Last resort: try section hint even with partial matching
+            const normalizedHint = sectionHint?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+            const sections = lastPitchDeck.split(/\n(?=#{1,4} )/);
+            let matched = false;
+            for (let i = 0; i < sections.length; i++) {
+                const heading = (sections[i].match(/^#{1,4}\s+(.+)$/m) || [])[1] || '';
+                const normalizedHeading = heading.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (normalizedHint && normalizedHeading.includes(normalizedHint)) {
+                    sections[i] = revised;
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) {
+                lastPitchDeck = sections.join('\n');
+            } else {
+                // Absolute fallback — replace the section by best similarity
+                console.warn('[Rewrite] No match found for section:', sectionHint, '— appending');
+                lastPitchDeck += '\n\n' + revised;
+            }
         }
     }
 
@@ -799,8 +1010,17 @@ function applyRewrite(original, revised) {
     updateGatekeeperBadges(lastPitchDeck);
     updateRevisionBadge();
 
-    // Update the chat session's context with the new deck
-    chatSession = createChat(buildRefinementPrompt(lastPitchDeck), { tools: SEARCH_TOOLS });
+    // Update the chat session's context WITHOUT destroying conversation history
+    // Instead of recreating the session, inject the updated section so the LLM
+    // retains memory of what was discussed and what the user's intent was.
+    chatSession.send(
+        `[CONTEXT UPDATE] The user accepted a rewrite. The deck has been updated.\n\nHere is the current full deck for your reference:\n\n${lastPitchDeck}\n\nContinue assisting with refinements. You remember everything discussed so far.`
+    ).catch(() => { });
+
+    // Auto-save to history so refinements aren't lost on tab close
+    if (lastSeedIdea) {
+        await saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: lastPitchDeck });
+    }
 }
 
 // Render a rewrite proposal with Accept/Reject
@@ -820,8 +1040,8 @@ function renderRewriteProposal(block, container) {
         </div>
     `;
 
-    proposal.querySelector('.rewrite-accept').addEventListener('click', () => {
-        applyRewrite(block.original, block.revised);
+    proposal.querySelector('.rewrite-accept').addEventListener('click', async () => {
+        await applyRewrite(block.original, block.revised, block.section);
         proposal.classList.add('rewrite-accepted');
         proposal.querySelector('.rewrite-actions').innerHTML = '<span class="rewrite-status accepted">✓ Applied to deck</span>';
     });
@@ -882,6 +1102,75 @@ function handleUndo() {
 }
 
 // Main chat submit handler
+// Shared rerun pipeline execution (used by /rerun and auto-detected <rerun> tags)
+async function executeRerun(directive, containerEl) {
+    // Save current deck for undo
+    revisionHistory.push(lastPitchDeck);
+
+    // Set up progress UI
+    containerEl.className = 'qa-msg assistant rerun-progress';
+    containerEl.innerHTML = `<div class="agent-invoking"><span class="dots"><span></span><span></span><span></span></span> Re-running full pipeline with directive…</div><div class="rerun-log" id="rerun-log"></div>`;
+
+    const rerunLog = containerEl.querySelector('#rerun-log') || containerEl.querySelector('.rerun-log');
+    const addLog = (msg) => {
+        const entry = document.createElement('div');
+        entry.className = 'rerun-log-entry';
+        entry.innerHTML = msg;
+        rerunLog.appendChild(entry);
+        qaMessages.scrollTop = qaMessages.scrollHeight;
+    };
+
+    try {
+        const rerunCallbacks = {
+            onPhaseStart: (n, name) => addLog(`<span class="rerun-phase">Phase ${n}:</span> ${name}`),
+            onAgentThinking: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> thinking…`),
+            onAgentOutput: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> ✓ complete`),
+            onPhaseComplete: () => { },
+        };
+
+        const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
+        const targetPlatform = targetPlatformInput.value || null;
+
+        const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
+            platform: targetPlatform,
+            year: prodYear,
+            directive: directive,
+        });
+
+        // Update everything
+        lastPitchDeck = newDeck;
+        pitchDeckContent.innerHTML = md(newDeck);
+        pitchDeckContent.classList.add('deck-updated');
+        setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
+        updateGatekeeperBadges(newDeck);
+        updateRevisionBadge();
+        await saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
+
+        // Rebuild chat session with new deck (full rerun justifies a fresh session)
+        chatSession = createChat(buildRefinementPrompt(newDeck), { tools: SEARCH_TOOLS });
+        chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
+
+        // Auto-score the new deck
+        autoScore(newDeck, lastSeedIdea);
+
+        addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
+    } catch (err) {
+        addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
+    }
+}
+
+// C3: Textarea auto-expand and Enter/Shift+Enter handling
+qaInput.addEventListener('input', () => {
+    qaInput.style.height = 'auto';
+    qaInput.style.height = Math.min(qaInput.scrollHeight, 120) + 'px';
+});
+qaInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        qaForm.requestSubmit();
+    }
+});
+
 qaForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const question = qaInput.value.trim();
@@ -893,6 +1182,7 @@ qaForm.addEventListener('submit', async (e) => {
     userMsg.textContent = question;
     qaMessages.appendChild(userMsg);
     qaInput.value = '';
+    qaInput.style.height = 'auto';
 
     // Add typing indicator
     const typingMsg = document.createElement('div');
@@ -923,55 +1213,7 @@ qaForm.addEventListener('submit', async (e) => {
                 typingMsg.className = 'qa-msg assistant';
                 typingMsg.innerHTML = md('No previous pipeline run found. Run the pipeline first, then use `/rerun`.');
             } else {
-                // Save current deck for undo
-                revisionHistory.push(lastPitchDeck);
-
-                typingMsg.className = 'qa-msg assistant rerun-progress';
-                typingMsg.innerHTML = `<div class="agent-invoking"><span class="dots"><span></span><span></span><span></span></span> Re-running full pipeline with directive…</div><div class="rerun-log" id="rerun-log"></div>`;
-
-                const rerunLog = typingMsg.querySelector('#rerun-log');
-                const addLog = (msg) => {
-                    const entry = document.createElement('div');
-                    entry.className = 'rerun-log-entry';
-                    entry.innerHTML = msg;
-                    rerunLog.appendChild(entry);
-                    qaMessages.scrollTop = qaMessages.scrollHeight;
-                };
-
-                try {
-                    const rerunCallbacks = {
-                        onPhaseStart: (n, name) => addLog(`<span class="rerun-phase">Phase ${n}:</span> ${name}`),
-                        onAgentThinking: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> thinking…`),
-                        onAgentOutput: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> ✓ complete`),
-                        onPhaseComplete: () => { },
-                    };
-
-                    const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
-                    const targetPlatform = targetPlatformInput.value || null;
-
-                    const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
-                        platform: targetPlatform,
-                        year: prodYear,
-                        directive: directive,
-                    });
-
-                    // Update everything
-                    lastPitchDeck = newDeck;
-                    pitchDeckContent.innerHTML = md(newDeck);
-                    pitchDeckContent.classList.add('deck-updated');
-                    setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
-                    updateGatekeeperBadges(newDeck);
-                    updateRevisionBadge();
-                    saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
-
-                    // Rebuild chat session with new deck
-                    chatSession = createChat(buildRefinementPrompt(newDeck), { tools: SEARCH_TOOLS });
-                    chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
-
-                    addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
-                } catch (err) {
-                    addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
-                }
+                await executeRerun(directive, typingMsg);
             }
         }
         // Handle /help
@@ -1000,6 +1242,17 @@ qaForm.addEventListener('submit', async (e) => {
             typingMsg.className = 'qa-msg assistant';
             typingMsg.innerHTML = md('✓ Pitch deck copied to clipboard.');
         }
+        // Handle /export
+        else if (lowerQ === '/export') {
+            typingMsg.className = 'qa-msg assistant';
+            try {
+                const title = (lastPitchDeck.match(/^#{1,2}\s+(.+)$/m) || [])[1] || 'Master Pitch Deck';
+                await exportDOCX(lastPitchDeck, title.replace(/\*+/g, '').trim());
+                typingMsg.innerHTML = md('✓ DOCX exported successfully.');
+            } catch (err) {
+                typingMsg.innerHTML = `<em>Error exporting: ${err.message}</em>`;
+            }
+        }
         // Handle /score
         else if (lowerQ === '/score') {
             typingMsg.className = 'qa-msg assistant';
@@ -1020,7 +1273,37 @@ qaForm.addEventListener('submit', async (e) => {
                     badgesEl.classList.remove('hidden');
                 }
 
+                // Update verdict text
+                const verdictEl = document.getElementById('deck-verdict-text');
+                if (verdictEl) {
+                    if (s >= 80) {
+                        verdictEl.textContent = 'Greenlit & Approved';
+                        verdictEl.style.color = '#00d4aa';
+                    } else {
+                        verdictEl.textContent = `Below Threshold (${s}/100) — needs 80+`;
+                        verdictEl.style.color = '#f0a030';
+                    }
+                }
+
                 typingMsg.innerHTML = md(`✓ Quality Scorecard updated — Overall: **${scorecard.overall}/100**`);
+
+                // C2: Score→Rerun bridge — add "Apply Recommendations" button
+                if (scorecard.recommendations && scorecard.recommendations.length > 0 && lastSeedIdea) {
+                    const bridgeBtn = document.createElement('button');
+                    bridgeBtn.className = 'rewrite-accept score-rerun-btn';
+                    bridgeBtn.textContent = '🚀 Apply Recommendations via Full Rerun';
+                    bridgeBtn.addEventListener('click', async () => {
+                        const directive = `Apply all identified improvements to reach a higher quality score. Specific recommendations: ${scorecard.recommendations.join('; ')}`;
+                        bridgeBtn.disabled = true;
+                        bridgeBtn.textContent = '🔄 Running…';
+                        const rerunMsg = document.createElement('div');
+                        rerunMsg.className = 'qa-msg assistant';
+                        qaMessages.appendChild(rerunMsg);
+                        await executeRerun(directive, rerunMsg);
+                        bridgeBtn.textContent = '✅ Done';
+                    });
+                    typingMsg.appendChild(bridgeBtn);
+                }
             } catch (err) {
                 typingMsg.innerHTML = `<em>Error running evaluator: ${err.message}</em>`;
             }
@@ -1060,56 +1343,10 @@ qaForm.addEventListener('submit', async (e) => {
                     const actionsEl = typingMsg.querySelector('.rewrite-actions');
                     actionsEl.innerHTML = '<span class="rewrite-status accepted">🔄 Running full pipeline…</span>';
 
-                    // Save current deck for undo
-                    revisionHistory.push(lastPitchDeck);
-
-                    // Add progress log
-                    const logEl = document.createElement('div');
-                    logEl.className = 'rerun-log';
-                    logEl.id = 'rerun-log-auto';
-                    typingMsg.querySelector('.rerun-proposal').appendChild(logEl);
-
-                    const addLog = (msg) => {
-                        const entry = document.createElement('div');
-                        entry.className = 'rerun-log-entry';
-                        entry.innerHTML = msg;
-                        logEl.appendChild(entry);
-                        qaMessages.scrollTop = qaMessages.scrollHeight;
-                    };
-
                     try {
-                        const rerunCallbacks = {
-                            onPhaseStart: (n, name) => addLog(`<span class="rerun-phase">Phase ${n}:</span> ${name}`),
-                            onAgentThinking: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> thinking…`),
-                            onAgentOutput: (agent) => addLog(`<span class="rerun-agent">${agent.icon} ${agent.name}</span> ✓ complete`),
-                            onPhaseComplete: () => { },
-                        };
-
-                        const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
-                        const targetPlatform = targetPlatformInput.value || null;
-
-                        const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
-                            platform: targetPlatform,
-                            year: prodYear,
-                            directive: directive,
-                        });
-
-                        // Update everything
-                        lastPitchDeck = newDeck;
-                        pitchDeckContent.innerHTML = md(newDeck);
-                        pitchDeckContent.classList.add('deck-updated');
-                        setTimeout(() => pitchDeckContent.classList.remove('deck-updated'), 1500);
-                        updateGatekeeperBadges(newDeck);
-                        updateRevisionBadge();
-                        saveRun({ seedIdea: lastSeedIdea, finalPitchDeck: newDeck });
-
-                        // Rebuild chat session with new deck
-                        chatSession = createChat(buildRefinementPrompt(newDeck), { tools: SEARCH_TOOLS });
-                        chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
-
-                        addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
+                        await executeRerun(directive, typingMsg);
                     } catch (err) {
-                        addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
+                        // Error already handled inside executeRerun
                     }
                 });
 
@@ -1190,57 +1427,315 @@ function renderScorecard(scorecard) {
     `;
 }
 
+const MAX_AUTO_IMPROVEMENTS = 2;
+let autoImprovementAttempts = 0;
+
 async function autoScore(pitchDeck, seedIdea) {
+    const verdictEl = document.getElementById('deck-verdict-text');
     try {
         const scorecard = await evaluatePitchDeck(pitchDeck, seedIdea);
         renderScorecard(scorecard);
 
-        // Sync the header badge with the evaluator score
+        // ─── Update title badge (single source of truth) ──────
         const scoreBadge = document.getElementById('gatekeeper-score-badge');
         const badgesEl = document.getElementById('gatekeeper-badges');
+        const s = scorecard.overall;
+
         if (scoreBadge && badgesEl) {
-            const s = scorecard.overall;
             const icon = s >= 80 ? '✅' : s >= 60 ? '⚠️' : '⛔';
             scoreBadge.textContent = `${icon} ${s}/100`;
             scoreBadge.className = `gatekeeper-badge gatekeeper-score ${s >= 80 ? 'score-green' : s >= 60 ? 'score-amber' : s >= 40 ? 'score-orange' : 'score-red'}`;
             badgesEl.classList.remove('hidden');
         }
+
+        // ─── Update verdict text ──────
+        if (verdictEl) {
+            if (s >= 80) {
+                verdictEl.textContent = 'Greenlit & Approved';
+                verdictEl.style.color = '#00d4aa';
+            } else {
+                verdictEl.textContent = `Below Threshold (${s}/100) — needs 80+`;
+                verdictEl.style.color = '#f0a030';
+            }
+        }
+
+        // ─── Auto-improvement: if below 80 and we haven't exhausted attempts ──────
+        if (s < 80 && autoImprovementAttempts < MAX_AUTO_IMPROVEMENTS && lastSeedIdea) {
+            autoImprovementAttempts++;
+            const attempt = autoImprovementAttempts;
+            const total = MAX_AUTO_IMPROVEMENTS;
+
+            if (verdictEl) {
+                verdictEl.textContent = `Auto-improving (${attempt}/${total})… Score: ${s}/100`;
+                verdictEl.style.color = '#f0a030';
+            }
+
+            // Build a targeted directive from the evaluator's weakest dimensions + recommendations
+            const weakDims = scorecard.dimensions
+                .filter(d => d.score !== null && d.score < 75)
+                .sort((a, b) => a.score - b.score)
+                .map(d => `${d.name} (${d.score}/100): ${d.rationale}`)
+                .join('\n');
+
+            const recs = scorecard.recommendations
+                ? scorecard.recommendations.join('; ')
+                : '';
+
+            const directive = `QUALITY EVALUATOR AUTO-IMPROVEMENT (attempt ${attempt}/${total}). Current overall score: ${s}/100 — target is 80+.\n\nWeakest dimensions:\n${weakDims}\n\nRecommendations: ${recs}\n\nFocus on the weakest dimensions. Do not regress on strong areas.`;
+
+            // Create a visible log in the QA panel
+            const qaMessages = document.getElementById('qa-messages');
+            const rerunMsg = document.createElement('div');
+            rerunMsg.className = 'qa-msg assistant';
+            rerunMsg.innerHTML = `<strong>🔄 Auto-improvement ${attempt}/${total}</strong> — Evaluator scored ${s}/100, targeting 80+…`;
+            if (qaMessages) qaMessages.appendChild(rerunMsg);
+
+            await executeRerun(directive, rerunMsg);
+            // Note: executeRerun calls autoScore again via its own flow,
+            // so the loop continues automatically if score is still < 80
+        } else if (s < 80 && autoImprovementAttempts >= MAX_AUTO_IMPROVEMENTS) {
+            // Exhausted auto-improvement attempts
+            if (verdictEl) {
+                verdictEl.textContent = `Best achievable: ${s}/100 (${MAX_AUTO_IMPROVEMENTS} auto-improvements exhausted)`;
+                verdictEl.style.color = '#f0a030';
+            }
+        }
     } catch (err) {
         console.warn('Auto-scoring failed:', err.message);
+        if (verdictEl) {
+            verdictEl.textContent = 'Scoring unavailable';
+            verdictEl.style.color = '#888';
+        }
     }
 }
 
 // ─── Dryrun Benchmark ───────────────────────────────
-btnDryrun.addEventListener('click', () => {
+let dryrunRunning = false;
+const DRYRUN_STATE_KEY = 'scriptwriter_dryrun_state';
+
+/** Save dryrun state to localStorage for resume */
+function saveDryrunState(state) {
+    try {
+        localStorage.setItem(DRYRUN_STATE_KEY, JSON.stringify(state));
+    } catch { }
+}
+
+/** Load saved dryrun state */
+function loadDryrunState() {
+    try {
+        const raw = localStorage.getItem(DRYRUN_STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+/** Clear saved dryrun state */
+function clearDryrunState() {
+    localStorage.removeItem(DRYRUN_STATE_KEY);
+}
+
+btnDryrun.addEventListener('click', async () => {
     dryrunOverlay.classList.remove('hidden');
-    dryrunStartArea.classList.remove('hidden');
     dryrunProgress.classList.add('hidden');
     dryrunResults.classList.add('hidden');
+
+    // Check for saved state to offer resume
+    const saved = loadDryrunState();
+    if (saved && saved.completedResults && saved.completedResults.length > 0 && !saved.finished) {
+        const total = saved.totalSeeds || 6;
+        const done = saved.completedResults.length;
+        dryrunStartArea.innerHTML = `
+            <div class="dryrun-resume-info">
+                <p>⏸ Previous run interrupted at <strong>${done}/${total}</strong> seeds</p>
+                <p class="dryrun-resume-meta">${saved.calibrationSeedName || 'Unknown calibration seed'} · ${new Date(saved.startedAt).toLocaleString()}</p>
+            </div>
+            <div class="dryrun-resume-btns">
+                <button id="dryrun-resume" class="btn-primary btn-launch">
+                    <span class="btn-text">Resume</span>
+                    <span class="btn-icon">→</span>
+                </button>
+                <button id="dryrun-restart" class="btn-secondary">Start Fresh</button>
+            </div>
+        `;
+        dryrunStartArea.classList.remove('hidden');
+
+        document.getElementById('dryrun-resume').addEventListener('click', () => startDryrun(true));
+        document.getElementById('dryrun-restart').addEventListener('click', () => {
+            clearDryrunState();
+            resetDryrunStartArea();
+            startDryrun(false);
+        });
+    } else {
+        resetDryrunStartArea();
+    }
+
+    // Show past dryruns history
+    await renderDryrunHistory();
 });
 
+function resetDryrunStartArea() {
+    dryrunStartArea.innerHTML = `
+        <button id="dryrun-start" class="btn-primary btn-launch">
+            <span class="btn-text">Start Benchmark</span>
+            <span class="btn-icon">→</span>
+        </button>
+    `;
+    dryrunStartArea.classList.remove('hidden');
+    document.getElementById('dryrun-start').addEventListener('click', () => startDryrun(false));
+}
+
 dryrunClose.addEventListener('click', () => {
+    if (dryrunRunning) return; // Block close during active run
     dryrunOverlay.classList.add('hidden');
 });
 
 dryrunOverlay.addEventListener('click', (e) => {
+    if (dryrunRunning) return; // Block dismiss during active run
     if (e.target === dryrunOverlay) dryrunOverlay.classList.add('hidden');
 });
 
-dryrunStart.addEventListener('click', async () => {
+async function renderDryrunHistory() {
+    const past = await getDryrunResults();
+    if (past.length === 0) {
+        dryrunHistory.innerHTML = '';
+        return;
+    }
+
+    const rows = past.slice(0, 10).map(dr => {
+        const date = new Date(dr.timestamp);
+        const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const score = dr.aggregate?.overall;
+        const calStatus = dr.calibration?.status || '—';
+        const calIcon = calStatus === 'PASS' ? '✅' : calStatus === 'WARN' ? '⚠️' : calStatus === 'FAIL' ? '⛔' : '—';
+        const calProd = dr.calibration?.production ? `${dr.calibration.year} · ${dr.calibration.production}` : '';
+        const seedScores = (dr.seeds || []).map(s => {
+            if (s.rejected) return '<span class="drh-seed score-rejected">⛔</span>';
+            const cls = s.score >= 80 ? 'score-high' : s.score >= 60 ? 'score-mid' : 'score-low';
+            return `<span class="drh-seed ${cls}">${s.score}</span>`;
+        }).join('');
+
+        return `
+            <div class="drh-row">
+                <span class="drh-date">${dateStr} ${timeStr}</span>
+                <span class="drh-score ${score != null ? (score >= 80 ? 'score-high' : score >= 60 ? 'score-mid' : 'score-low') : 'score-na'}">${score ?? '—'}</span>
+                <span class="drh-cal" title="${calProd}">${calIcon}</span>
+                <span class="drh-seeds">${seedScores}</span>
+            </div>
+        `;
+    }).join('');
+
+    // Build dimension trend chart (when ≥2 dryruns exist)
+    let trendHtml = '';
+    if (past.length >= 2) {
+        // Aggregate dimension scores per dryrun (oldest → newest for sparkline)
+        const chronological = past.slice(0, 10).reverse();
+        const dimNames = ['Narrative Structure', 'Scientific Rigor', 'Market Viability', 'Production Feasibility', 'Originality', 'Presentation Quality', 'Platform Compliance'];
+        const dimColors = ['#da77f2', '#20c997', '#00d4aa', '#ffd43b', '#ff6b6b', '#339af0', '#845ef7'];
+        const dimAgents = ['Story Producer', 'Chief Scientist', 'Market Analyst', 'Field Producer', 'Story Producer', 'Showrunner', 'Story Producer'];
+
+        // Extract average dimension score per dryrun
+        const dimSeries = dimNames.map((name, dimIdx) => {
+            const pts = chronological.map(dr => {
+                const seeds = (dr.seeds || []).filter(s => !s.rejected && s.dimensions?.length > dimIdx);
+                if (seeds.length === 0) return null;
+                const avg = seeds.reduce((sum, s) => sum + (s.dimensions[dimIdx]?.score || 0), 0) / seeds.length;
+                return Math.round(avg);
+            }).filter(v => v !== null);
+            return { name, pts, color: dimColors[dimIdx], agent: dimAgents[dimIdx] };
+        }).filter(d => d.pts.length >= 2);
+
+        if (dimSeries.length > 0) {
+            const sparklines = dimSeries.map(d => {
+                const min = Math.min(...d.pts, 0);
+                const max = Math.max(...d.pts, 100);
+                const range = max - min || 1;
+                const w = 80, h = 24;
+                const points = d.pts.map((v, i) => {
+                    const x = d.pts.length === 1 ? w / 2 : (i / (d.pts.length - 1)) * w;
+                    const y = h - ((v - min) / range) * h;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).join(' ');
+                const latest = d.pts[d.pts.length - 1];
+                const prev = d.pts[d.pts.length - 2];
+                const delta = latest - prev;
+                const arrow = delta > 2 ? '↑' : delta < -2 ? '↓' : '→';
+                const arrowCls = delta > 2 ? 'trend-up' : delta < -2 ? 'trend-down' : 'trend-flat';
+                const scoreCls = latest >= 80 ? 'score-high' : latest >= 60 ? 'score-mid' : 'score-low';
+
+                return `
+                    <div class="drh-trend-row" title="${d.agent}">
+                        <span class="drh-trend-label">${d.name.split(' ')[0]}</span>
+                        <svg class="drh-sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+                            <polyline points="${points}" fill="none" stroke="${d.color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span class="drh-trend-score ${scoreCls}">${latest}</span>
+                        <span class="drh-trend-delta ${arrowCls}">${arrow}${Math.abs(delta) > 2 ? Math.abs(delta) : ''}</span>
+                    </div>
+                `;
+            }).join('');
+
+            trendHtml = `
+                <div class="drh-trends">
+                    <div class="drh-trend-title">📈 Dimension Trends</div>
+                    ${sparklines}
+                </div>
+            `;
+        }
+    }
+
+    dryrunHistory.innerHTML = `
+        <div class="drh-container">
+            <div class="drh-header">📊 Past Dryruns</div>
+            <div class="drh-table">
+                <div class="drh-row drh-header-row">
+                    <span class="drh-date">Date</span>
+                    <span class="drh-score">Score</span>
+                    <span class="drh-cal">Cal</span>
+                    <span class="drh-seeds">Seeds</span>
+                </div>
+                ${rows}
+            </div>
+            ${trendHtml}
+        </div>
+    `;
+}
+
+async function startDryrun(resume) {
     dryrunStartArea.classList.add('hidden');
+    dryrunHistory.innerHTML = '';
     dryrunProgress.classList.remove('hidden');
     dryrunResults.classList.add('hidden');
-    dryrunStart.disabled = true;
+    dryrunRunning = true;
+    dryrunClose.classList.add('disabled');
 
     try {
-        const { results, aggregate } = await runDryrun(runPipeline, (current, total, seedName, status) => {
+        const savedState = resume ? loadDryrunState() : null;
+        const skipSeedIds = savedState ? (savedState.completedResults || []).map(r => r.seed.id) : [];
+
+        const { results, aggregate, calibration } = await runDryrun(runPipeline, (current, total, seedName, status) => {
             const pct = Math.round(((current - 1) / total + (status.includes('Evaluating') ? 0.5 : 0) / total) * 100);
             dryrunProgressFill.style.width = `${pct}%`;
             dryrunProgressText.textContent = `[${current}/${total}] ${seedName}: ${status}`;
+        }, {
+            skipSeedIds,
+            previousResults: savedState ? savedState.completedResults : [],
+            onSeedComplete: (completedResults, calibrationSeedName, totalSeeds) => {
+                saveDryrunState({
+                    completedResults,
+                    calibrationSeedName,
+                    totalSeeds,
+                    startedAt: savedState?.startedAt || new Date().toISOString(),
+                    finished: false,
+                });
+            },
         });
 
         dryrunProgressFill.style.width = '100%';
         dryrunProgressText.textContent = 'Complete!';
+        clearDryrunState();
+
+        // Persist dryrun result to IndexedDB
+        await saveDryrunResult({ results, aggregate, calibration });
 
         // Render results
         dryrunResults.classList.remove('hidden');
@@ -1250,7 +1745,57 @@ dryrunStart.addEventListener('click', async () => {
             ? `Aggregate Quality Score (${aggregate.scored}/${aggregate.total} scored, ${aggregate.rejected} rejected)`
             : 'Aggregate Quality Score';
 
+        // Calibration health banner
+        const calBanner = calibration ? (() => {
+            const icon = calibration.status === 'PASS' ? '✅' : calibration.status === 'WARN' ? '⚠️' : '⛔';
+            const cls = calibration.status === 'PASS' ? 'cal-pass' : calibration.status === 'WARN' ? 'cal-warn' : 'cal-fail';
+            const scoreText = calibration.score != null ? `${calibration.score}/100` : 'N/A';
+            const deltaText = calibration.delta && calibration.delta !== 0 ? ` (${calibration.delta > 0 ? '+' : ''}${calibration.delta})` : '';
+            const prodLabel = calibration.production ? `${calibration.year} · ${calibration.production}` : 'Gold Standard';
+            const agreementText = calibration.markerDisagreements > 0
+                ? ` · ⚠️ ${calibration.markerDisagreements} disagree with ground truth`
+                : ' · all markers agree with ground truth';
+            const markerList = calibration.markers && calibration.markers.length > 0
+                ? `<div class="cal-markers">
+                    <div class="cal-markers-header">✅ Gold Standard Checklist (${calibration.markersPassed}/${calibration.markersTotal}${agreementText})</div>
+                    ${calibration.markers.map(m => {
+                    const agreeIcon = m.agrees === true ? '' : m.agrees === false ? ' <span class="cal-marker-disagree">⚠️ disagrees</span>' : '';
+                    return `
+                        <div class="cal-marker ${m.pass === true ? 'cal-marker-pass' : m.pass === false ? 'cal-marker-fail' : 'cal-marker-na'}">
+                            <span class="cal-marker-icon">${m.pass === true ? '✅' : m.pass === false ? '❌' : '❓'}</span>
+                            <span class="cal-marker-label">${m.label}${agreeIcon}</span>
+                            <span class="cal-marker-note">${m.note || ''}</span>
+                        </div>
+                    `;
+                }).join('')}
+                </div>`
+                : '';
+            const redFlagList = calibration.redFlags && calibration.redFlags.length > 0
+                ? `<div class="cal-markers cal-redflags">
+                    <div class="cal-markers-header">🚩 Red Flag Scan (${calibration.redFlagsTriggered}/${calibration.redFlagsTotal} triggered${calibration.redFlagsTriggered === 0 ? ' — all clear' : ' — WARNING'})</div>
+                    ${calibration.redFlags.map(f => `
+                        <div class="cal-marker ${f.triggered === true ? 'cal-marker-redflag' : f.triggered === false ? 'cal-marker-clear' : 'cal-marker-na'}">
+                            <span class="cal-marker-icon">${f.triggered === true ? '🚩' : f.triggered === false ? '✅' : '❓'}</span>
+                            <span class="cal-marker-label">${f.label}</span>
+                            <span class="cal-marker-note">${f.note || ''}</span>
+                        </div>
+                    `).join('')}
+                </div>`
+                : '';
+            return `
+                <div class="calibration-banner ${cls}">
+                    <div class="cal-header">${icon} Calibration ${calibration.status} — ${prodLabel}</div>
+                    <div class="cal-detail">Scored <strong>${scoreText}</strong>${deltaText} · Expected: ${calibration.expected} · ⏱ ${calibration.duration}s</div>
+                    <div class="cal-summary">${calibration.summary}</div>
+                    ${markerList}
+                    ${redFlagList}
+                </div>
+            `;
+        })() : '';
+
         dryrunResults.innerHTML = `
+            ${calBanner}
+
             <div class="dryrun-aggregate">
                 <div class="dryrun-aggregate-score ${hasScored ? scoreClass(aggregate.overall) : 'score-na'}">${hasScored ? aggregate.overall : '—'}</div>
                 <div class="dryrun-aggregate-label">${aggregateLabel}</div>
@@ -1273,20 +1818,29 @@ dryrunStart.addEventListener('click', async () => {
                 return `
                             <div class="dryrun-seed-card dryrun-seed-rejected">
                                 <div class="dryrun-seed-card-header">
-                                    <span class="dryrun-seed-name">${r.seed.name}</span>
+                                    <span class="dryrun-seed-name">${r.seed.name}${r.seed.platform ? ` <span class="dryrun-platform-badge">${r.seed.platform}</span>` : ''}</span>
                                     <span class="dryrun-seed-score score-rejected">⛔ REJECTED</span>
                                 </div>
                                 <div class="dryrun-seed-summary">${r.scorecard.summary}</div>
+                                <div class="dryrun-seed-timing">⏱ ${r.duration}s</div>
                             </div>
                         `;
             }
             return `
                         <div class="dryrun-seed-card">
                             <div class="dryrun-seed-card-header">
-                                <span class="dryrun-seed-name">${r.seed.name}</span>
+                                <span class="dryrun-seed-name">${r.seed.name}${r.seed.platform ? ` <span class="dryrun-platform-badge">${r.seed.platform}</span>` : ''}</span>
                                 <span class="dryrun-seed-score ${scoreClass(r.scorecard.overall)}">${r.scorecard.overall}</span>
                             </div>
+                            <div class="dryrun-seed-dims">
+                                ${r.scorecard.dimensions.map(d => `
+                                    <span class="dryrun-seed-dim" title="${d.rationale}">
+                                        ${d.name}: <strong class="${scoreClass(d.score)}">${d.score}</strong>
+                                    </span>
+                                `).join('')}
+                            </div>
                             <div class="dryrun-seed-summary">${r.scorecard.summary}</div>
+                            <div class="dryrun-seed-timing">⏱ ${r.duration}s</div>
                         </div>
                     `;
         }).join('')}
@@ -1305,9 +1859,10 @@ dryrunStart.addEventListener('click', async () => {
     } catch (err) {
         showError(`Dryrun failed: ${err.message}`);
     } finally {
-        dryrunStart.disabled = false;
+        dryrunRunning = false;
+        dryrunClose.classList.remove('disabled');
     }
-});
+}
 
 // ─── Init badges on page load ─────────────────────────
 (async () => {
@@ -1319,7 +1874,7 @@ dryrunStart.addEventListener('click', async () => {
         }
     } catch { }
 
-    const runs = getRuns();
+    const runs = await getRuns();
     if (runs.length > 0) {
         historyBadge.textContent = runs.length;
         historyBadge.classList.remove('hidden');

@@ -414,11 +414,178 @@ h4 {
   font-size: 0.78rem;
   font-weight: 500;
   transition: all 0.3s;
+  cursor: pointer;
 }
 
 .agent-chip:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--agent-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Prompt Editor Modal ──────────────────────────── */
+.prompt-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: promptOverlayIn 0.25s ease-out;
+}
+
+.prompt-editor-overlay.hidden {
+  display: none !important;
+}
+
+@keyframes promptOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.prompt-editor-modal {
+  width: 90%;
+  max-width: 820px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  animation: promptModalIn 0.3s var(--ease-out);
+  overflow: hidden;
+}
+
+@keyframes promptModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.prompt-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.prompt-editor-agent-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.prompt-editor-icon {
+  font-size: 1.3rem;
+}
+
+.prompt-editor-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.prompt-editor-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem 1.5rem;
+  min-height: 0;
+}
+
+.prompt-editor-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 45vh;
+  max-height: 60vh;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.3s;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+
+.prompt-editor-textarea:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px var(--accent-gold-dim);
+}
+
+.prompt-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.prompt-editor-status {
+  font-size: 0.78rem;
+  color: var(--accent-green);
+  font-weight: 500;
+  transition: opacity 0.3s;
+}
+
+.prompt-editor-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.prompt-editor-btn {
+  padding: 0.55rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prompt-editor-btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.prompt-editor-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.prompt-editor-btn-save {
+  background: linear-gradient(135deg, var(--accent-gold), #b8892e);
+  color: #0a0e1a;
+}
+
+.prompt-editor-btn-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(212, 168, 83, 0.35);
 }
 
 /* ─── Simulation Viewport ───────────────────────────── */
@@ -560,14 +727,47 @@ h4 {
   }
 }
 
+/* ─── Pipeline Wait Message ────────────────────────── */
+.pipeline-wait-msg {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  animation: fadeInUp 0.6s var(--ease-out) both;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.wait-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ─── Agent Card ────────────────────────────────────── */
 .agent-card {
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 1rem;
   animation: cardFadeIn 0.5s var(--ease-out) both;
-  border: 1px solid var(--border-glass);
-  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--agent-color, var(--accent-gold));
+  background: linear-gradient(135deg, rgba(20, 30, 50, 0.85), rgba(15, 20, 40, 0.95));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .agent-card-header {
@@ -1555,6 +1755,10 @@ h4 {
   font-family: 'Inter', sans-serif;
   font-size: 0.85rem;
   transition: border-color 0.3s;
+  resize: none;
+  overflow-y: auto;
+  max-height: 120px;
+  line-height: 1.4;
 }
 
 .qa-input:focus {
@@ -2237,4 +2441,443 @@ h4 {
   .dryrun-dim-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ─── C1: Chat Ready Toast ─────────── */
+.chat-ready-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: var(--surface-secondary);
+  border: 1px solid var(--accent-gold);
+  color: var(--text-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s, transform 0.4s;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.chat-ready-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chat-ready-toast:hover {
+  border-color: var(--accent-green);
+  background: var(--surface-hover);
+}
+
+/* ─── C2: Score → Rerun Bridge Button ─── */
+.score-rerun-btn {
+  display: block;
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-green));
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.score-rerun-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.score-rerun-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ─── Dryrun Timing & Platform Badge ─── */
+.dryrun-seed-timing {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
+.dryrun-platform-badge {
+  display: inline-block;
+  background: var(--accent-gold);
+  color: var(--bg-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 100px;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Calibration Banner ─── */
+.calibration-banner {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  border: 1px solid;
+}
+
+.cal-pass {
+  background: rgba(76, 175, 80, 0.08);
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.cal-warn {
+  background: rgba(255, 193, 7, 0.08);
+  border-color: rgba(255, 193, 7, 0.4);
+}
+
+.cal-fail {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.cal-header {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.cal-detail {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.cal-summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Gold Standard Marker Checklist ─── */
+.cal-markers {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.6rem;
+}
+
+.cal-markers-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.cal-marker {
+  display: grid;
+  grid-template-columns: 1.5rem 10rem 1fr;
+  gap: 0.4rem;
+  align-items: baseline;
+  padding: 0.25rem 0;
+  font-size: 0.8rem;
+}
+
+.cal-marker-icon {
+  font-size: 0.85rem;
+}
+
+.cal-marker-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cal-marker-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.cal-marker-fail .cal-marker-label {
+  color: #f44336;
+}
+
+.cal-marker-na .cal-marker-label {
+  color: var(--text-muted);
+}
+
+.cal-marker-disagree {
+  font-size: 0.7rem;
+  color: #ff9800;
+  margin-left: 0.3rem;
+}
+
+.cal-redflags {
+  margin-top: 0.5rem;
+}
+
+.cal-marker-redflag {
+  border-left: 3px solid #f44336;
+}
+
+.cal-marker-redflag .cal-marker-label {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.cal-marker-clear {
+  border-left: 3px solid #4caf50;
+}
+
+.cal-marker-clear .cal-marker-label {
+  color: var(--text-secondary);
+}
+
+/* Dryrun stability: disabled close button during active run */
+.panel-close.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Resume UI */
+.dryrun-resume-info {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.dryrun-resume-info p {
+  margin: 0.25rem 0;
+}
+
+.dryrun-resume-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.dryrun-resume-btns {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* ─── Dryrun History Table ───────────────────── */
+.drh-container {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.drh-header {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.drh-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.drh-row {
+  display: grid;
+  grid-template-columns: 7.5rem 3rem 2rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.drh-row:last-child {
+  border-bottom: none;
+}
+
+.drh-header-row {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.drh-date {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.drh-score {
+  font-weight: 700;
+  text-align: center;
+}
+
+.drh-cal {
+  text-align: center;
+}
+
+.drh-seeds {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.drh-seed {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+/* ─── Dimension Trend Chart ─── */
+
+.drh-trends {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.drh-trend-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+
+.drh-trend-row {
+  display: grid;
+  grid-template-columns: 5.5rem 80px 2.5rem 2.5rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.drh-trend-label {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drh-sparkline {
+  display: block;
+}
+
+.drh-trend-score {
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.drh-trend-delta {
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.drh-trend-delta.trend-up {
+  color: #40c057;
+}
+
+.drh-trend-delta.trend-down {
+  color: #ff6b6b;
+}
+
+.drh-trend-delta.trend-flat {
+  color: var(--text-secondary);
+}
+
+/* ─── Batch Pipeline: Banner & Tabs ─── */
+
+.batch-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent), #845ef7);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  animation: batchPulse 2s ease-in-out infinite;
+}
+
+@keyframes batchPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.batch-progress {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.batch-seed-name {
+  font-weight: 400;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.batch-tab {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.batch-tab:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.batch-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
 }
