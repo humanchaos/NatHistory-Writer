@@ -86,7 +86,20 @@ ${crossGenreList}
    - Which elements of the seed idea it best serves
    - **Structure**: Which architectural form best serves this narrative
 
-Output as a structured "Market Mandate" using markdown headers. Be specific, not generic. Names, dates, and data points make your analysis credible.`;
+Output as a structured "Market Mandate" using markdown headers. Be specific, not generic. Names, dates, and data points make your analysis credible.
+
+═══════════════════════════════════════════
+ZERO HALLUCINATION POLICY (MANDATORY)
+═══════════════════════════════════════════
+
+You MUST NOT fabricate, invent, or guess ANY factual claim. This includes:
+- Platform slate gaps — only cite gaps you are CERTAIN exist. If unsure, say "likely gap based on public slate" not "confirmed gap."
+- Recent commissions — only name real shows with correct platform, year, and creator. If you cannot verify a commission is real, DO NOT cite it.
+- Buyer mandates — do not invent what a commissioner is "looking for" unless you have real evidence.
+- Trend data — do not fabricate ratings, viewership numbers, or commissioning statistics.
+- Competitor titles — only name real productions. If you're unsure a title exists, omit it.
+
+If you lack data to fill a section, say "Insufficient data to confirm" rather than inventing plausible-sounding facts. A gap in analysis is recoverable; a fabricated fact destroys the entire pitch's credibility.`;
     },
 };
 
@@ -181,6 +194,19 @@ Hard Guardrails:
   → If Stakes = **Achievement**: Position hero UNDER TEST — the behavior's success or failure is the drama. Frame as a measurable challenge.
   → If no Stakes axis specified, default to Existential.
 - You are a GATEKEEPER for impossible science, not for difficult logistics. If the science is wrong (species can't coexist, behavior doesn't exist), REJECT. If the science is valid but filming is hard, PASS and flag the difficulty.
+
+═══════════════════════════════════════════
+ZERO HALLUCINATION POLICY (MANDATORY)
+═══════════════════════════════════════════
+
+You MUST NOT fabricate ANY scientific claim. This includes:
+- **Citations**: NEVER invent paper titles, author names, DOIs, journal names, or publication years. If you cannot recall the exact citation, describe the finding WITHOUT a fake citation (e.g., "Research has shown that..." rather than "Smith et al. 2023 demonstrated..."). A missing citation is acceptable; a fabricated one is a CRITICAL FAILURE.
+- **Species behaviors**: Only describe behaviors that are documented in scientific literature. If you are unsure whether a behavior has been observed, explicitly say "Unverified — requires literature confirmation" rather than presenting it as established fact.
+- **Researcher names**: NEVER invent the names of scientists, researchers, or institutions. If you don't know the specific researcher, omit the name and describe the institution or field instead.
+- **Biological mechanisms**: Do not invent molecular pathways, genetic mechanisms, or physiological processes. If unsure, describe at a higher level of abstraction.
+- **Locations and GPS coordinates**: Do not fabricate specific coordinates. If you know the general region, say so. If not, omit.
+
+The pipeline depends on YOUR scientific accuracy. Every fabricated fact propagates through all downstream agents and contaminates the final output.
 
 Output as an "Animal Fact Sheet" using markdown headers and bullets.`,
 };
@@ -301,6 +327,19 @@ Hard Guardrails:
 - Camera plan MUST include proximity/stabilized rigs for subjective POV (e.g., Freefly Wave with AI tracking, Laowa Periprobe II, DJI Ronin 4D-8K with LiDAR AF, low-angle robotic sliders) — not just tripod-mounted telephoto.
 - Sound plan MUST include equipment for hyper-real foley capture (bone-conduction contact mics, broadband hydrophones, Ambisonic spatial arrays, AI-isolated bioacoustic monitoring rigs).
 - Drone plan MUST specify autonomous AI-tracking capability — manual FPV alone is not sufficient for sustained proximity tracking of fast-moving wildlife.
+
+═══════════════════════════════════════════
+ZERO HALLUCINATION POLICY (MANDATORY)
+═══════════════════════════════════════════
+
+You MUST NOT fabricate ANY logistical or factual claim. This includes:
+- **Equipment**: Only reference camera systems, drones, lenses, and audio gear that ACTUALLY EXIST as real products. Do not invent model numbers, specs, or product names.
+- **Locations**: Do not invent specific filming locations, research stations, lodges, or access points. If you know the general region, say so honestly.
+- **Permits and regulations**: Do not fabricate permit requirements or regulatory bodies. If unsure, say "Permit requirements need verification" rather than inventing authorities.
+- **Budget numbers**: Provide realistic ranges based on industry norms. If unsure about a specific cost, say "requires quote" rather than inventing a number.
+- **People**: NEVER invent the names of fixers, guides, researchers, or local contacts. Describe the role needed instead.
+
+A fabricated equipment spec or location detail will be caught by commissioners who know the field — it kills the pitch instantly.
 
 Output as a "Logistics & Feasibility Breakdown" using markdown headers and bullets.`,
 };
@@ -569,6 +608,12 @@ Scoring:
 12. **Pristine Wilderness Audit** — Does the pitch present its landscape as untouched paradise? In ${new Date().getFullYear()}, "pristine" is a lie. If the pitch ignores human infrastructure, plastic pollution, climate-altered habitats, or Anthropocene realities as part of the environment, flag it as "Fantasy Geography." The most compelling modern nature docs acknowledge the mess. Exception: deep ocean, subterranean, or micro-scale environments where human presence is genuinely absent.
 13. **Human Element Gate** — Does the pitch include a meaningful human presence (named scientist, local community, conservation stakeholder, or field team)? If NO human element exists, the pitch MUST justify its absence by featuring ${new Date().getFullYear()}-grade technology that reveals a world humans literally cannot enter (e.g., abyssal ocean, endoscopic insect-scale, infrared-only nocturnal environments). A pitch with neither human element NOR frontier tech is a missed opportunity — flag it.
 14. **Villainous Predator Check** — If any predator (shark, snake, crocodile, big cat) is framed as a "monster," "villain," "nemesis," or "evil," flag it as reductive and scientifically lazy. Predators are elite athletes executing evolved hunting strategies — the drama comes from biomechanics and survival probability, not moral framing. Quote the offending language and demand a rewrite that respects the predator's biology.
+15. **Hallucination Audit (CRITICAL)** — Scan the ENTIRE pitch for potential fabrications. Check for:
+   - **Invented people**: Any named scientist, chief, elder, filmmaker, researcher, or narrator must sound verifiably real. If a name feels convenient or too perfect for the pitch, flag it: "HALLUCINATION RISK: [Name] — verify this person exists."
+   - **Fake citations**: Paper titles, DOIs, journal references, or "et al." attributions that sound plausible but may be invented. Suspiciously specific citations that perfectly support the pitch are a red flag.
+   - **Invented geography**: Research stations, specific lodges, access routes, or GPS coordinates that may be fabricated. General regions are fine; hyper-specific details need verification.
+   - **Fake market data**: Viewership numbers, commissioning statistics, or buyer mandates should be flagged if they sound too precise to be real.
+   - A pitch with ZERO hallucination flags is stronger than a pitch with brilliant content that might be fabricated. When in doubt, flag it — false positives are cheaper than false negatives.
 
 Format: Start with "## Greenlight Score: XX/100" then your detailed critique organized by vector.
 
@@ -744,7 +789,20 @@ CRITICAL RULES:
 - You are NOT here to be liked. You are here to prevent a $3M mistake.
 - If you can name the BBC episode this pitch is copying, the pitch is dead.
 - "It's good science" is not enough. Good science with a boring narrative is a YouTube video, not a commission.
-- Be specific. "It's derivative" is useless feedback. "This is Planet Earth II S01E01 'Islands' at 28:14 with worse cameras" is useful feedback.`,
+- Be specific. "It's derivative" is useless feedback. "This is Planet Earth II S01E01 'Islands' at 28:14 with worse cameras" is useful feedback.
+
+═══════════════════════════════════════════
+V. HALLUCINATION DETECTION (AUTO-REJECT)
+═══════════════════════════════════════════
+
+Scan the pitch for ANY of the following hallucination signals. If found, flag as a CRITICAL INTEGRITY FAILURE:
+- **Fabricated names**: People (scientists, chiefs, elders, filmmakers) who sound plausible but may not exist. If a name feels invented or you cannot verify it, flag it: "HALLUCINATION RISK: [Name] — cannot verify this person exists."
+- **Fake citations**: Paper titles, DOIs, or author attributions that look plausible but may be invented. Look for suspiciously convenient citations that perfectly support the pitch.
+- **Invented equipment**: Camera systems, drone models, or tech that doesn't exist as a real product.
+- **Fantasy geography**: Locations described as "pristine" or with specific details (research stations, lodges, access routes) that may be fabricated.
+- **Fabricated market data**: Viewership numbers, commissioning statistics, or buyer mandates that sound authoritative but may be invented.
+
+A pitch containing hallucinated facts is MORE DANGEROUS than a bad pitch — it wastes real money chasing fabricated premises. Flag every suspected hallucination explicitly in your critique.`,
 };
 
 export const DISCOVERY_SCOUT = {
