@@ -688,21 +688,24 @@ function sanitizeFinalOutput(text) {
     // Strip outer code fences (```markdown...``` or ```...```) that LLMs sometimes wrap around output
     let cleaned = text.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i, '$1');
 
-    // Remove roleplay preambles like "Okay, Showrunner here. Processing the..."
-    cleaned = cleaned.replace(/^(?:Okay|Alright|Right)[,.]\s*(?:Showrunner|Editor|Scientist|Producer|Analyst|Gatekeeper)\s+here[.!]?[\s\S]*?(?=(?:^#|^\*\*Working Title|^\*\*Master Pitch))/mi, '');
-
-    // Remove "Action Items:" blocks that are routing instructions
-    cleaned = cleaned.replace(/\n*(?:^|\n)\*\*Action Items[:\s]*\*\*[\s\S]*?(?=(?:^#{1,3} |^\*\*(?:Working Title|Logline|Executive Summary)))/mi, '');
-    cleaned = cleaned.replace(/\n*(?:^|\n)Action Items:[\s\S]*?(?=(?:^#{1,3} |^\*\*(?:Working Title|Logline|Executive Summary)))/mi, '');
+    // The compact output format starts with a ## Title heading.
+    // Strip EVERYTHING before the first ## heading — this removes all preamble,
+    // action plans, meta-commentary, "Here's the revised pitch card:" etc.
+    const titleMatch = cleaned.match(/^(## .+)/m);
+    if (titleMatch) {
+        cleaned = cleaned.slice(cleaned.indexOf(titleMatch[0]));
+    }
 
     // Remove agent routing like "(Routed to Scientific Consultant/Scriptwriter)"
     cleaned = cleaned.replace(/\(Routed to [^)]+\)/gi, '');
 
-    // Remove any remaining "Processing the..." preambles
-    cleaned = cleaned.replace(/^Processing the[\s\S]*?(?=(?:^#|^\*\*))/mi, '');
+    // Remove trailing meta-commentary after the pitch card content
+    // (e.g., "Let me know if you'd like adjustments..." or "---\n\nAction Items:...")
+    cleaned = cleaned.replace(/\n---\n+(?:\*\*Action Items?\b[\s\S]*|(?:Let me know|I hope|Is there|Would you|Do you|Shall I)[\s\S]*)$/i, '');
+    cleaned = cleaned.replace(/\n+(?:Let me know|I hope|Is there|Would you|Do you|Shall I)\b[^\n]*$/i, '');
 
-    // Clean up excessive leading whitespace
-    cleaned = cleaned.replace(/^\s+/, '');
+    // Clean up excessive leading/trailing whitespace
+    cleaned = cleaned.trim();
 
     return cleaned;
 }
