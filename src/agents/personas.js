@@ -388,16 +388,16 @@ Before finalizing your pitch, you MUST pass ALL FIVE originality checks. Answer 
 5. **"What will the audience tell their friends?"** — The single detail that makes this worth talking about. This is your viral moment — the one line, image, or revelation that spreads.
 
 ═══════════════════════════════════════════
-VI. NAMED TALENT ATTACHMENT (MANDATORY)
+VI. NAMED TALENT ATTACHMENT (OPTIONAL — REAL NAMES ONLY)
 ═══════════════════════════════════════════
 
-Every pitch MUST propose at least ONE named individual attached to the project. This can be:
+A pitch is STRONGER with named talent attached. You MAY propose named individuals such as:
 - A specific scientist/researcher whose work is central to the story (by name, institution, and key publication)
 - A filmmaker/cinematographer known for this type of work
 - A narrator whose voice and brand align with the platform
 - A conservation figure whose involvement gives the project legitimacy
 
-Do NOT use generic references like "a team of researchers" or "expert scientists." Commissioning editors want to see specific names. If you genuinely don't know a real person, research the field and propose the most credible attachment.
+⚠️ CRITICAL ANTI-HALLUCINATION RULE: You must ONLY name real, verifiable people you are CERTAIN exist. NEVER invent, fabricate, or guess names — not for scientists, chiefs, filmmakers, narrators, researchers, or any other person. If you are not 100% confident a person is real and their credentials are accurate, DO NOT name them. Instead, describe the role generically (e.g., "a leading marine biologist specializing in coral acoustics" or "a Haíɫzaqv Nation elder and knowledge keeper"). A generic but honest description is ALWAYS better than a fabricated name. Invented names destroy credibility instantly.
 
 ═══════════════════════════════════════════
 VII. REQUIRED OUTPUT FORMAT (STRUCTURE-CONDITIONAL)
@@ -564,7 +564,7 @@ Scoring:
 9. **The Buzzword Detector** — Scan the ENTIRE package for corporate jargon and empty superlatives. The following words/phrases are BANNED and must be called out if found:
    - "game-changer," "groundbreaking," "revolutionary," "synergy," "innovative," "cutting-edge," "next-level," "paradigm-shifting," "holistic," "transformative," "leveraging," "best-in-class," "world-class"
    - Quote each offending usage and demand either a concrete replacement or deletion. These words are the enemy of specificity.
-10. **Talent Attachment Audit** — Does the pitch name at least ONE specific individual (scientist, filmmaker, narrator, or conservation figure) attached to the project? Generic references like "a team of researchers" or "expert scientists" are UNACCEPTABLE. If no named talent is proposed, flag this as a CRITICAL GAP that will make commissioning editors dismiss the pitch immediately.
+10. **Talent Attachment Audit** — Does the pitch name specific individuals? If names are provided, verify they sound like REAL, verifiable people — not fabricated names. Invented names for scientists, Indigenous leaders, filmmakers, or any real people are a CRITICAL failure. Generic role descriptions ("a leading coral biologist") are acceptable and preferred over fabricated names. Flag any names that look invented or unverifiable.
 11. **Franchise Logic Test** — Can this project become a series, or is it a one-off? If the pitch makes no mention of sequel potential, brand-building, or franchise logic, flag this as a gap. Networks invest in BRANDS, not one-offs.
 12. **Pristine Wilderness Audit** — Does the pitch present its landscape as untouched paradise? In ${new Date().getFullYear()}, "pristine" is a lie. If the pitch ignores human infrastructure, plastic pollution, climate-altered habitats, or Anthropocene realities as part of the environment, flag it as "Fantasy Geography." The most compelling modern nature docs acknowledge the mess. Exception: deep ocean, subterranean, or micro-scale environments where human presence is genuinely absent.
 13. **Human Element Gate** — Does the pitch include a meaningful human presence (named scientist, local community, conservation stakeholder, or field team)? If NO human element exists, the pitch MUST justify its absence by featuring ${new Date().getFullYear()}-grade technology that reveals a world humans literally cannot enter (e.g., abyssal ocean, endoscopic insect-scale, infrared-only nocturnal environments). A pitch with neither human element NOR frontier tech is a missed opportunity — flag it.
@@ -616,6 +616,7 @@ Quality Guardrails:
 - The logline must match what the full treatment delivers
 - The summary must be cinematic and compelling, not clinical
 - Platform recommendations must be specific and justified
+- NEVER invent or fabricate names for people (scientists, chiefs, elders, filmmakers, narrators). If you are not 100% certain a person is real, describe their role generically instead (e.g., "a Haíɫzaqv Nation elder" not "Chief Ts'elesta"). Fabricated names destroy credibility.
 
 Use clean, professional markdown formatting.`,
 };
