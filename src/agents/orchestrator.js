@@ -10,6 +10,27 @@ import {
     DISCOVERY_SCOUT,
 } from './personas.js';
 import { retrieveContext } from '../knowledge/rag.js';
+import { saveCheckpoint, clearCheckpoint } from '../pipelineState.js';
+
+/**
+ * Step ordering for the seed pipeline — used for checkpoint resume.
+ * Each entry corresponds to a ctx key set by an agentStep.
+ */
+const PIPELINE_STEPS = [
+    'discovery',
+    'marketMandate',
+    'animalFactSheet',
+    'logisticsBreakdown',
+    'draftV1',
+    'rejectionMemo',
+    'revisionDirectives',
+    'revisedScience',
+    'revisedLogistics',
+    'draftV2',
+    'greenlightReview',
+    'finalPitchDeck',
+    'gatekeeperVerdict',
+];
 
 /**
  * Custom error for pipeline cancellation.
@@ -43,7 +64,7 @@ async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }, agen
     return result;
 }
 
-const MAX_REVISIONS = 3;
+// MAX_REVISIONS now comes from opts.maxRevisions (default 3)
 
 /**
  * Detect if an agent output contains a ⛔ REJECTION signal.
@@ -95,14 +116,71 @@ function extractScore(agentOutput) {
  * @returns {Promise<string>} — the final Master Pitch Deck
  */
 export async function runPipeline(seedIdea, cbs, opts = {}) {
-    const ctx = { seedIdea };
-    const { platform = null, year = null, directive = null } = opts;
+    const { platform = null, year = null, directive = null, checkpoint = null, maxRevisions = 3, genrePreference = null } = opts;
+
+    // ─── Resume support: hydrate ctx from checkpoint and determine resume point ──
+    const ctx = checkpoint?.ctx ? { ...checkpoint.ctx, seedIdea } : { seedIdea };
+    const resumeAfter = checkpoint?.step || null;
+    const shouldSkip = (step) => {
+        if (!resumeAfter) return false;
+        const resumeIdx = PIPELINE_STEPS.indexOf(resumeAfter);
+        const stepIdx = PIPELINE_STEPS.indexOf(step);
+        return stepIdx >= 0 && stepIdx <= resumeIdx;
+    };
+
+    // Helper: save checkpoint after each major step (fire-and-forget)
+    const checkpoint_ = (step, phase) => {
+        saveCheckpoint({
+            seedIdea,
+            platform,
+            year,
+            directive,
+            genrePreference,
+            phase,
+            step,
+            ctx: { ...ctx },
+            startedAt: checkpoint?.startedAt,
+        });
+    };
 
     // Build optional context strings
     const platformNote = platform ? `\n\n🎯 TARGET PLATFORM: This pitch is being developed specifically for **${platform}**. Tailor all recommendations — tone, format, budget tier, episode structure — to ${platform}'s commissioning style and audience.\n` : '';
     const yearNote = year ? `\n📅 TARGET DELIVERY YEAR: ${year}. This is the year the show will AIR/STREAM — not when it's filmed. Calibrate all market analysis, audience trends, competitive landscape, and narrative strategy to what will be relevant WHEN THIS LAUNCHES. Technology references should reflect what will be cutting-edge at delivery, not today.\n` : '';
     const directiveNote = directive ? `\n\n🎯 CREATIVE DIRECTIVE (MANDATORY): ${directive}\nThis directive comes directly from the executive producer. ALL agents must incorporate this requirement into their analysis and output. It is non-negotiable.\n` : '';
-    const optionsSuffix = platformNote + yearNote + directiveNote;
+
+    // Genre preference mapping
+    const genreLabels = {
+        'scientific-procedural': 'Scientific Procedural — The "CSI" of ecology using eDNA, satellite tagging, and AI forensics',
+        'nature-noir': 'Nature Noir — Investigative "True Crime" for the planet, uncovering environmental crimes via forensic filmmaking',
+        'speculative-nh': 'Speculative Natural History — Science-grounded AI-generated "future-casts" of ecosystems under climate stress',
+        'urban-rewilding': 'Urban Rewilding — Wildlife adapting to industrial/urban ruins',
+        'biocultural-history': 'Biocultural History — Prestige essays exploring deep-time connection between landscapes and civilizations',
+        'blue-chip-2': 'Blue Chip 2.0 — Ultra-scarcity "Verified Real" captures of rare behaviors with zero human footprint',
+        'indigenous-wisdom': 'Indigenous Wisdom — Co-created narratives with traditional ecological knowledge (TEK)',
+        'ecological-biography': 'Ecological Biography — Decades-long "Deep Time" tracking of single organisms via autonomous units',
+        'extreme-micro': 'Extreme Micro — Visual "Alien" content using nano-tech and electron microscopy at the cellular level',
+        'astro-ecology': 'Astro-Ecology — "The Orbital View" using planetary data/satellites to show global system cycles',
+        'process-doc': 'The "Process" Doc — Meta-commentary on the difficulty and ethics of the shoot as proof-of-work',
+        'symbiotic-pov': 'Symbiotic POV — Extreme immersion via on-animal cameras and bio-logging data',
+    };
+    const genreLabel = genrePreference ? genreLabels[genrePreference] || genrePreference : null;
+    const genreNote = genreLabel
+        ? `\n🎭 GENRE LENS (USER-SELECTED): The user has requested the narrative be framed through a **${genreLabel}** genre lens. Prioritize this genre in your Layer 2 Cross-Genre Import analysis. Your Primary Narrative Form recommendation MUST use this genre lens. Still provide an Alternative Form using a DIFFERENT genre for contrast.\n`
+        : '';
+
+    // ─── GENRE LOCK: Enforced across ALL agents when user selects a genre ──────
+    const genreLock = genreLabel
+        ? `\n\n🔒 GENRE LOCK (DEFAULT — USER-SELECTED FROM UI):\nThe user has locked this pitch to the **${genreLabel}** genre via the UI dropdown. This is the default genre unless the seed text explicitly specifies a different genre.\n- ALL narrative structure, tone, camera language, pacing, sound design, and scoring criteria MUST serve this genre.\n- Do NOT drift into survival thriller, underdog, or any other genre convention unless it IS the locked genre.\n- If you reference narrative techniques, they must come from the locked genre's playbook — not from generic wildlife documentary conventions.\n- The Market Analyst's Narrative Mandate is SUBORDINATE to this genre lock. If the Analyst recommended a different form, OVERRIDE it with the locked genre.\n- Violation of the genre lock will be flagged as GENRE DRIFT and rejected.\n- EXCEPTION: If the seed text explicitly names a different genre (e.g. "make this a comedy"), the seed text takes priority over this UI lock.\n`
+        : '';
+    // ─── SEED OVERRIDE RULE ──────────────────────────────────
+    // The seed text is the user's free-form creative input and is the HIGHEST
+    // priority source of truth.  If the seed explicitly specifies a genre,
+    // platform, delivery year, scientific premise, location, species, or any
+    // other production parameter, those seed-level directives MUST override the
+    // corresponding UI-derived settings (platform, year, genre dropdown, etc.).
+    const seedOverrideNote = `\n\n⚡ SEED OVERRIDE RULE: The user's seed text is the highest-priority creative brief. If the seed text explicitly specifies a genre, platform, delivery year, target audience, scientific premise, species, location, or any other production parameter, those directives OVERRIDE the corresponding UI settings below. The UI settings (platform, year, genre) are defaults — the seed text is the final word.\n`;
+
+    const optionsSuffix = seedOverrideNote + platformNote + yearNote + directiveNote + genreNote;
 
     // Retrieve relevant knowledge from the vector store (no-op if empty)
     let knowledgeContext = '';
@@ -117,34 +195,43 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // ═══════════════════════════════════════════════════════
     // PHASE 0 — DISCOVERY SCOUT
     // ═══════════════════════════════════════════════════════
-    cbs.onPhaseStart(0, '🔬 Scouting Recent Discoveries');
+    if (!shouldSkip('discovery')) {
+        cbs.onPhaseStart(0, '🔬 Scouting Recent Discoveries');
 
-    let discoveryBrief = '';
-    try {
-        discoveryBrief = await agentStep(
-            DISCOVERY_SCOUT,
-            `Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented. Return a structured Discovery Brief.`,
-            cbs,
-            { tools: [{ googleSearch: {} }] }
-        );
-    } catch (e) {
-        console.warn('Discovery Scout skipped:', e.message);
-        discoveryBrief = '(Discovery Scout: No recent scientific discoveries found for this seed idea. Downstream agents should proceed using existing knowledge and the Market Analyst\'s own research. Do NOT treat this as a gap — it simply means no novel signals were found in the initial search.)';
+        let discoveryBrief = '';
+        try {
+            discoveryBrief = await agentStep(
+                DISCOVERY_SCOUT,
+                `Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented.${genreLabel ? ` Prioritize discoveries relevant to the **${genreLabel}** genre lens.` : ''} Return a structured Discovery Brief.`,
+                cbs,
+                { tools: [{ googleSearch: {} }] }
+            );
+        } catch (e) {
+            console.warn('Discovery Scout skipped:', e.message);
+            discoveryBrief = '(Discovery Scout: No recent scientific discoveries found for this seed idea. Downstream agents should proceed using existing knowledge and the Market Analyst\'s own research. Do NOT treat this as a gap — it simply means no novel signals were found in the initial search.)';
+        }
+        ctx._discoveryBrief = discoveryBrief;
+        checkpoint_('discovery', 0);
+        cbs.onPhaseComplete(0);
     }
 
+    const discoveryBrief = ctx._discoveryBrief || '';
     const discoveryBlock = discoveryBrief ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n` : '';
 
     // ═══════════════════════════════════════════════════════
     // PHASE 1 — THE BRAINSTORM
     // ═══════════════════════════════════════════════════════
-    cbs.onPhaseStart(1, 'The Brainstorm');
+    if (!shouldSkip('marketMandate')) {
+        cbs.onPhaseStart(1, 'The Brainstorm');
 
-    ctx.marketMandate = await agentStep(
-        MARKET_ANALYST,
-        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
-        cbs,
-        { tools: [{ googleSearch: {} }] }
-    );
+        ctx.marketMandate = await agentStep(
+            MARKET_ANALYST,
+            `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
+            cbs,
+            { tools: [{ googleSearch: {} }] }
+        );
+        checkpoint_('marketMandate', 1);
+    }
 
     // ─── NARRATIVE MANDATE EXTRACTION ─────────────────────────────
     // Extract the narrative strategy from the Market Analyst's output and thread it
@@ -155,24 +242,27 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         ? `\n\n🎭 NARRATIVE MANDATE (BINDING): The Market Analyst has recommended the following narrative form: "${narrativeForm}". ALL agents MUST respect this form. Do NOT default to survival thriller unless this IS the recommended form. Your output — structure, tone, camera language, pacing, and scoring criteria — must serve this narrative form, not a generic thriller template.\n`
         : '';
 
-    ctx.animalFactSheet = await agentStep(
-        CHIEF_SCIENTIST,
-        `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
-        cbs,
-        { tools: [{ googleSearch: {} }] }
-    );
+    if (!shouldSkip('animalFactSheet')) {
+        ctx.animalFactSheet = await agentStep(
+            CHIEF_SCIENTIST,
+            `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${genreLock}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+            cbs,
+            { tools: [{ googleSearch: {} }] }
+        );
+        checkpoint_('animalFactSheet', 1);
+    }
 
     // ─── SCIENCE GATE: Pivot loop instead of kill switch ──────
     let scienceAttempts = 0;
-    while (detectRejection(ctx.animalFactSheet).rejected && scienceAttempts < MAX_REVISIONS) {
+    while (detectRejection(ctx.animalFactSheet).rejected && scienceAttempts < maxRevisions) {
         scienceAttempts++;
-        cbs.onPhaseStart(1, `🔄 Science Pivot — Attempt ${scienceAttempts}/${MAX_REVISIONS}`);
+        cbs.onPhaseStart(1, `🔄 Science Pivot — Attempt ${scienceAttempts}/${maxRevisions}`);
 
         // Ask the Scientist to propose the closest viable alternative
         ctx.animalFactSheet = await agentStep(
             CHIEF_SCIENTIST,
             `## SCIENCE PIVOT REQUIRED
-
+${genreLock}
 Your previous assessment flagged this idea as scientifically problematic:
 
 ### Your Rejection:
@@ -189,7 +279,8 @@ The pipeline does NOT kill ideas — it ITERATES them. Your job now:
 1. **Identify what IS scientifically valid** in the seed idea — what elements can be preserved?
 2. **Propose the CLOSEST viable alternative** — keep the spirit/theme of the original idea but make it scientifically sound. If the user wanted "deep ocean survival," find a real deep ocean survival behavior. If they wanted "predator-prey in the Arctic," find one that exists.
 3. **Maintain the user's intent** — they chose this topic for a reason. Don't pivot to something completely unrelated.
-4. **Produce a complete Animal Fact Sheet** with all required sections (Primary Species, Antagonist, Vulnerability Window, Novelty, B-Story, Biome, Ethics, Visual Payoff)
+4. **Produce a complete Animal Fact Sheet** with all required sections (Primary Species, Antagonist, Vulnerability Window, Novelty, B-Story, Biome, Ethics, Visual Payoff)${genreLabel ? `
+5. **Respect the genre lock** — your proposed alternative MUST serve the **${genreLabel}** genre. Select behaviors and framing that fit this genre's conventions.` : ''}
 
 You are a CREATIVE SCIENTIST, not a gatekeeper. Find a way to make it work.`,
             cbs,
@@ -197,11 +288,14 @@ You are a CREATIVE SCIENTIST, not a gatekeeper. Find a way to make it work.`,
         );
     }
 
-    ctx.logisticsBreakdown = await agentStep(
-        FIELD_PRODUCER,
-        `The seed idea is: "${seedIdea}"${kbBlock}\n\nHere is the Animal Fact Sheet from the Chief Scientist:\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your full Logistics & Feasibility Breakdown.`,
-        cbs
-    );
+    if (!shouldSkip('logisticsBreakdown')) {
+        ctx.logisticsBreakdown = await agentStep(
+            FIELD_PRODUCER,
+            `The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the Animal Fact Sheet from the Chief Scientist:\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment, crew, and shooting approach recommendations MUST serve the declared genre — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
+            cbs
+        );
+        checkpoint_('logisticsBreakdown', 1);
+    }
 
     // ─── ETHICAL GATE: Two-stage revision loop ─────────
     const ethicsCheck = detectRejection(ctx.logisticsBreakdown);
@@ -239,15 +333,15 @@ If the concept FUNDAMENTALLY REQUIRES unethical methods (there is NO observation
 
         // STAGE 2: If still rejected, iterate with Scientist proposing ethical alternatives
         let ethicsAttempts = 0;
-        while (detectRejection(ctx.logisticsBreakdown).rejected && ethicsAttempts < MAX_REVISIONS) {
+        while (detectRejection(ctx.logisticsBreakdown).rejected && ethicsAttempts < maxRevisions) {
             ethicsAttempts++;
-            cbs.onPhaseStart(1, `🔄 Ethical Pivot — Attempt ${ethicsAttempts}/${MAX_REVISIONS}`);
+            cbs.onPhaseStart(1, `🔄 Ethical Pivot — Attempt ${ethicsAttempts}/${maxRevisions}`);
 
             // Ask the Scientist to propose an ethically filmable approach
             ctx.animalFactSheet = await agentStep(
                 CHIEF_SCIENTIST,
                 `## ETHICAL PIVOT REQUIRED
-
+${genreLock}
 The Field Producer has flagged ethical concerns with the proposed filming approach — even after a proportionality re-check. We need an alternative approach that preserves the core idea but is ethically filmable using standard observational techniques.
 
 ### Field Producer's Ethical Concerns:
@@ -263,7 +357,8 @@ Your job:
 1. **Keep the core idea** — same general theme, location, or species if possible
 2. **Remove or replace any methods the Field Producer flagged** — propose filming approaches that use ONLY observational techniques (remote cameras, hides, long lenses, autonomous drones, probe lenses)
 3. **If the specific behavior is the problem**, propose a DIFFERENT behavior of the same or closely related species that achieves the same cinematic effect without ethical issues
-4. **Produce a revised complete Animal Fact Sheet** — ensure the ethical red flags section explicitly addresses the Field Producer's concerns with specific mitigation protocols
+4. **Produce a revised complete Animal Fact Sheet** — ensure the ethical red flags section explicitly addresses the Field Producer's concerns with specific mitigation protocols${genreLabel ? `
+5. **Respect the genre lock** — your revised approach MUST still serve the **${genreLabel}** genre.` : ''}
 
 The pipeline iterates, it does not kill. Find a way.`,
                 cbs,
@@ -273,7 +368,7 @@ The pipeline iterates, it does not kill. Find a way.`,
             // Re-run Field Producer on the revised approach
             ctx.logisticsBreakdown = await agentStep(
                 FIELD_PRODUCER,
-                `The seed idea is: "${seedIdea}"${kbBlock}\n\nHere is the REVISED Animal Fact Sheet from the Chief Scientist (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your full Logistics & Feasibility Breakdown.`,
+                `The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the REVISED Animal Fact Sheet from the Chief Scientist (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment and crew recommendations MUST serve the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
                 cbs
             );
         }
@@ -294,11 +389,14 @@ The pipeline iterates, it does not kill. Find a way.`,
         ? `\n\n⚠️ ZERO SPECIES DRIFT ENFORCEMENT: Your hero species MUST be "${heroSpecies}" as identified by the Chief Scientist. If you change, swap, or substitute this species for a different animal, your output will be flagged as SPECIES DRIFT and REJECTED. You may creatively reinterpret the angle, but the animal stays.\n`
         : '';
 
-    ctx.draftV1 = await agentStep(
-        STORY_PRODUCER,
-        `The seed idea is: "${seedIdea}"${kbBlock}${optionsSuffix}${speciesGuard}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless the Market Analyst specifically recommended it. If the Market Analyst recommended a Cross-Genre Import, adopt that borrowed genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
-        cbs
-    );
+    if (!shouldSkip('draftV1')) {
+        ctx.draftV1 = await agentStep(
+            STORY_PRODUCER,
+            `The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${speciesGuard}${genreLock}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Your ENTIRE output — structure, tone, camera language, pacing, narration style, sound design — must serve this genre. Do NOT import conventions from other genres.` : `The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.`}\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless ${genreLabel ? `the locked genre IS survival thriller` : `the Market Analyst specifically recommended it`}. Adopt the locked genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+            cbs
+        );
+        checkpoint_('draftV1', 2);
+    }
 
     cbs.onPhaseComplete(2);
 
@@ -307,11 +405,14 @@ The pipeline iterates, it does not kill. Find a way.`,
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(3, 'The Murder Board');
 
-    ctx.rejectionMemo = await agentStep(
-        COMMISSIONING_EDITOR,
-        `Review the following Draft V1 pitch package:${kbBlock}${narrativeMandate}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 14 vectors.\n\nCRITICAL FOR VECTORS 7 & 8: The Market Analyst declared a narrative form in the Market Mandate. Use THAT form's cinematic standard for your Narrative Integrity Test and Commission Test — do NOT default to survival thriller criteria unless that IS the declared form.\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
-        cbs
-    );
+    if (!shouldSkip('rejectionMemo')) {
+        ctx.rejectionMemo = await agentStep(
+            COMMISSIONING_EDITOR,
+            `Review the following Draft V1 pitch package:${kbBlock}${genreLock}${narrativeMandate}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 14 vectors.\n\nCRITICAL FOR VECTORS 7 & 8: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Evaluate the draft EXCLUSIVELY against this genre's cinematic standards. If the draft drifts into another genre's conventions, flag it as GENRE DRIFT — this is a FATAL FLAW.` : `The Market Analyst declared a narrative form in the Market Mandate. Use THAT form's cinematic standard for your Narrative Integrity Test and Commission Test — do NOT default to survival thriller criteria unless that IS the declared form.`}\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
+            cbs
+        );
+        checkpoint_('rejectionMemo', 3);
+    }
 
     cbs.onPhaseComplete(3);
 
@@ -320,35 +421,50 @@ The pipeline iterates, it does not kill. Find a way.`,
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(4, 'The Revision');
 
-    ctx.revisionDirectives = await agentStep(
-        SHOWRUNNER,
-        `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}${narrativeMandate}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible.\n\nCRITICAL: Review the Market Analyst's Narrative Mandate. Ensure ALL revision directives are consistent with the declared narrative form. Do NOT push the draft toward survival thriller unless that IS the mandate. Issue camera, sound, and narration directives appropriate to the form (e.g., a forensic investigation needs deliberate reveals and forensic precision, not proximity POV and hyper-real foley).\n\nOutput clear revision directives for each agent.`,
-        cbs
-    );
+    if (!shouldSkip('revisionDirectives')) {
+        ctx.revisionDirectives = await agentStep(
+            SHOWRUNNER,
+            `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}${genreLock}${narrativeMandate}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible.\n\nCRITICAL: ${genreLabel ? `The genre is LOCKED to "${genreLabel}". ALL revision directives MUST enforce this genre. If the draft drifted into another genre, your primary directive is to pull it back. Issue camera, sound, and narration directives specific to this genre.` : `Review the Market Analyst's Narrative Mandate. Ensure ALL revision directives are consistent with the declared narrative form.`} Do NOT push the draft toward survival thriller unless that IS the ${genreLabel ? 'locked genre' : 'mandate'}. Issue camera, sound, and narration directives appropriate to the form.\n\nOutput clear revision directives for each agent.`,
+            cbs
+        );
+        checkpoint_('revisionDirectives', 4);
+    }
 
-    ctx.revisedScience = await agentStep(
-        CHIEF_SCIENTIST,
-        `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}\n\nYour original Animal Fact Sheet was:\n${ctx.animalFactSheet}\n\nRevise your output to address the critique. Include a reliable B-Story backup species if demanded. Ensure the visual payoff description supports CINEMATIC proximity shooting, not just scientific observation. Output a REVISED Animal Fact Sheet.`,
-        cbs
-    );
+    if (!shouldSkip('revisedScience')) {
+        ctx.revisedScience = await agentStep(
+            CHIEF_SCIENTIST,
+            `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${genreLock}\n\nYour original Animal Fact Sheet was:\n${ctx.animalFactSheet}\n\nRevise your output to address the critique. Include a reliable B-Story backup species if demanded. Ensure the visual payoff description supports CINEMATIC proximity shooting, not just scientific observation.${genreLabel ? ` Your revised fact sheet MUST serve the locked genre ("${genreLabel}") — select behaviors and framing that fit this genre's conventions.` : ''} Output a REVISED Animal Fact Sheet.`,
+            cbs
+        );
+        checkpoint_('revisedScience', 4);
+    }
 
-    ctx.revisedLogistics = await agentStep(
-        FIELD_PRODUCER,
-        `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${narrativeMandate}\n\nYour original Logistics Breakdown was:\n${ctx.logisticsBreakdown}\n\nThe revised science is:\n${ctx.revisedScience}\n\nRevise your output. Ensure camera, sound, and crew upgrades are appropriate to the declared narrative form — a forensic investigation may need macro-probe rigs and laboratory setups, while a vérité film needs long-lens patience rigs and minimal crew footprint. Ensure contingency plans include B-roll backup sequences.\n\nOutput a REVISED Logistics & Feasibility Breakdown.`,
-        cbs
-    );
+    if (!shouldSkip('revisedLogistics')) {
+        ctx.revisedLogistics = await agentStep(
+            FIELD_PRODUCER,
+            `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${genreLock}${narrativeMandate}\n\nYour original Logistics Breakdown was:\n${ctx.logisticsBreakdown}\n\nThe revised science is:\n${ctx.revisedScience}\n\nRevise your output. Ensure camera, sound, and crew upgrades are appropriate to the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} — a forensic investigation may need macro-probe rigs and laboratory setups, while a vérité film needs long-lens patience rigs and minimal crew footprint. Ensure contingency plans include B-roll backup sequences.\n\nOutput a REVISED Logistics & Feasibility Breakdown.`,
+            cbs
+        );
+        checkpoint_('revisedLogistics', 4);
+    }
 
-    ctx.draftV2 = await agentStep(
-        STORY_PRODUCER,
-        `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the DECLARED narrative form:\n✓ Commit fully to the declared form's cinematic language (thriller = proximity/foley; investigation = evidence reveals; essay = argument-building; vérité = raw observation)\n✓ Every key moment must have defined visual AND audio signatures appropriate to the form\n✓ Narration style must match the form (thriller = sparse/poetic; investigation = deductive; essay = philosophical; vérité = minimal)\n✓ B-Story woven in — the secondary species must serve the chosen narrative form, not just be backup\n✓ Do NOT drift into survival thriller conventions unless that IS the declared form\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
-        cbs
-    );
+    if (!shouldSkip('draftV2')) {
+        ctx.draftV2 = await agentStep(
+            STORY_PRODUCER,
+            `The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${genreLock}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the ${genreLabel ? `LOCKED genre ("${genreLabel}")` : 'DECLARED narrative form'}:\n✓ Commit fully to the ${genreLabel ? 'locked genre\'s' : 'declared form\'s'} cinematic language\n✓ Every key moment must have defined visual AND audio signatures appropriate to the genre\n✓ Narration style must match the genre\n✓ B-Story woven in — the secondary species must serve the chosen genre, not just be backup\n✓ Do NOT drift into survival thriller or any other genre's conventions unless that IS the ${genreLabel ? 'locked genre' : 'declared form'}\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
+            cbs
+        );
+        checkpoint_('draftV2', 4);
+    }
 
-    ctx.greenlightReview = await agentStep(
-        COMMISSIONING_EDITOR,
-        `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}${narrativeMandate}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does the pitch NOW commit fully to its declared narrative form (not defaulting to thriller)?\n3. Camera, sound, and narration language — are they appropriate for the DECLARED form?\n4. B-Story: woven into the narrative form, not just listed as backup?\n\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
-        cbs
-    );
+    if (!shouldSkip('greenlightReview')) {
+        ctx.greenlightReview = await agentStep(
+            COMMISSIONING_EDITOR,
+            `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}${genreLock}${narrativeMandate}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does the pitch NOW commit fully to the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} (not defaulting to thriller)?\n3. Camera, sound, and narration language — are they appropriate for the ${genreLabel ? 'LOCKED genre' : 'DECLARED form'}?\n4. B-Story: woven into the genre, not just listed as backup?\n${genreLabel ? `5. GENRE DRIFT CHECK: Flag ANY element that belongs to a different genre\'s conventions.\n` : ''}\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
+            cbs
+        );
+        checkpoint_('greenlightReview', 4);
+    }
 
     // ─── QUALITY GATE: Multi-draft revision loop ──────────────
     let currentDraft = ctx.draftV2;
@@ -359,14 +475,14 @@ The pipeline iterates, it does not kill. Find a way.`,
     let bestScore = currentScore ?? 0;
     let bestReview = currentReview;
 
-    while (currentScore !== null && currentScore < 80 && draftNumber < 2 + MAX_REVISIONS) {
+    while (draftNumber < 2 + maxRevisions) {
         draftNumber++;
         cbs.onPhaseStart(4, `🔄 Quality Revision — Draft V${draftNumber}`);
 
         // Showrunner issues tighter revision directives
         const tighterDirectives = await agentStep(
             SHOWRUNNER,
-            `The Commissioning Editor scored Draft V${draftNumber - 1} at ${currentScore}/100 — below the 80/100 threshold. This is revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.
+            `The Commissioning Editor scored Draft V${draftNumber - 1} at ${currentScore}/100. This is revision attempt ${draftNumber - 2} of ${maxRevisions}.${genreLock}
 
 ### Editor's Review (${currentScore}/100):
 ${currentReview}
@@ -377,21 +493,21 @@ ${currentDraft}
 ### Original Seed Idea:
 "${seedIdea}"
 
-Issue SURGICAL revision directives. Focus ONLY on the specific failings the Editor identified. Do not request a complete rewrite — target the exact weaknesses.`,
+Issue SURGICAL revision directives. Focus ONLY on the specific failings the Editor identified. Do not request a complete rewrite — target the exact weaknesses.${genreLabel ? ` Ensure ALL directives enforce the locked genre ("${genreLabel}"). If genre drift was flagged, make genre compliance your PRIMARY directive.` : ''}`,
             cbs
         );
 
         // Story Producer writes the next draft
         currentDraft = await agentStep(
             STORY_PRODUCER,
-            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
+            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}${genreLock}${narrativeMandate}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
             cbs
         );
 
         // Editor reviews the new draft
         currentReview = await agentStep(
             COMMISSIONING_EDITOR,
-            `This is Draft V${draftNumber} — revision attempt ${draftNumber - 2} of ${MAX_REVISIONS}.\n\nPrevious review (V${draftNumber - 1}, ${currentScore}/100):\n${currentReview}\n\n### Draft Script (V${draftNumber}):\n${currentDraft}\n\nReview the revisions. Have the specific failings been addressed? Score the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what SPECIFICALLY still needs work.`,
+            `This is Draft V${draftNumber} — revision attempt ${draftNumber - 2} of ${maxRevisions}.${genreLock}\n\nPrevious review (V${draftNumber - 1}, ${currentScore}/100):\n${currentReview}\n\n### Draft Script (V${draftNumber}):\n${currentDraft}\n\nReview the revisions. Have the specific failings been addressed?${genreLabel ? ` Check for GENRE DRIFT — the genre is locked to "${genreLabel}".` : ''} Score the revised pitch honestly.`,
             cbs
         );
 
@@ -434,20 +550,15 @@ Issue SURGICAL revision directives. Focus ONLY on the specific failings the Edit
         return sections.length > 0 ? sections.join('\n\n') : ctx.marketMandate.substring(0, 1000) + '\n\n[… truncated for context efficiency]';
     })();
 
-    ctx.finalPitchDeck = await agentStep(
-        SHOWRUNNER,
-        `The Commissioning Editor has given the Greenlight. Compile the final Master Pitch Deck.${kbBlock}
+    if (!shouldSkip('finalPitchDeck')) {
+        ctx.finalPitchDeck = await agentStep(
+            SHOWRUNNER,
+            `The Commissioning Editor has given the Greenlight. Compile the final compact pitch card.${kbBlock}${genreLock}
 
-Use ALL of the following approved materials:
+Use ALL of the following approved materials to distill the essence:
 
 ### Market Mandate (Key Directives)
 ${compactMandate}
-
-### Revised Scientific Backbone
-${ctx.revisedScience}
-
-### Revised Logistics & Camera Tech
-${ctx.revisedLogistics}
 
 ### Final A/V Scriptment (Draft V2)
 ${ctx.draftV2}
@@ -455,36 +566,23 @@ ${ctx.draftV2}
 ### Editor's Final Review
 ${ctx.greenlightReview}
 
-Format the output as a cohesive, beautifully structured Master Pitch Deck with these sections:
-1. **Working Title** — Evocative, marketable, unique (not generic)
-2. **Logline** — One sentence, max 25 words, with hook + stakes + uniqueness
-3. **Market Attractiveness Rating: XX/100** — A single overall commercial viability score. Assess across: (a) buyer demand alignment, (b) competitive whitespace, (c) trend momentum, (d) budget-to-value ratio, (e) global audience reach potential. Show the score prominently as "## 🎯 Market Attractiveness: XX/100" followed by a 1-2 sentence justification.
-4. **Executive Summary** — 2-3 paragraphs selling the project to a non-specialist. Lead with visual spectacle.
-5. **Market Justification** — Include specific buyer names and slate gaps
-6. **Scientific Backbone & Backup B-Story** — Both species with biological credibility
-7. **Logistics & Required Camera Tech** — Budget range, shoot duration, key equipment, proximity rigs, sound design capabilities, risk mitigation
-8. **The Final A/V Scriptment:**
-   - Full 3-Act Summary with ticking clock threaded throughout
-   - Dual-Column Script Table (minimum 8 rows, with hyper-real sound design notes)
-   - 3 Visual Signature Moments described in detail (camera angle, lens, motion style)
+Output ONLY these 4 sections — nothing else:
 
-Quality Checks Before Finalizing:
-- Ensure NO contradictions between sections
-- The ticking clock must be referenced in EVERY section
-- Logline must accurately reflect what the script delivers
-- Budget tier must match market recommendation
-- Remove any remaining anthropomorphic language
-- Camera language and narration style must be consistent with the declared narrative form throughout
-- The pitch must commit fully to its form — no drifting into default thriller conventions unless thriller IS the form
+1. **Title** — As a prominent ## heading. Evocative, marketable, unique.
+2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
+3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
+4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
 
 CRITICAL FORMAT RULES:
-- Output ONLY the pitch deck content — no preamble, no agent commentary, no "Okay, Showrunner here"
+- Output ONLY these 4 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone
+- No agent commentary, no preamble, no "Okay, Showrunner here"
 - Do NOT include action items, revision directives, or routing instructions
-- Do NOT reference the pipeline process, other agents, or internal deliberation
-- Start directly with the Working Title, not with meta-commentary
-- This must read as ONE cohesive, polished document — not a collage of agent outputs.`,
-        cbs
-    );
+- Start directly with the ## Title heading
+- This must be clean, compact, and presentation-ready.`,
+            cbs
+        );
+        checkpoint_('finalPitchDeck', 5);
+    }
 
     cbs.onPhaseComplete(5);
 
@@ -495,9 +593,9 @@ CRITICAL FORMAT RULES:
 
     ctx.gatekeeperVerdict = await agentStep(
         ADVERSARY,
-        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${kbBlock}${optionsSuffix}
+        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${kbBlock}${optionsSuffix}${genreLock}
 
-Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.
+Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.${genreLabel ? ` Additionally, run a GENRE COMPLIANCE CHECK — verify the pitch consistently serves the locked genre ("${genreLabel}") throughout all sections. Flag any elements that drift into another genre's conventions.` : ''}
 
 ### The Pitch Deck to Review
 ${ctx.finalPitchDeck}
@@ -520,48 +618,38 @@ Deliver your verdict in the specified format. Be brutal. Be specific. Cite exact
     let isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
     let adversaryAttempts = 0;
 
-    while ((isHardReject || isFatalScore) && adversaryAttempts < MAX_REVISIONS) {
+    while ((isHardReject || isFatalScore) && adversaryAttempts < maxRevisions) {
         adversaryAttempts++;
-        cbs.onPhaseStart(6, `🔄 Gatekeeper Revision — Attempt ${adversaryAttempts}/${MAX_REVISIONS}`);
+        cbs.onPhaseStart(6, `🔄 Gatekeeper Revision — Attempt ${adversaryAttempts}/${maxRevisions}`);
 
         // Feed Adversary critique back to Showrunner for revision
         ctx.finalPitchDeck = await agentStep(
             SHOWRUNNER,
-            `The Gatekeeper has REJECTED this pitch (${gatekeeperScore ?? '?'}/100). This is revision attempt ${adversaryAttempts} of ${MAX_REVISIONS}.
+            `The Gatekeeper has REJECTED this pitch (${gatekeeperScore ?? '?'}/100). This is revision attempt ${adversaryAttempts} of ${maxRevisions}.${genreLock}
 
 ### Gatekeeper's Critique:
 ${ctx.gatekeeperVerdict}
 
-### Current Pitch Deck:
+### Current Pitch Card:
 ${ctx.finalPitchDeck}
 
 ### Original Seed Idea:
 "${seedIdea}"
 
-Address the Gatekeeper's SPECIFIC concerns:
-1. If they flagged derivative content — differentiate more aggressively, find a unique angle
-2. If they flagged market saturation — pivot the positioning or target a different platform
-3. If they flagged scientific/factual issues — correct them using the approved science
-4. If they flagged boring/generic — sharpen the hook, raise the stakes, add cinematic specificity
+Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch card with ONLY these 4 sections:
+1. **Title** — ## heading
+2. **Logline** — One sentence, max 25 words
+3. **Summary** — 3-5 sentences, cinematic and compelling
+4. **Best For** — Top 1-3 platforms with one-line justification each
 
-Produce a REVISED Master Pitch Deck with the EXACT same format:
-1. Working Title
-2. Logline
-3. Market Attractiveness Rating
-4. Executive Summary
-5. Market Justification
-6. Scientific Backbone & Backup B-Story
-7. Logistics & Required Camera Tech
-8. The Final A/V Scriptment (3-Act Summary, Dual-Column Script Table, Visual Signature Moments)
-
-CRITICAL: Output ONLY the revised pitch deck. No preamble ("Okay, Showrunner here..."), no action items, no routing instructions, no agent meta-commentary. Start directly with the Working Title.`,
+CRITICAL: Output ONLY these 4 sections. No preamble, no agent meta-commentary. Start with the ## Title heading.`,
             cbs
         );
 
         // Adversary reviews the revision
         ctx.gatekeeperVerdict = await agentStep(
             ADVERSARY,
-            `You previously REJECTED this pitch (${gatekeeperScore ?? '?'}/100). The Showrunner has revised it based on your critique. This is revision ${adversaryAttempts} of ${MAX_REVISIONS}.${kbBlock}${optionsSuffix}
+            `You previously REJECTED this pitch (${gatekeeperScore ?? '?'}/100). The Showrunner has revised it based on your critique. This is revision ${adversaryAttempts} of ${maxRevisions}.${kbBlock}${optionsSuffix}${genreLock}
 
 ### Your Previous Critique:
 ${ctx.gatekeeperVerdict}
@@ -572,7 +660,7 @@ ${ctx.finalPitchDeck}
 ### Original Seed Idea:
 "${seedIdea}"
 
-Re-evaluate. Have your core concerns been addressed? Run your full audit again. If the revision genuinely fixes the problems, you MAY upgrade your verdict. If the core issues persist, explain what SPECIFICALLY still fails.`,
+Re-evaluate. Have your core concerns been addressed? Run your full audit again.${genreLabel ? ` Include a GENRE COMPLIANCE CHECK — verify the pitch serves the locked genre ("${genreLabel}") throughout.` : ''} If the revision genuinely fixes the problems, you MAY upgrade your verdict. If the core issues persist, explain what SPECIFICALLY still fails.`,
             cbs,
             { tools: [{ googleSearch: {} }] }
         );
@@ -585,8 +673,11 @@ Re-evaluate. Have your core concerns been addressed? Run your full audit again. 
         isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
     }
 
-    // Always append the Gatekeeper's verdict — never block
-    return sanitizeFinalOutput(ctx.finalPitchDeck) + '\n\n---\n\n' + ctx.gatekeeperVerdict;
+    // Pipeline complete — clear checkpoint
+    clearCheckpoint();
+
+    // Return the compact pitch card only (Title, Logline, Summary, Best For)
+    return sanitizeFinalOutput(ctx.finalPitchDeck);
 }
 
 /**
@@ -594,8 +685,11 @@ Re-evaluate. Have your core concerns been addressed? Run your full audit again. 
  * These patterns occur when LLMs break character and narrate their process.
  */
 function sanitizeFinalOutput(text) {
+    // Strip outer code fences (```markdown...``` or ```...```) that LLMs sometimes wrap around output
+    let cleaned = text.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i, '$1');
+
     // Remove roleplay preambles like "Okay, Showrunner here. Processing the..."
-    let cleaned = text.replace(/^(?:Okay|Alright|Right)[,.]\s*(?:Showrunner|Editor|Scientist|Producer|Analyst|Gatekeeper)\s+here[.!]?[\s\S]*?(?=(?:^#|^\*\*Working Title))/mi, '');
+    cleaned = cleaned.replace(/^(?:Okay|Alright|Right)[,.]\s*(?:Showrunner|Editor|Scientist|Producer|Analyst|Gatekeeper)\s+here[.!]?[\s\S]*?(?=(?:^#|^\*\*Working Title|^\*\*Master Pitch))/mi, '');
 
     // Remove "Action Items:" blocks that are routing instructions
     cleaned = cleaned.replace(/\n*(?:^|\n)\*\*Action Items[:\s]*\*\*[\s\S]*?(?=(?:^#{1,3} |^\*\*(?:Working Title|Logline|Executive Summary)))/mi, '');
@@ -856,19 +950,7 @@ Review the optimization:
 
     ctx.finalPitchDeck = await agentStep(
         SHOWRUNNER,
-        `Compile the final Optimized Pitch Deck from the assessment and revision process.${calibration}
-
-### Original Submitted Script
-${existingScript}
-
-### Market Assessment
-${ctx.marketAssessment}
-
-### Scientific Assessment
-${ctx.scienceAssessment}
-
-### Logistics Assessment
-${ctx.logisticsAssessment}
+        `Compile the final compact pitch card from the assessment and revision process.${calibration}
 
 ### Optimized Script
 ${ctx.optimizedScript}
@@ -876,30 +958,18 @@ ${ctx.optimizedScript}
 ### Editor's Final Review
 ${ctx.finalReview}
 
-Format the output as a cohesive Master Pitch Deck with these sections:
-1. **Working Title** — Evocative and marketable (keep original if strong)
-2. **Logline** — Max 25 words, hook + stakes + uniqueness
-3. **🎯 Market Attractiveness: XX/100** — Overall commercial viability score with 1-2 sentence justification${productionYear ? `, calibrated to the ${productionYear} market` : ''}
-4. **Executive Summary** — 2-3 paragraphs, lead with visual spectacle
-5. **Assessment Summary** — What was changed and why (before/after comparison)
-6. **Market Justification**${productionYear ? ` — calibrated to ${productionYear} competitive landscape` : ''}
-7. **Scientific Backbone & B-Story**
-8. **Logistics & Camera Tech** — including proximity/POV rigs and sound design capabilities
-9. **The Optimized A/V Scriptment** — 3-Act structure with ticking clock + dual-column script (min 8 rows) + 3 visual signature moments + hyper-real sound design notes
+Output ONLY these 4 sections — nothing else:
 
-Quality Checks:
-- This must read as ONE cohesive document
-- No contradictions between sections
-- Ticking clock threaded throughout
-- Narration must be sparse and poetic, not expository
-- Camera language must emphasize proximity and subjective POV
+1. **Title** — As a prominent ## heading. Keep original if strong, or propose a better one.
+2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
+3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
+4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
 
 CRITICAL FORMAT RULES:
-- Output ONLY the pitch deck content — no preamble, no agent commentary, no "Okay, Showrunner here"
-- Do NOT include action items, revision directives, or routing instructions  
-- Start directly with the Working Title, not with meta-commentary
-
-Make it presentation-ready.`,
+- Output ONLY these 4 sections — no A/V scripts, no logistics, no market analysis
+- No preamble, no agent commentary
+- Start directly with the ## Title heading
+- Clean, compact, and presentation-ready.`,
         cbs
     );
 

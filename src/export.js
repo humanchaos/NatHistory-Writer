@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType } from 'docx';
 import { saveAs } from 'file-saver';
 
 /**
@@ -36,7 +36,7 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
     );
 
     // Parse markdown lines
-    let inList = false;
+
 
     for (let li = 0; li < lines.length; li++) {
         const rawLine = lines[li];
@@ -44,7 +44,7 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
 
         // Skip empty lines
         if (!line) {
-            if (inList) inList = false;
+
             docChildren.push(new Paragraph({ spacing: { after: 100 } }));
             continue;
         }
@@ -106,7 +106,7 @@ export async function exportDOCX(markdownText, title = 'Master Pitch Deck') {
         const listMatch = line.match(/^[-*•] (.+)$/);
         const numberedMatch = line.match(/^(\d+)\. (.+)$/);
         if (listMatch || numberedMatch) {
-            inList = true;
+
             const text = listMatch ? listMatch[1] : numberedMatch[2];
             const prefix = listMatch ? '• ' : `${numberedMatch[1]}. `;
             docChildren.push(new Paragraph({

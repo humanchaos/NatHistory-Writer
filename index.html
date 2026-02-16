@@ -23,8 +23,8 @@
   <nav id="top-nav" class="top-nav">
     <div class="nav-brand">🎬 <span>ScriptWriter</span></div>
     <div class="nav-actions">
-      <button id="btn-dryrun" class="nav-btn" title="Dryrun Benchmark">
-        🧪 <span class="nav-btn-label">Dryrun</span>
+      <button id="btn-advanced" class="nav-btn" title="Advanced Settings">
+        ⚙️ <span class="nav-btn-label">Advanced</span>
       </button>
       <button id="btn-knowledge" class="nav-btn" title="Knowledge Base">
         📚 <span class="nav-btn-label">Knowledge</span>
@@ -44,14 +44,18 @@
       <button class="panel-close" data-close="knowledge-panel">✕</button>
     </div>
     <div class="panel-body">
-      <p class="panel-description">Upload research papers, market briefs, or scripts (.txt, .md). Agents will reference
+      <p class="panel-description">Upload documents (.txt, .md, .pdf) or add web links. Agents will reference
         this knowledge via RAG.</p>
       <div id="upload-zone" class="upload-zone">
-        <input type="file" id="file-input" accept=".txt,.md,.text,.markdown" multiple hidden />
+        <input type="file" id="file-input" accept=".txt,.md,.text,.markdown,.pdf" multiple hidden />
         <div class="upload-zone-content">
           <span class="upload-icon">⬆</span>
           <span>Drop files here or <button id="browse-btn" class="link-btn">browse</button></span>
         </div>
+      </div>
+      <div class="url-input-row">
+        <input type="text" id="url-input" class="url-input" placeholder="Paste a URL to add as knowledge…" />
+        <button id="url-add-btn" class="url-add-btn">🔗 Add</button>
       </div>
       <div id="upload-progress" class="upload-progress hidden">
         <div class="progress-bar">
@@ -86,7 +90,7 @@
       <h1><span class="title-accent">Script</span>Writer</h1>
       <p class="hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
       <p class="hero-description">
-        Enter a seed idea or paste an existing script. Seven AI agents — an Analyst, Scientist,
+        Enter a seed idea or paste an existing script. Eight AI agents — a Discovery Scout, Analyst, Scientist,
         Field Producer, Story Producer, a ruthless Commissioning Editor, a Showrunner, and
         a cynical Gatekeeper — will debate, reject, revise, and ultimately greenlight your wildlife film pitch.
       </p>
@@ -122,6 +126,52 @@
               <label for="production-year">📅 Delivery Year <span class="param-hint">(optional)</span></label>
               <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2028">
             </div>
+            <div class="param-field">
+              <label for="genre-preference">🎭 Genre Lens <span class="param-hint">(optional)</span></label>
+              <select id="genre-preference">
+                <option value="">Auto — Let AI Decide</option>
+                <option value="scientific-procedural"
+                  title="ROI: Highest. The CSI of ecology — eDNA, satellite tagging, AI forensics. Tech partnerships + research grants.">
+                  🔬 Scientific Procedural</option>
+                <option value="nature-noir"
+                  title="ROI: High. True Crime for the planet — environmental crimes via forensic filmmaking. Legal/Gov funding + SVOD.">
+                  🕵️ Nature Noir</option>
+                <option value="speculative-nh"
+                  title="ROI: High. AI-generated future-casts of ecosystems under climate stress. Education licensing + VR/XR.">
+                  🌐 Speculative NH</option>
+                <option value="urban-rewilding"
+                  title="ROI: Mid-High. Wildlife adapting to industrial/urban ruins. Youth-first AVOD + local gov sponsorship.">
+                  🏙️ Urban Rewilding</option>
+                <option value="biocultural-history"
+                  title="ROI: Moderate. Prestige essays on deep time human-nature connection. Global streamers + heritage grants.">
+                  📜 Biocultural History</option>
+                <option value="blue-chip-2"
+                  title="ROI: Moderate. Ultra-scarcity verified-real captures of rare behaviors. High-ticket one-off licenses.">
+                  💎 Blue Chip 2.0</option>
+                <option value="indigenous-wisdom"
+                  title="ROI: Moderate. Co-created narratives with TEK (Traditional Ecological Knowledge). ESG + philanthropic grants.">
+                  🌿 Indigenous Wisdom</option>
+                <option value="ecological-biography"
+                  title="ROI: Low-Mid. Decades-long deep-time tracking of single organisms via autonomous units. Museum + science licensing.">
+                  🌳 Ecological Biography</option>
+                <option value="extreme-micro"
+                  title="ROI: Low-Mid. Alien visuals via nano-tech and electron microscopy. Short-form social + biotech partnerships.">
+                  🔭 Extreme Micro</option>
+                <option value="astro-ecology"
+                  title="ROI: Low. The orbital view — satellites showing global system cycles. UN/EU + space agency subsidies.">
+                  🛰️ Astro-Ecology</option>
+                <option value="process-doc"
+                  title="ROI: Ancillary. Meta-commentary on shoot ethics and difficulty. Bundled proof-of-work for verification.">
+                  🎬 The Process Doc</option>
+                <option value="symbiotic-pov"
+                  title="ROI: Speculative. Extreme immersion via on-animal cameras and bio-logging. Niche VR + ethology research.">
+                  🐾 Symbiotic POV</option>
+                <option value="custom">✏️ Custom…</option>
+              </select>
+              <input type="text" id="genre-custom" class="genre-custom-input hidden"
+                placeholder="e.g., sci-fi nat-history noir">
+            </div>
+
           </div>
           <button type="submit" class="btn-primary btn-launch" id="launch-btn">
             <span class="btn-text">Launch Simulation</span>
@@ -131,6 +181,7 @@
       </form>
 
       <div class="agent-roster">
+        <div class="agent-chip" style="--agent-color: #69db7c" data-agent-id="discovery-scout">🔬 Scout</div>
         <div class="agent-chip" style="--agent-color: #00d4aa" data-agent-id="market-analyst">📊 Analyst</div>
         <div class="agent-chip" style="--agent-color: #4dabf7" data-agent-id="chief-scientist">🔬 Scientist</div>
         <div class="agent-chip" style="--agent-color: #ffa94d" data-agent-id="field-producer">🎥 Field Producer</div>
@@ -159,7 +210,51 @@
         <span class="phase-dot" data-phase="5">5</span>
       </div>
     </div>
-    <div id="timeline" class="timeline"></div>
+    <div class="simulation-body">
+      <div id="timeline" class="timeline"></div>
+      <div id="agent-ring" class="agent-ring">
+        <div class="agent-ring-hub">
+          <span id="ring-hub-icon">⏳</span>
+          <span id="ring-hub-label">Waiting</span>
+        </div>
+        <div class="ring-node" data-ring-agent="discovery-scout" style="--i:0; --agent-color:#69db7c">
+          <span class="ring-node-icon">🔬</span>
+          <span class="ring-node-label">Scout</span>
+        </div>
+        <div class="ring-node" data-ring-agent="market-analyst" style="--i:1; --agent-color:#00d4aa">
+          <span class="ring-node-icon">📊</span>
+          <span class="ring-node-label">Analyst</span>
+        </div>
+        <div class="ring-node" data-ring-agent="chief-scientist" style="--i:2; --agent-color:#4dabf7">
+          <span class="ring-node-icon">🔬</span>
+          <span class="ring-node-label">Scientist</span>
+        </div>
+        <div class="ring-node" data-ring-agent="field-producer" style="--i:3; --agent-color:#ffa94d">
+          <span class="ring-node-icon">🎥</span>
+          <span class="ring-node-label">Field</span>
+        </div>
+        <div class="ring-node" data-ring-agent="story-producer" style="--i:4; --agent-color:#da77f2">
+          <span class="ring-node-icon">✍️</span>
+          <span class="ring-node-label">Story</span>
+        </div>
+        <div class="ring-node" data-ring-agent="commissioning-editor" style="--i:5; --agent-color:#ff6b6b">
+          <span class="ring-node-icon">⚔️</span>
+          <span class="ring-node-label">Editor</span>
+        </div>
+        <div class="ring-node" data-ring-agent="showrunner" style="--i:6; --agent-color:#ffd43b">
+          <span class="ring-node-icon">🎬</span>
+          <span class="ring-node-label">Showrunner</span>
+        </div>
+        <div class="ring-node" data-ring-agent="adversary" style="--i:7; --agent-color:#e03131">
+          <span class="ring-node-icon">🛡️</span>
+          <span class="ring-node-label">Gatekeeper</span>
+        </div>
+        <svg class="ring-arc" viewBox="0 0 200 200">
+          <circle id="ring-arc-track" cx="100" cy="100" r="86" />
+          <circle id="ring-arc-progress" cx="100" cy="100" r="86" />
+        </svg>
+      </div>
+    </div>
   </main>
 
   <!-- ═══════ Final Pitch Deck ═══════ -->
@@ -205,17 +300,36 @@
     <div id="scorecard-recs" class="scorecard-recs"></div>
   </section>
 
-  <!-- ═══════ Dryrun Report Modal ═══════ -->
-  <div id="dryrun-overlay" class="dryrun-overlay hidden">
-    <div class="dryrun-modal">
-      <div class="dryrun-modal-header">
-        <h3>🧪 Dryrun Benchmark</h3>
-        <button id="dryrun-close" class="panel-close">✕</button>
+  <!-- ═══════ Advanced Settings Panel ═══════ -->
+  <aside id="advanced-panel" class="side-panel hidden">
+    <div class="panel-header">
+      <h3>⚙️ Advanced Settings</h3>
+      <button class="panel-close" data-close="advanced-panel">✕</button>
+    </div>
+    <div class="panel-body" style="padding: 1.5rem;">
+
+      <!-- Iteration Control -->
+      <div class="advanced-section">
+        <h4 class="advanced-section-title">🔄 Revision Iterations</h4>
+        <p class="advanced-section-desc">How many revision rounds the Quality Gate and Gatekeeper loops run.</p>
+        <select id="max-iterations" class="advanced-select">
+          <option value="0">0 — Single pass</option>
+          <option value="1">1 — Light polish</option>
+          <option value="2">2 — Standard</option>
+          <option value="3" selected>3 — Default</option>
+          <option value="4">4 — Deep refinement</option>
+          <option value="5">5 — Maximum polish</option>
+        </select>
       </div>
-      <div class="dryrun-modal-body">
-        <p class="panel-description">
-          Runs 3 diverse test seeds through the full pipeline, evaluates each output across 6 quality dimensions,
-          and surfaces aggregate scores + optimization recommendations.
+
+      <hr class="advanced-divider">
+
+      <!-- Dryrun Benchmark -->
+      <div class="advanced-section">
+        <h4 class="advanced-section-title">🧪 Dryrun Benchmark</h4>
+        <p class="advanced-section-desc">
+          Runs 5 diverse test seeds + 1 calibration seed through the full pipeline, evaluates each output across 8
+          quality dimensions, and surfaces aggregate scores + optimization recommendations.
         </p>
         <div id="dryrun-start-area">
           <button id="dryrun-start" class="btn-primary btn-launch">
@@ -232,8 +346,9 @@
         <div id="dryrun-results" class="dryrun-results hidden"></div>
         <div id="dryrun-history"></div>
       </div>
+
     </div>
-  </div>
+  </aside>
 
   <!-- ═══════ Prompt Editor Modal ═══════ -->
   <div id="prompt-editor-overlay" class="prompt-editor-overlay hidden">

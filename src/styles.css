@@ -590,9 +590,200 @@ h4 {
 
 /* ─── Simulation Viewport ───────────────────────────── */
 #simulation {
-  max-width: var(--container-max);
+  max-width: 680px;
   margin: 0 auto;
   padding: 2rem 2rem 4rem;
+}
+
+/* ─── Simulation Body: Timeline + Agent Ring side by side ── */
+.simulation-body {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.simulation-body>.timeline {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Agent Ring ──────────────────────────────────────────── */
+.agent-ring {
+  position: fixed;
+  /* Center in the space between timeline right edge and viewport edge.
+     Timeline is 680px centered → right edge at 50vw + 340px.
+     Right space = 50vw − 340px. Center of that space from left = 75vw + 170px */
+  left: calc(75vw + 170px);
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px;
+  height: 280px;
+  z-index: 10;
+}
+
+.agent-ring-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  z-index: 2;
+  transition: all 0.4s;
+}
+
+#ring-hub-icon {
+  font-size: 1.6rem;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+
+#ring-hub-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  transition: color 0.3s;
+  text-align: center;
+  max-width: 80px;
+}
+
+/* Each ring node is positioned clockwise using --i (0-7) */
+.ring-node {
+  --angle: calc(var(--i) * 45deg - 90deg);
+  --radius: 90px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  transform: rotate(var(--angle)) translate(var(--radius)) rotate(calc(-1 * var(--angle)));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 50%;
+  background: var(--surface-secondary);
+  border: 2px solid var(--border-glass);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: default;
+  z-index: 1;
+  opacity: 0.5;
+}
+
+.ring-node-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ring-node-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+/* Active agent node */
+.ring-node.ring-active {
+  opacity: 1;
+  border-color: var(--agent-color);
+  background: var(--surface-primary);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--agent-color) 40%, transparent),
+    0 0 4px var(--agent-color);
+  transform: rotate(var(--angle)) translate(var(--radius)) rotate(calc(-1 * var(--angle))) scale(1.15);
+}
+
+/* Completed agent node */
+.ring-node.ring-done {
+  opacity: 0.85;
+  border-color: color-mix(in srgb, var(--agent-color) 50%, transparent);
+  background: color-mix(in srgb, var(--agent-color) 8%, var(--surface-secondary));
+}
+
+/* Pulse animation for active node */
+.ring-node.ring-active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--agent-color);
+  animation: ring-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(1.12);
+  }
+}
+
+/* SVG arc track — sits behind all nodes */
+.ring-arc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 280px;
+  height: 280px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#ring-arc-track {
+  fill: none;
+  stroke: var(--border-glass);
+  stroke-width: 1;
+  opacity: 0.15;
+}
+
+#ring-arc-progress {
+  fill: none;
+  stroke: var(--accent-gold);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 540;
+  /* 2 * pi * 86 ≈ 540 */
+  stroke-dashoffset: 540;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.6s ease-out, stroke 0.3s;
+  opacity: 0.5;
+  filter: drop-shadow(0 0 4px var(--accent-gold));
+}
+
+/* Collapse ring on narrower screens */
+@media (max-width: 1100px) {
+  #simulation {
+    max-width: var(--container-max);
+    margin-right: auto;
+  }
+
+  .simulation-body {
+    flex-direction: column;
+  }
+
+  .agent-ring {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    transform: none;
+    align-self: center;
+    margin: 0 auto 1rem;
+  }
 }
 
 .simulation-header {
@@ -1593,8 +1784,54 @@ h4 {
   padding: 1.5rem;
   text-align: center;
   transition: all 0.3s;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   cursor: pointer;
+}
+
+.url-input-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.url-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.url-input:focus {
+  border-color: var(--accent-gold);
+}
+
+.url-input::placeholder {
+  color: var(--text-muted);
+}
+
+.url-add-btn {
+  padding: 0.5rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent-gold);
+  background: transparent;
+  color: var(--accent-gold);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.url-add-btn:hover {
+  background: var(--accent-gold);
+  color: var(--bg-base);
 }
 
 .upload-zone:hover,
@@ -2422,6 +2659,73 @@ h4 {
 }
 
 /* ─── Dryrun Modal ──────────────────────────────────── */
+/* ─── Advanced Settings Panel ──────────────────────────── */
+.advanced-section {
+  margin-bottom: 1.25rem;
+}
+
+.advanced-section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.4rem;
+}
+
+.advanced-section-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.advanced-select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.advanced-select:hover,
+.advanced-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.advanced-divider {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 1.25rem 0;
+}
+
+.genre-custom-input {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-style: italic;
+  transition: border-color 0.2s;
+}
+
+.genre-custom-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  font-style: normal;
+}
+
+.genre-custom-input.hidden {
+  display: none;
+}
+
 .dryrun-overlay {
   position: fixed;
   inset: 0;
@@ -2659,6 +2963,106 @@ h4 {
 .chat-ready-toast:hover {
   border-color: var(--accent-green);
   background: var(--surface-hover);
+}
+
+/* ─── Resume Banner ─── */
+.resume-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.resume-banner.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.resume-banner-content {
+  max-width: 700px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--surface-secondary);
+  border: 1px solid var(--accent-gold);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-family: 'Inter', sans-serif;
+}
+
+.resume-banner-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.resume-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.resume-banner-text strong {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.resume-banner-seed {
+  font-size: 0.82rem;
+  color: var(--accent-gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+.resume-banner-time,
+.resume-banner-step {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.resume-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.resume-btn {
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.resume-btn-go {
+  background: var(--accent-gold);
+  color: var(--bg-base);
+  border-color: var(--accent-gold);
+}
+
+.resume-btn-go:hover {
+  filter: brightness(1.15);
+}
+
+.resume-btn-discard {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.resume-btn-discard:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
 }
 
 /* ─── C2: Score → Rerun Bridge Button ─── */

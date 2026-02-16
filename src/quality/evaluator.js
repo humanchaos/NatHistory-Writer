@@ -74,20 +74,19 @@ Year | Production | Emotional Hook | Tech Innovation | Tonal Arc
 
 A pitch deck modeled on any of these productions — with full act structure, production plan, and market analysis — should score 85-95. Use these as your north star for calibration.
 
-Anti-pattern reference — known failure modes to penalize:
-Year | Production | Core Failure | Why It Failed
-2016 | Before the Flood | Celebrity Travelogue | Celeb-centric, no agency, preachy
-2017 | Phelps vs. Shark | Bait-and-Switch | Clickbait premise, CGI deception, trust-breaking
-2018 | Dynasties (Chimp) | Anthropomorphism | Melodramatic, simplified biology as soap opera
-2019 | 2040 | Cruel Optimism | Paternalistic, tech-solutionist, cringey tone
-2020 | Year Earth Changed | Shallow Opportunism | "Nature is Healing" trope, stock footage, no depth
-2021 | A Perfect Planet | Propaganda Pivot | Shock tactics, radical activism without scientific balance
-2022 | Frozen Planet II | Climate Fatigue | Gratuitous gore, relentless doom, alienated families
-2023 | Life on Our Planet | Uncanny Valley | CGI over substance, paleontological inaccuracies
-2024 | Animals Up Close | TikTok-ification | Presenter-heavy, animals as props, influencer energy
-2025 | Deep Sea Hoax | Pseudo-Nature | AI-generated footage, fake scientists, trust destruction
+Anti-pattern reference — the Documentary Blacklist. These are real productions that DISGRACED the genre. If a pitch exhibits any of these methods or patterns, penalize heavily:
+Production | Year | The "Crime" | The Industry Fallout
+White Wilderness | 1958 | Animal Murder/Mass Fakery — lemmings imported and pushed off a turntable to stage "mass suicide" | Cemented a biological myth for decades
+Man vs. Wild | 2008 | Survival Fraud — presenter sleeping in hotels while claiming wilderness survival | Destroyed the "Pure Survival" sub-genre
+Frozen Planet | 2011 | Context Deception — zoo-filmed polar bear birth edited to look like wild Arctic without disclosure | Forced BBC to implement "Behind the Lens" segments
+Mermaids: The Body Found | 2012 | Pseudo-Science Fraud — CGI and actors presenting myth as scientific discovery | Decimated Animal Planet's credibility
+Megalodon: The Monster Shark Lives | 2013 | "Mockumentary" Betrayal — fake shark story aired as fact during Shark Week | Led to "Save Shark Week" movement
+Eaten Alive | 2014 | Bait-and-Switch — promised man eaten by anaconda, he tapped out when it bit his arm | Gold standard for clickbait commissioning
+Nightmares of Nature (Netflix) | 2025 | Horror-Genre Exploitation — horror tropes and staged animal deaths for jump scares | Confusion of the "documentary" label
+What Jennifer Did (Netflix) | 2024 | AI-Washing (Visual) — AI-enhanced photos without disclosure | Sparked "Generative Reality" ethics debate
+"The Tiger Attack" CCTV | 2025 | AI-Washing (Full Generation) — hyper-realistic AI clips went viral as "real CCTV" causing panic | Triggered AI-Generated watermark laws
 
-If a pitch deck exhibits ANY of these anti-patterns, penalize the relevant dimension heavily (drop 15-25 points). A pitch that feels like a celebrity vehicle, clickbait stunt, or doom-without-agency doc should never score above 60.
+If a pitch deck exhibits ANY of these anti-patterns — staged behavior, undisclosed zoo footage, pseudo-science, clickbait promises, horror exploitation, or AI-generated "documentary" imagery — penalize the relevant dimension heavily (drop 15-25 points). Such a pitch should never score above 40.
 
 Be honest and calibrated. A typical good output should score 70-85. Reserve 90+ for truly exceptional work. Do not inflate scores.`;
 
@@ -271,97 +270,97 @@ export function getCalibrationSeed() {
 }
 
 /**
- * Failure Library — a decade of anti-pattern productions (2016–2025).
- * Used as negative calibration anchors and to inform the red-flag marker checks.
+ * Failure Library — the Documentary Blacklist.
+ * Real productions that disgraced the genre. Used as negative calibration anchors
+ * and to inform the red-flag marker checks.
  */
 export const FAILURE_LIBRARY = [
     {
-        id: 'fail-2016-before-the-flood',
-        year: 2016,
-        name: 'Before the Flood',
-        failure: 'Celebrity Travelogue',
-        description: 'Celeb-centric, no agency, preachy. Leonardo DiCaprio as central lens made it feel like a celebrity travelogue rather than grounded scientific inquiry.',
-        redFlags: ['celebrity-vehicle', 'doom-without-agency'],
+        id: 'fail-1958-white-wilderness',
+        year: 1958,
+        name: 'White Wilderness',
+        failure: 'Animal Murder / Mass Fakery',
+        description: 'Lemmings were imported to Alberta and pushed off a turntable into a river to stage a "mass suicide." Cemented a biological myth for decades.',
+        redFlags: ['staged-behavior', 'trust-breaking'],
     },
     {
-        id: 'fail-2017-phelps-vs-shark',
-        year: 2017,
-        name: 'Phelps vs. Shark',
+        id: 'fail-2008-man-vs-wild',
+        year: 2008,
+        name: 'Man vs. Wild',
+        failure: 'Survival Fraud',
+        description: 'Bear Grylls was "surviving" in the wild while sleeping in hotels and having crew build his shelters. Destroyed the "Pure Survival" sub-genre.',
+        redFlags: ['trust-breaking', 'clickbait-premise'],
+    },
+    {
+        id: 'fail-2011-frozen-planet',
+        year: 2011,
+        name: 'Frozen Planet',
+        failure: 'Context Deception',
+        description: 'BBC filmed a polar bear birth in a zoo but edited it to look like the wild Arctic without disclosure. Forced BBC to implement "Behind the Lens" segments.',
+        redFlags: ['undisclosed-zoo-footage', 'trust-breaking'],
+    },
+    {
+        id: 'fail-2012-mermaids',
+        year: 2012,
+        name: 'Mermaids: The Body Found',
+        failure: 'Pseudo-Science Fraud',
+        description: 'Used CGI and actors to present a myth as a scientific discovery. Decimated Animal Planet\'s credibility among scientists and commissioners.',
+        redFlags: ['pseudo-science', 'trust-breaking'],
+    },
+    {
+        id: 'fail-2013-megalodon',
+        year: 2013,
+        name: 'Megalodon: The Monster Shark Lives',
+        failure: 'Mockumentary Betrayal',
+        description: 'Discovery aired a fake story about a giant shark during Shark Week as if it were fact. Led to "Save Shark Week" movement.',
+        redFlags: ['pseudo-science', 'clickbait-premise', 'trust-breaking'],
+    },
+    {
+        id: 'fail-2014-eaten-alive',
+        year: 2014,
+        name: 'Eaten Alive',
         failure: 'Bait-and-Switch',
-        description: 'Marketed a race but delivered a CGI overlay. Broke the contract of trust with the audience.',
+        description: 'Multi-month marketing promised a man would be eaten by an anaconda. He tapped out when it bit his arm. Gold standard for clickbait commissioning.',
         redFlags: ['clickbait-premise', 'trust-breaking'],
     },
     {
-        id: 'fail-2018-dynasties-chimp',
-        year: 2018,
-        name: 'Dynasties (Chimp Episode)',
-        failure: 'Excessive Anthropomorphism',
-        description: 'Framed complex animal behavior as simplified soap opera. Prioritized story over biological accuracy.',
-        redFlags: ['anthropomorphism', 'science-over-story'],
+        id: 'fail-2025-nightmares-of-nature',
+        year: 2025,
+        name: 'Nightmares of Nature (Netflix)',
+        failure: 'Horror-Genre Exploitation',
+        description: 'A Blumhouse/Netflix mashup using horror tropes and staged animal deaths for jump scares. Confused the "documentary" label.',
+        redFlags: ['staged-behavior', 'spectacle-over-substance', 'trust-breaking'],
     },
     {
-        id: 'fail-2019-2040',
-        year: 2019,
-        name: '2040',
-        failure: 'Cruel Optimism',
-        description: 'Paternalistic, tech-solutionist, presented complex systemic problems as easily solvable.',
-        redFlags: ['tech-solutionism', 'patronizing-tone'],
-    },
-    {
-        id: 'fail-2020-year-earth-changed',
-        year: 2020,
-        name: 'The Year Earth Changed',
-        failure: 'Shallow Opportunism',
-        description: '"Nature is Healing" trope. Opportunistic silver-lining doc that ignored poaching surges and conservation funding loss.',
-        redFlags: ['shallow-opportunism', 'doom-without-agency'],
-    },
-    {
-        id: 'fail-2021-perfect-planet',
-        year: 2021,
-        name: 'A Perfect Planet (Final Ep)',
-        failure: 'Propaganda Pivot',
-        description: 'Abandoned natural history for political shock tactics. Gave platform to radical activists without scientific balance.',
-        redFlags: ['propaganda-pivot', 'science-over-story'],
-    },
-    {
-        id: 'fail-2022-frozen-planet-ii',
-        year: 2022,
-        name: 'Frozen Planet II',
-        failure: 'Climate Fatigue',
-        description: 'Gratuitous gore, relentless doom narrative, alienated family audience.',
-        redFlags: ['doom-without-agency', 'gratuitous-content'],
-    },
-    {
-        id: 'fail-2023-life-on-our-planet',
-        year: 2023,
-        name: 'Life on Our Planet',
-        failure: 'Uncanny Valley',
-        description: 'CGI felt like a video game, riddled with paleontological inaccuracies. Monster movie thrills over science.',
-        redFlags: ['spectacle-over-substance', 'science-over-story'],
-    },
-    {
-        id: 'fail-2024-animals-up-close',
+        id: 'fail-2024-what-jennifer-did',
         year: 2024,
-        name: 'Animals Up Close',
-        failure: 'TikTok-ification',
-        description: 'Presenter-heavy, animals became props to influencer energy. Lacked gravitas.',
-        redFlags: ['celebrity-vehicle', 'shallow-opportunism'],
+        name: 'What Jennifer Did (Netflix)',
+        failure: 'AI-Washing (Visual)',
+        description: 'Used AI-generated/enhanced photos of the subject without disclosure. Sparked the first major ethics debate about "Generative Reality" in documentaries.',
+        redFlags: ['ai-washing', 'trust-breaking'],
+    },
+    {
+        id: 'fail-2025-tiger-attack-cctv',
+        year: 2025,
+        name: '"The Tiger Attack" CCTV',
+        failure: 'AI-Washing (Full Generation)',
+        description: 'Hyper-realistic AI clips of tiger attacks went viral as "real CCTV," causing actual local panic. Triggered AI-Generated watermark laws.',
+        redFlags: ['ai-washing', 'pseudo-science', 'trust-breaking'],
     },
 ];
 
 /**
- * Red Flag markers — anti-patterns that the pipeline output should NOT exhibit.
+ * Red Flag markers — anti-patterns derived from the Documentary Blacklist.
  * A triggered red flag means the pipeline is producing work with known failure patterns.
  */
 export const RED_FLAG_MARKERS = [
-    { id: 'celebrity-vehicle', label: 'Celebrity Vehicle', desc: 'Output centers a human celebrity/presenter over the wildlife — animals feel secondary to the "host"' },
-    { id: 'doom-without-agency', label: 'Doom Without Agency', desc: 'Relentless bleakness with no actionable hope, viewer agency, or conservation pathway' },
-    { id: 'clickbait-premise', label: 'Clickbait Premise', desc: 'Sensationalist hook that overpromises or misleads — spectacle trumps substance' },
-    { id: 'anthropomorphism', label: 'Excessive Anthropomorphism', desc: 'Animals are given human soap-opera narratives that distort actual biology' },
-    { id: 'tech-solutionism', label: 'Tech Solutionism', desc: 'Complex ecological problems presented as easily solvable via technology or simple fixes' },
-    { id: 'shallow-opportunism', label: 'Shallow Opportunism', desc: 'Exploits trending topics or current events without genuine depth or scientific rigor' },
-    { id: 'spectacle-over-substance', label: 'Spectacle Over Substance', desc: 'Visual effects, gore, or shock value prioritized over scientific accuracy and narrative depth' },
-    { id: 'trust-breaking', label: 'Trust-Breaking', desc: 'Misleading claims, fake footage framing, or deceptive marketing that erodes documentary credibility' },
+    { id: 'staged-behavior', label: 'Staged / Faked Behavior', desc: 'Any suggestion of staging, provoking, or manufacturing animal behavior for the camera (cf. White Wilderness, Nightmares of Nature)' },
+    { id: 'trust-breaking', label: 'Trust-Breaking', desc: 'Misleading claims, undisclosed methods, deceptive editing, or marketing that erodes documentary credibility (cf. Man vs. Wild, Frozen Planet, Eaten Alive)' },
+    { id: 'clickbait-premise', label: 'Clickbait Premise', desc: 'Sensationalist hook that overpromises or misleads — spectacle trumps substance (cf. Eaten Alive, Megalodon)' },
+    { id: 'pseudo-science', label: 'Pseudo-Science', desc: 'Presenting myth, speculation, or fabrication as scientific fact (cf. Mermaids: The Body Found, Megalodon)' },
+    { id: 'undisclosed-zoo-footage', label: 'Undisclosed Controlled Footage', desc: 'Using zoo, sanctuary, or controlled-environment footage edited to appear wild without disclosure (cf. Frozen Planet)' },
+    { id: 'spectacle-over-substance', label: 'Spectacle Over Substance', desc: 'Horror tropes, gore, or shock value prioritized over scientific accuracy and narrative depth (cf. Nightmares of Nature)' },
+    { id: 'ai-washing', label: 'AI-Washing', desc: 'Using AI-generated or AI-enhanced imagery/footage without clear disclosure in a factual context (cf. What Jennifer Did, Tiger Attack CCTV)' },
 ];
 
 const RED_FLAG_CHECK_PROMPT = `You are a RED FLAG CHECKER for a wildlife film pitch deck generator.

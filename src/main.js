@@ -1,6 +1,7 @@
-import { initGemini, createChat, callAgent } from './agents/gemini.js';
+import { initGemini, createChat, callAgent, extractPdfText, extractUrlContent } from './agents/gemini.js';
 import { runPipeline, runAssessment, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
+import { loadCheckpoint, clearCheckpoint } from './pipelineState.js';
 import { chunkText } from './knowledge/chunker.js';
 import { embedBatch } from './knowledge/embeddings.js';
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
@@ -124,10 +125,9 @@ const scorecardOverall = document.getElementById('scorecard-overall');
 const scorecardDims = document.getElementById('scorecard-dims');
 const scorecardRecs = document.getElementById('scorecard-recs');
 
-// Dryrun elements
-const btnDryrun = document.getElementById('btn-dryrun');
-const dryrunOverlay = document.getElementById('dryrun-overlay');
-const dryrunClose = document.getElementById('dryrun-close');
+// Advanced panel & Dryrun elements
+const btnAdvanced = document.getElementById('btn-advanced');
+const advancedPanel = document.getElementById('advanced-panel');
 const dryrunStart = document.getElementById('dryrun-start');
 const dryrunStartArea = document.getElementById('dryrun-start-area');
 const dryrunProgress = document.getElementById('dryrun-progress');
@@ -365,13 +365,38 @@ fileInput.addEventListener('change', () => {
 async function handleFiles(fileList) {
     for (const file of fileList) {
         const ext = file.name.split('.').pop().toLowerCase();
-        if (!['txt', 'md', 'text', 'markdown'].includes(ext)) {
-            showError(`Unsupported file type: .${ext}. Use .txt or .md files.`);
+        if (!['txt', 'md', 'text', 'markdown', 'pdf'].includes(ext)) {
+            showError(`Unsupported file type: .${ext}. Use .txt, .md, or .pdf files.`);
             continue;
         }
 
         try {
-            const text = await file.text();
+            let text;
+
+            if (ext === 'pdf') {
+                // PDF → Gemini multimodal extraction
+                uploadProgress.classList.remove('hidden');
+                progressFill.style.width = '0%';
+                progressText.textContent = `Reading PDF "${file.name}"…`;
+
+                const buffer = await file.arrayBuffer();
+                const base64 = btoa(
+                    new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                progressFill.style.width = '30%';
+                progressText.textContent = `Extracting text from "${file.name}"…`;
+
+                text = await extractPdfText(base64);
+                if (!text || text.trim().length < 20) {
+                    showError(`Could not extract meaningful text from "${file.name}".`);
+                    uploadProgress.classList.add('hidden');
+                    continue;
+                }
+            } else {
+                // Plain text files
+                text = await file.text();
+            }
+
             const chunks = chunkText(text);
             if (chunks.length === 0) {
                 showError(`File "${file.name}" is empty or too short.`);
@@ -380,11 +405,12 @@ async function handleFiles(fileList) {
 
             // Show progress
             uploadProgress.classList.remove('hidden');
-            progressFill.style.width = '0%';
+            progressFill.style.width = ext === 'pdf' ? '40%' : '0%';
             progressText.textContent = `Embedding "${file.name}"… 0/${chunks.length}`;
 
             const embeddings = await embedBatch(chunks, (current, total) => {
-                const pct = Math.round((current / total) * 100);
+                const base = ext === 'pdf' ? 40 : 0;
+                const pct = base + Math.round((current / total) * (100 - base));
                 progressFill.style.width = `${pct}%`;
                 progressText.textContent = `Embedding "${file.name}"… ${current}/${total}`;
             });
@@ -436,6 +462,74 @@ async function refreshDocList() {
         });
         docList.appendChild(item);
     });
+}
+
+// ─── Knowledge Base: URL Ingestion ────────────────────
+const urlInput = document.getElementById('url-input');
+const urlAddBtn = document.getElementById('url-add-btn');
+
+if (urlAddBtn) {
+    urlAddBtn.addEventListener('click', () => handleUrl());
+}
+if (urlInput) {
+    urlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleUrl(); }
+    });
+}
+
+async function handleUrl() {
+    const url = urlInput?.value.trim();
+    if (!url) return;
+
+    // Basic URL validation
+    try { new URL(url); } catch {
+        showError('Please enter a valid URL (e.g. https://example.com/article)');
+        return;
+    }
+
+    const displayName = new URL(url).hostname + new URL(url).pathname.slice(0, 40);
+
+    try {
+        uploadProgress.classList.remove('hidden');
+        progressFill.style.width = '10%';
+        progressText.textContent = `Reading ${displayName}…`;
+
+        const text = await extractUrlContent(url);
+        if (!text || text.trim().length < 30) {
+            showError(`Could not extract meaningful content from that URL.`);
+            uploadProgress.classList.add('hidden');
+            return;
+        }
+
+        progressFill.style.width = '30%';
+        progressText.textContent = `Chunking content…`;
+
+        const chunks = chunkText(text);
+        if (chunks.length === 0) {
+            showError('Extracted content was too short to store.');
+            uploadProgress.classList.add('hidden');
+            return;
+        }
+
+        progressText.textContent = `Embedding… 0/${chunks.length}`;
+
+        const embeddings = await embedBatch(chunks, (current, total) => {
+            const pct = 30 + Math.round((current / total) * 60);
+            progressFill.style.width = `${pct}%`;
+            progressText.textContent = `Embedding… ${current}/${total}`;
+        });
+
+        progressFill.style.width = '95%';
+        progressText.textContent = 'Saving to knowledge base…';
+        await addDocument(`🔗 ${url}`, chunks, embeddings);
+
+        uploadProgress.classList.add('hidden');
+        urlInput.value = '';
+        refreshDocList();
+    } catch (err) {
+        uploadProgress.classList.add('hidden');
+        showError(`Failed to ingest URL: ${err.message}`);
+    }
 }
 
 // ─── History Panel ────────────────────────────────────
@@ -537,10 +631,160 @@ function updateGatekeeperBadges(text) {
         badgesEl.classList.add('hidden');
     }
 }
+
+// ─── AUDIO FEEDBACK ─────────────────────────────────────────────
+/**
+ * Play a synthesized chime via Web Audio API (no external files).
+ * @param {'success'|'error'|'cancel'} type
+ */
+function playCompletionChime(type = 'success') {
+    try {
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ac.currentTime;
+
+        if (type === 'success') {
+            // Bright ascending major arpeggio: C5 → E5 → G5
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0, now + i * 0.15);
+                gain.gain.linearRampToValueAtTime(0.18, now + i * 0.15 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.5);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now + i * 0.15);
+                osc.stop(now + i * 0.15 + 0.5);
+            });
+        } else if (type === 'error') {
+            // Descending minor two-note: E4 → C4
+            [329.63, 261.63].forEach((freq, i) => {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.15, now + i * 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.4);
+                osc.connect(gain).connect(ac.destination);
+                osc.start(now + i * 0.2);
+                osc.stop(now + i * 0.2 + 0.4);
+            });
+        } else {
+            // Cancel — single neutral mid tone
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 440;
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            osc.connect(gain).connect(ac.destination);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        }
+
+        // Clean up AudioContext after sounds finish
+        setTimeout(() => ac.close(), 2000);
+    } catch (_) { /* AudioContext unavailable — silent fallback */ }
+}
+
 let currentMode = 'seed'; // 'seed' or 'script'
 const phaseIndicator = document.getElementById('phase-indicator');
 const productionYearInput = document.getElementById('production-year');
 const targetPlatformInput = document.getElementById('target-platform');
+const genrePreferenceInput = document.getElementById('genre-preference');
+const genreCustomInput = document.getElementById('genre-custom');
+const maxIterationsInput = document.getElementById('max-iterations');
+
+// Toggle custom genre input visibility
+genrePreferenceInput.addEventListener('change', () => {
+    if (genrePreferenceInput.value === 'custom') {
+        genreCustomInput.classList.remove('hidden');
+        genreCustomInput.focus();
+    } else {
+        genreCustomInput.classList.add('hidden');
+        genreCustomInput.value = '';
+    }
+});
+
+// ─── SEED-TO-DROPDOWN SYNC ─────────────────────────────────────
+// Parses seed text for explicit platform, year, and genre mentions
+// and auto-updates the UI dropdowns to match.
+function syncDropdownsFromSeed(seedText) {
+    if (!seedText) return;
+    const text = seedText.toLowerCase();
+    const overrides = [];
+
+    // ── PLATFORM detection ──────────────────────────────
+    const platformMap = [
+        { patterns: [/\bnetflix\b/], value: 'Netflix' },
+        { patterns: [/\bapple\s*tv\+?\b/, /\batv\+?\b/], value: 'Apple TV+' },
+        { patterns: [/\bbbc\b/], value: 'BBC Studios' },
+        { patterns: [/\bdisney\+?\b/, /\bnat\s*geo\b/, /\bnational\s*geographic\b/], value: 'Disney+' },
+        { patterns: [/\bamazon\s*prime\b/, /\bprime\s*video\b/], value: 'Amazon Prime' },
+        { patterns: [/\bzdf\b/, /\barte\b/], value: 'ZDF / ARTE' },
+        { patterns: [/\bchannel\s*4\b/], value: 'Channel 4' },
+        { patterns: [/\bsmithsonian\b/], value: 'Smithsonian Channel' },
+        { patterns: [/\bpbs\b/], value: 'PBS' },
+    ];
+    for (const { patterns, value } of platformMap) {
+        if (patterns.some(p => p.test(text))) {
+            targetPlatformInput.value = value;
+            overrides.push(`📺 Platform → ${value}`);
+            break;
+        }
+    }
+
+    // ── YEAR detection (e.g., "deliver 2028", "for 2027", "airing 2026") ──
+    const yearMatch = text.match(/\b(deliver(?:y)?|air(?:ing|s)?|launch(?:ing)?|stream(?:ing)?|for|in|by)\s+(20[2-3]\d)\b/);
+    if (yearMatch) {
+        const year = parseInt(yearMatch[2], 10);
+        if (year >= 2024 && year <= 2035) {
+            productionYearInput.value = year;
+            overrides.push(`📅 Year → ${year}`);
+        }
+    }
+
+    // ── GENRE detection ─────────────────────────────────
+    const genreMap = [
+        { patterns: [/\bscientific\s*procedural\b/, /\bcsi\s+.*ecolog/], value: 'scientific-procedural' },
+        { patterns: [/\bnature\s*noir\b/, /\btrue\s*crime.*nature\b/, /\benvironmental\s*crime\b/], value: 'nature-noir' },
+        { patterns: [/\bspeculative\b.*\bnatural\s*history\b/, /\bfuture[\s-]*cast\b/], value: 'speculative-nh' },
+        { patterns: [/\burban\s*rewild/], value: 'urban-rewilding' },
+        { patterns: [/\bbiocultural\b/, /\bdeep[\s-]*time.*history\b/], value: 'biocultural-history' },
+        { patterns: [/\bblue\s*chip\b/], value: 'blue-chip-2' },
+        { patterns: [/\bindigenous\s*wisdom\b/, /\btraditional\s*ecological\b/, /\btek\b/], value: 'indigenous-wisdom' },
+        { patterns: [/\becological\s*biography\b/], value: 'ecological-biography' },
+        { patterns: [/\bextreme\s*micro\b/, /\bnano[\s-]*tech.*microscop/], value: 'extreme-micro' },
+        { patterns: [/\bastro[\s-]*ecolog\b/, /\borbital\s*view\b/], value: 'astro-ecology' },
+        { patterns: [/\bprocess\s*doc\b/], value: 'process-doc' },
+        { patterns: [/\bsymbiotic\s*pov\b/, /\bon[\s-]*animal\s*camera\b/], value: 'symbiotic-pov' },
+    ];
+    for (const { patterns, value } of genreMap) {
+        if (patterns.some(p => p.test(text))) {
+            genrePreferenceInput.value = value;
+            genreCustomInput.classList.add('hidden');
+            genreCustomInput.value = '';
+            overrides.push(`🎭 Genre → ${genrePreferenceInput.options[genrePreferenceInput.selectedIndex]?.text || value}`);
+            break;
+        }
+    }
+
+    // If no predefined genre matched, check for free-form genre hints
+    if (!overrides.some(o => o.startsWith('🎭'))) {
+        const freeGenre = text.match(/\b(?:make\s+(?:this|it)\s+(?:a|an)\s+)([a-z\s-]+?)(?:\s+(?:for|about|on|documentary|film|show|series))/i);
+        if (freeGenre) {
+            genrePreferenceInput.value = 'custom';
+            genreCustomInput.classList.remove('hidden');
+            genreCustomInput.value = freeGenre[1].trim();
+            overrides.push(`🎭 Genre → Custom: "${freeGenre[1].trim()}"`);
+        }
+    }
+
+    // ── Log overrides ───────────────────────────────────
+    if (overrides.length > 0) {
+        addLog(`<em>⚡ Seed auto-sync: ${overrides.join(' · ')}</em>`);
+    }
+}
 
 document.querySelectorAll('.mode-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -590,11 +834,12 @@ function createPipelineStatusBar(seedLabel) {
 
     const bar = document.createElement('div');
     bar.className = 'pipeline-status-bar';
+    const safeSeed = seedLabel.length > 50 ? seedLabel.slice(0, 47) + '…' : seedLabel;
     bar.innerHTML = `
       <div class="psb-left">
         <span class="psb-pulse"></span>
         <span class="psb-label">Pipeline running…</span>
-        <span class="psb-seed">${seedLabel.length > 50 ? seedLabel.slice(0, 47) + '…' : seedLabel}</span>
+        <span class="psb-seed"></span>
       </div>
       <div class="psb-right">
         <span class="psb-timer">0:00</span>
@@ -602,6 +847,7 @@ function createPipelineStatusBar(seedLabel) {
         <button class="psb-cancel" title="Cancel the running pipeline">✕</button>
       </div>
     `;
+    bar.querySelector('.psb-seed').textContent = safeSeed;
     document.body.appendChild(bar);
     requestAnimationFrame(() => bar.classList.add('visible'));
 
@@ -641,6 +887,71 @@ function removePipelineStatusBar() {
     }
 }
 
+// ─── Agent Ring helpers ────────────────────────────────────
+const RING_AGENTS = [
+    'discovery-scout', 'market-analyst', 'chief-scientist', 'field-producer',
+    'story-producer', 'commissioning-editor', 'showrunner', 'adversary',
+];
+const RING_ARC_CIRCUMFERENCE = 540; // 2πr where r=86
+let ringSeenAgents = new Set();
+
+function updateAgentRing(agent) {
+    const nodes = document.querySelectorAll('.ring-node');
+    nodes.forEach(n => {
+        if (n.dataset.ringAgent === agent.id) {
+            n.classList.remove('ring-done');
+            n.classList.add('ring-active');
+        } else if (n.classList.contains('ring-active')) {
+            n.classList.remove('ring-active');
+            n.classList.add('ring-done');
+        }
+    });
+    ringSeenAgents.add(agent.id);
+
+    // Update hub
+    const hubIcon = document.getElementById('ring-hub-icon');
+    const hubLabel = document.getElementById('ring-hub-label');
+    if (hubIcon) hubIcon.textContent = agent.icon;
+    if (hubLabel) {
+        hubLabel.textContent = agent.name.split(' ').slice(-1)[0]; // last word
+        hubLabel.style.color = agent.color;
+    }
+
+    // Update SVG arc progress
+    const progress = ringSeenAgents.size / RING_AGENTS.length;
+    const arc = document.getElementById('ring-arc-progress');
+    if (arc) {
+        arc.style.strokeDashoffset = RING_ARC_CIRCUMFERENCE * (1 - progress);
+        arc.style.stroke = agent.color;
+    }
+}
+
+function resetAgentRing() {
+    ringSeenAgents = new Set();
+    document.querySelectorAll('.ring-node').forEach(n => {
+        n.classList.remove('ring-active', 'ring-done');
+    });
+    const hubIcon = document.getElementById('ring-hub-icon');
+    const hubLabel = document.getElementById('ring-hub-label');
+    if (hubIcon) hubIcon.textContent = '⏳';
+    if (hubLabel) { hubLabel.textContent = 'Waiting'; hubLabel.style.color = ''; }
+    const arc = document.getElementById('ring-arc-progress');
+    if (arc) arc.style.strokeDashoffset = RING_ARC_CIRCUMFERENCE;
+}
+
+function completeAgentRing() {
+    document.querySelectorAll('.ring-node').forEach(n => {
+        n.classList.remove('ring-active');
+        if (ringSeenAgents.has(n.dataset.ringAgent)) n.classList.add('ring-done');
+    });
+    const hubIcon = document.getElementById('ring-hub-icon');
+    const hubLabel = document.getElementById('ring-hub-label');
+    if (hubIcon) hubIcon.textContent = '✅';
+    if (hubLabel) { hubLabel.textContent = 'Complete'; hubLabel.style.color = 'var(--accent-gold)'; }
+    const arc = document.getElementById('ring-arc-progress');
+    if (arc) { arc.style.strokeDashoffset = 0; arc.style.stroke = 'var(--accent-gold)'; }
+}
+
 const pipelineCallbacks = {
     onPhaseStart(phaseNumber, phaseName) {
         // Remove the waiting message once work begins
@@ -653,6 +964,7 @@ const pipelineCallbacks = {
     onAgentThinking(agent) {
         latestAgentCard = createAgentCard(agent);
         updatePipelineStatusBar(null, `${agent.icon} ${agent.name}`);
+        updateAgentRing(agent);
     },
     onAgentOutput(agent, outputText) {
         if (latestAgentCard) {
@@ -734,9 +1046,15 @@ seedForm.addEventListener('submit', async (e) => {
         batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed 1/${seeds.length}</span><span class="batch-seed-name">${seeds[0]}</span>`;
         simulationEl.insertBefore(batchBanner, simulationEl.firstChild);
     }
+    // ─── AUTO-SYNC: Parse seed text and update dropdowns to match ──────
+    syncDropdownsFromSeed(seeds.join(' '));
 
     const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
     const targetPlatform = targetPlatformInput.value || null;
+    const genrePreference = genrePreferenceInput.value === 'custom'
+        ? (genreCustomInput.value.trim() || null)
+        : (genrePreferenceInput.value || null);
+    const maxRevisions = parseInt(maxIterationsInput.value, 10);
     const batchResults = []; // { seed, pitchDeck }
 
     try {
@@ -745,21 +1063,23 @@ seedForm.addEventListener('submit', async (e) => {
 
             // Update batch banner
             if (batchBanner) {
-                batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed ${i + 1}/${seeds.length}</span><span class="batch-seed-name">${seedText}</span>`;
+                batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed ${i + 1}/${seeds.length}</span><span class="batch-seed-name"></span>`;
+                batchBanner.querySelector('.batch-seed-name').textContent = seedText;
                 launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/${seeds.length}…`;
             }
 
             // Reset phase indicator + timeline for each seed
-            autoImprovementAttempts = 0; // Reset for each new pipeline run
             const totalPhases = isAssessment ? 4 : 6;
             buildPhaseIndicator(totalPhases);
             timelineEl.innerHTML = '';
+            resetAgentRing();
 
             const finalPitchDeck = isAssessment
                 ? await runAssessment(seedText, pipelineCallbacks, prodYear)
-                : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear });
+                : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions });
 
             batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
+            completeAgentRing();
 
             // Save each run to history individually
             await saveRun({ seedIdea: seedText, finalPitchDeck });
@@ -820,12 +1140,15 @@ seedForm.addEventListener('submit', async (e) => {
         toast.className = 'chat-ready-toast';
         toast.innerHTML = isBatch ? `💬 ${batchResults.length} pitch decks ready — refinement chat below` : '💬 Refinement chat ready below';
         toast.addEventListener('click', () => {
-            document.getElementById('qa-section').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('qa-chat')?.scrollIntoView({ behavior: 'smooth' });
             toast.remove();
         });
         document.body.appendChild(toast);
         setTimeout(() => toast.classList.add('visible'), 100);
         setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 500); }, 6000);
+
+        // 🔔 Audio feedback — success chime
+        playCompletionChime('success');
     } catch (err) {
         if (err instanceof PipelineCancelled || err.name === 'PipelineCancelled') {
             console.log('Pipeline cancelled by user.');
@@ -833,9 +1156,11 @@ seedForm.addEventListener('submit', async (e) => {
             cancelMsg.className = 'pipeline-cancelled-msg';
             cancelMsg.textContent = '⚠️ Pipeline cancelled. Partial results may be available above.';
             timelineEl.appendChild(cancelMsg);
+            playCompletionChime('cancel');
         } else {
             console.error('Pipeline error:', err);
             showError(`Pipeline error: ${err.message}`);
+            playCompletionChime('error');
         }
         if (batchBanner) batchBanner.remove();
     } finally {
@@ -1240,11 +1565,17 @@ async function executeRerun(directive, containerEl) {
 
         const prodYear = productionYearInput.value ? parseInt(productionYearInput.value, 10) : null;
         const targetPlatform = targetPlatformInput.value || null;
+        const genrePreference = genrePreferenceInput.value === 'custom'
+            ? (genreCustomInput.value.trim() || null)
+            : (genrePreferenceInput.value || null);
+        const maxRevisions = parseInt(maxIterationsInput.value, 10);
 
         const newDeck = await runPipeline(lastSeedIdea, rerunCallbacks, {
             platform: targetPlatform,
             year: prodYear,
             directive: directive,
+            genrePreference,
+            maxRevisions,
         });
 
         // Update everything
@@ -1261,11 +1592,13 @@ async function executeRerun(directive, containerEl) {
         chatSession.send('The deck has been completely regenerated with the directive: ' + directive).catch(() => { });
 
         // Auto-score the new deck
-        autoScore(newDeck, lastSeedIdea);
+        await autoScore(newDeck, lastSeedIdea);
 
         addLog(`<strong>✅ Pipeline complete — deck updated (v${revisionHistory.length + 1})</strong>`);
+        playCompletionChime('success');
     } catch (err) {
         addLog(`<strong>❌ Pipeline failed: ${err.message}</strong>`);
+        playCompletionChime('error');
     }
 }
 
@@ -1377,6 +1710,7 @@ qaForm.addEventListener('submit', async (e) => {
                 const badgesEl = document.getElementById('gatekeeper-badges');
                 if (scoreBadge && badgesEl) {
                     const s = scorecard.overall;
+                    if (s == null) { typingMsg.innerHTML = md('✓ Quality scorecard rendered (no overall score returned)'); return; }
                     const icon = s >= 80 ? '✅' : s >= 60 ? '⚠️' : '⛔';
                     scoreBadge.textContent = `${icon} ${s}/100`;
                     scoreBadge.className = `gatekeeper-badge gatekeeper-score ${s >= 80 ? 'score-green' : s >= 60 ? 'score-amber' : s >= 40 ? 'score-orange' : 'score-red'}`;
@@ -1537,9 +1871,6 @@ function renderScorecard(scorecard) {
     `;
 }
 
-const MAX_AUTO_IMPROVEMENTS = 2;
-let autoImprovementAttempts = 0;
-
 async function autoScore(pitchDeck, seedIdea) {
     const verdictEl = document.getElementById('deck-verdict-text');
     try {
@@ -1550,6 +1881,7 @@ async function autoScore(pitchDeck, seedIdea) {
         const scoreBadge = document.getElementById('gatekeeper-score-badge');
         const badgesEl = document.getElementById('gatekeeper-badges');
         const s = scorecard.overall;
+        if (s == null) return;
 
         if (scoreBadge && badgesEl) {
             const icon = s >= 80 ? '✅' : s >= 60 ? '⚠️' : '⛔';
@@ -1558,56 +1890,17 @@ async function autoScore(pitchDeck, seedIdea) {
             badgesEl.classList.remove('hidden');
         }
 
-        // ─── Update verdict text ──────
+        // ─── Update verdict text (read-only, no auto-improvement) ──────
         if (verdictEl) {
             if (s >= 80) {
                 verdictEl.textContent = 'Greenlit & Approved';
                 verdictEl.style.color = '#00d4aa';
+            } else if (s >= 60) {
+                verdictEl.textContent = `Score: ${s}/100 — Promising`;
+                verdictEl.style.color = '#f0a030';
             } else {
-                verdictEl.textContent = `Below Threshold (${s}/100) — needs 80+`;
-                verdictEl.style.color = '#f0a030';
-            }
-        }
-
-        // ─── Auto-improvement: if below 80 and we haven't exhausted attempts ──────
-        if (s < 80 && autoImprovementAttempts < MAX_AUTO_IMPROVEMENTS && lastSeedIdea) {
-            autoImprovementAttempts++;
-            const attempt = autoImprovementAttempts;
-            const total = MAX_AUTO_IMPROVEMENTS;
-
-            if (verdictEl) {
-                verdictEl.textContent = `Auto-improving (${attempt}/${total})… Score: ${s}/100`;
-                verdictEl.style.color = '#f0a030';
-            }
-
-            // Build a targeted directive from the evaluator's weakest dimensions + recommendations
-            const weakDims = scorecard.dimensions
-                .filter(d => d.score !== null && d.score < 75)
-                .sort((a, b) => a.score - b.score)
-                .map(d => `${d.name} (${d.score}/100): ${d.rationale}`)
-                .join('\n');
-
-            const recs = scorecard.recommendations
-                ? scorecard.recommendations.join('; ')
-                : '';
-
-            const directive = `QUALITY EVALUATOR AUTO-IMPROVEMENT (attempt ${attempt}/${total}). Current overall score: ${s}/100 — target is 80+.\n\nWeakest dimensions:\n${weakDims}\n\nRecommendations: ${recs}\n\nFocus on the weakest dimensions. Do not regress on strong areas.`;
-
-            // Create a visible log in the QA panel
-            const qaMessages = document.getElementById('qa-messages');
-            const rerunMsg = document.createElement('div');
-            rerunMsg.className = 'qa-msg assistant';
-            rerunMsg.innerHTML = `<strong>🔄 Auto-improvement ${attempt}/${total}</strong> — Evaluator scored ${s}/100, targeting 80+…`;
-            if (qaMessages) qaMessages.appendChild(rerunMsg);
-
-            await executeRerun(directive, rerunMsg);
-            // Note: executeRerun calls autoScore again via its own flow,
-            // so the loop continues automatically if score is still < 80
-        } else if (s < 80 && autoImprovementAttempts >= MAX_AUTO_IMPROVEMENTS) {
-            // Exhausted auto-improvement attempts
-            if (verdictEl) {
-                verdictEl.textContent = `Best achievable: ${s}/100 (${MAX_AUTO_IMPROVEMENTS} auto-improvements exhausted)`;
-                verdictEl.style.color = '#f0a030';
+                verdictEl.textContent = `Score: ${s}/100 — Needs Work`;
+                verdictEl.style.color = '#e04040';
             }
         }
     } catch (err) {
@@ -1643,43 +1936,45 @@ function clearDryrunState() {
     localStorage.removeItem(DRYRUN_STATE_KEY);
 }
 
-btnDryrun.addEventListener('click', async () => {
-    dryrunOverlay.classList.remove('hidden');
-    dryrunProgress.classList.add('hidden');
-    dryrunResults.classList.add('hidden');
-
-    // Check for saved state to offer resume
-    const saved = loadDryrunState();
-    if (saved && saved.completedResults && saved.completedResults.length > 0 && !saved.finished) {
-        const total = saved.totalSeeds || 6;
-        const done = saved.completedResults.length;
-        dryrunStartArea.innerHTML = `
-            <div class="dryrun-resume-info">
-                <p>⏸ Previous run interrupted at <strong>${done}/${total}</strong> seeds</p>
-                <p class="dryrun-resume-meta">${saved.calibrationSeedName || 'Unknown calibration seed'} · ${new Date(saved.startedAt).toLocaleString()}</p>
-            </div>
-            <div class="dryrun-resume-btns">
-                <button id="dryrun-resume" class="btn-primary btn-launch">
-                    <span class="btn-text">Resume</span>
-                    <span class="btn-icon">→</span>
-                </button>
-                <button id="dryrun-restart" class="btn-secondary">Start Fresh</button>
-            </div>
-        `;
-        dryrunStartArea.classList.remove('hidden');
-
-        document.getElementById('dryrun-resume').addEventListener('click', () => startDryrun(true));
-        document.getElementById('dryrun-restart').addEventListener('click', () => {
-            clearDryrunState();
-            resetDryrunStartArea();
-            startDryrun(false);
-        });
+btnAdvanced.addEventListener('click', async () => {
+    if (advancedPanel.classList.contains('open')) {
+        closeAllPanels();
     } else {
-        resetDryrunStartArea();
-    }
+        openPanel(advancedPanel);
 
-    // Show past dryruns history
-    await renderDryrunHistory();
+        // Check for saved dryrun state to offer resume
+        const saved = loadDryrunState();
+        if (saved && saved.completedResults && saved.completedResults.length > 0 && !saved.finished) {
+            const total = saved.totalSeeds || 6;
+            const done = saved.completedResults.length;
+            dryrunStartArea.innerHTML = `
+                <div class="dryrun-resume-info">
+                    <p>⏸ Previous run interrupted at <strong>${done}/${total}</strong> seeds</p>
+                    <p class="dryrun-resume-meta">${saved.calibrationSeedName || 'Unknown calibration seed'} · ${new Date(saved.startedAt).toLocaleString()}</p>
+                </div>
+                <div class="dryrun-resume-btns">
+                    <button id="dryrun-resume" class="btn-primary btn-launch">
+                        <span class="btn-text">Resume</span>
+                        <span class="btn-icon">→</span>
+                    </button>
+                    <button id="dryrun-restart" class="btn-secondary">Start Fresh</button>
+                </div>
+            `;
+            dryrunStartArea.classList.remove('hidden');
+
+            document.getElementById('dryrun-resume').addEventListener('click', () => startDryrun(true));
+            document.getElementById('dryrun-restart').addEventListener('click', () => {
+                clearDryrunState();
+                resetDryrunStartArea();
+                startDryrun(false);
+            });
+        } else {
+            resetDryrunStartArea();
+        }
+
+        // Show past dryruns history
+        await renderDryrunHistory();
+    }
 });
 
 function resetDryrunStartArea() {
@@ -1692,16 +1987,6 @@ function resetDryrunStartArea() {
     dryrunStartArea.classList.remove('hidden');
     document.getElementById('dryrun-start').addEventListener('click', () => startDryrun(false));
 }
-
-dryrunClose.addEventListener('click', () => {
-    if (dryrunRunning) return; // Block close during active run
-    dryrunOverlay.classList.add('hidden');
-});
-
-dryrunOverlay.addEventListener('click', (e) => {
-    if (dryrunRunning) return; // Block dismiss during active run
-    if (e.target === dryrunOverlay) dryrunOverlay.classList.add('hidden');
-});
 
 async function renderDryrunHistory() {
     const past = await getDryrunResults();
@@ -1816,7 +2101,6 @@ async function startDryrun(resume) {
     dryrunProgress.classList.remove('hidden');
     dryrunResults.classList.add('hidden');
     dryrunRunning = true;
-    dryrunClose.classList.add('disabled');
 
     try {
         const savedState = resume ? loadDryrunState() : null;
@@ -1970,7 +2254,7 @@ async function startDryrun(resume) {
         showError(`Dryrun failed: ${err.message}`);
     } finally {
         dryrunRunning = false;
-        dryrunClose.classList.remove('disabled');
+
     }
 }
 
@@ -1988,5 +2272,122 @@ async function startDryrun(resume) {
     if (runs.length > 0) {
         historyBadge.textContent = runs.length;
         historyBadge.classList.remove('hidden');
+    }
+
+    // ─── CHECKPOINT RESUME ─────────────────────────────
+    try {
+        const cp = await loadCheckpoint();
+        if (cp && cp.status === 'running') {
+            const elapsed = cp.startedAt
+                ? Math.round((Date.now() - new Date(cp.startedAt).getTime()) / 60000)
+                : null;
+            const seedShort = (cp.seedIdea || '').length > 60
+                ? cp.seedIdea.slice(0, 57) + '…'
+                : cp.seedIdea;
+
+            const banner = document.createElement('div');
+            banner.className = 'resume-banner';
+            banner.innerHTML = `
+                <div class="resume-banner-content">
+                    <div class="resume-banner-icon">🔄</div>
+                    <div class="resume-banner-text">
+                        <strong>Unfinished pipeline</strong>
+                        <span class="resume-banner-seed"></span>
+                        ${elapsed ? `<span class="resume-banner-time">Interrupted ${elapsed < 60 ? elapsed + 'm' : Math.round(elapsed / 60) + 'h'} ago</span>` : ''}
+                        <span class="resume-banner-step">Last step: ${cp.step || 'unknown'}</span>
+                    </div>
+                    <div class="resume-banner-actions">
+                        <button class="resume-btn resume-btn-go">▶ Resume</button>
+                        <button class="resume-btn resume-btn-discard">✕ Discard</button>
+                    </div>
+                </div>
+            `;
+            banner.querySelector('.resume-banner-seed').textContent = `"${seedShort}"`;
+            document.body.appendChild(banner);
+            requestAnimationFrame(() => banner.classList.add('visible'));
+
+            banner.querySelector('.resume-btn-discard').addEventListener('click', async () => {
+                await clearCheckpoint();
+                banner.classList.remove('visible');
+                setTimeout(() => banner.remove(), 300);
+            });
+
+            banner.querySelector('.resume-btn-go').addEventListener('click', async () => {
+                banner.classList.remove('visible');
+                setTimeout(() => banner.remove(), 300);
+
+                // Pre-populate seed input
+                seedInput.value = cp.seedIdea || '';
+
+                // Wire up the pipeline with the checkpoint
+                pipelineRunning = true;
+                launchBtn.disabled = true;
+                launchBtn.querySelector('.btn-text').textContent = 'Resuming…';
+
+                simulationEl.classList.remove('hidden');
+                timelineEl.innerHTML = '';
+                pitchDeckEl.classList.add('hidden');
+                scorecardEl.classList.add('hidden');
+                simulationEl.scrollIntoView({ behavior: 'smooth' });
+
+                const abortController = new AbortController();
+                setPipelineAbortSignal(abortController.signal);
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'cancel-pipeline-btn';
+                cancelBtn.innerHTML = '✕ Cancel Pipeline';
+                const doCancel = () => {
+                    abortController.abort();
+                    cancelBtn.textContent = 'Cancelling…';
+                    cancelBtn.disabled = true;
+                };
+                cancelBtn.addEventListener('click', doCancel);
+                simulationEl.insertBefore(cancelBtn, simulationEl.firstChild);
+
+                const statusBar = createPipelineStatusBar(cp.seedIdea || 'Resumed pipeline');
+                statusBar.querySelector('.psb-cancel').addEventListener('click', doCancel);
+
+                const totalPhases = 6;
+                buildPhaseIndicator(totalPhases);
+
+                try {
+                    const finalPitchDeck = await runPipeline(
+                        cp.seedIdea,
+                        pipelineCallbacks,
+                        {
+                            platform: cp.platform,
+                            year: cp.year,
+                            directive: cp.directive,
+                            checkpoint: cp,
+                        }
+                    );
+
+                    pitchDeckContent.innerHTML = md(finalPitchDeck);
+                    pitchDeckEl.classList.remove('hidden');
+                    updateGatekeeperBadges(finalPitchDeck);
+                    pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                    initChatSession(finalPitchDeck);
+                    lastPitchDeck = finalPitchDeck;
+                    lastSeedIdea = cp.seedIdea;
+
+                    await saveRun({ seedIdea: cp.seedIdea, finalPitchDeck });
+                    autoScore(finalPitchDeck, cp.seedIdea);
+                } catch (err) {
+                    if (err instanceof PipelineCancelled) {
+                        showError('Pipeline cancelled.');
+                    } else {
+                        showError(`Pipeline failed: ${err.message}`);
+                    }
+                } finally {
+                    pipelineRunning = false;
+                    launchBtn.disabled = false;
+                    launchBtn.querySelector('.btn-text').textContent = 'Generate';
+                    cancelBtn.remove();
+                    removePipelineStatusBar();
+                }
+            });
+        }
+    } catch (err) {
+        console.warn('Checkpoint check failed:', err.message);
     }
 })();
