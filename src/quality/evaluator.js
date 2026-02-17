@@ -59,36 +59,44 @@ Scoring guidelines:
 - 40-59: Weak, significant issues
 - 1-39: Poor, fundamental problems
 
-Calibration reference — a decade of proven hit productions and their key qualities:
-Year | Production | Emotional Hook | Tech Innovation | Tonal Arc
-2016 | Planet Earth II | Survival stakes (Iguana vs Snakes) | Drones & Handheld Gimbals | Awe → Visceral Action
-2017 | Blue Planet II | Wonders of the deep | Suction-cup Whale-cams | Majesty → Tragic Urgency
-2018 | Dynasties | Family & Legacy | Long-term habituation | Soap Opera → Tragedy
-2019 | Our Planet | Global responsibility | 4K HDR / High-speed | Beauty → Hard Truths
-2020 | My Octopus Teacher | Inter-species friendship | Macro / Kelp Forest diving | Personal → Philosophical
-2021 | A Perfect Planet | The Earth as a machine | Satellite imagery | Scientific → Warning
-2022 | Prehistoric Planet | Realism, not monsters | Photorealistic VFX | Speculative → Naturalistic
-2023 | Planet Earth III | Resilience in the ruins | Deep-sea subs / AI tracking | Observation → Witness
-2024 | Mammals | Our shared story | Low-light sensor tech | Adventure → Reflection
-2025 | Ocean | Discovery of the unknown | Light-less underwater sensors | Dark Mystery → Hope
+Calibration reference — award-winning productions across Oscar, Wildscreen, and Jackson Wild festivals (2010–2025):
+Year | Oscar: Best Doc | Wildscreen: Golden Panda | Wildscreen: Best Script | Jackson Wild: Grand Teton | Jackson Wild: Best Writing
+2025 | No Other Land | Trade Secret | Underdogs | YANUNI | A Real Bug's Life
+2024 | 20 Days in Mariupol | Billy & Molly | Billy & Molly | Turtle Walker | Lions of Skeleton Coast
+2023 | Navalny | (Off-year) | (Off-year) | Path of the Panther | Patrick and the Whale
+2022 | Summer of Soul | My Garden of 1000 Bees | My Garden of 1000 Bees | The Territory | Path of the Panther
+2021 | My Octopus Teacher | (Off-year) | (Off-year) | My Octopus Teacher | My Octopus Teacher
+2020 | American Factory | My Octopus Teacher | My Octopus Teacher | My Octopus Teacher | The Elephant Queen
+2019 | Free Solo | (Off-year) | (Off-year) | The Biggest Little Farm | The Biggest Little Farm
+2018 | Icarus | Rise of the Warrior Apes | The Last Animals | Laws of the Lizard (SM*) | Laws of the Lizard (SM*)
+2017 | O.J.: Made in America | (Off-year) | (Off-year) | The Ivory Game | The Ivory Game
+2016 | Amy | The Ivory Game | Jago: A Life Underwater | Light on Earth (SM*) | Light on Earth (SM*)
+2015 | Citizenfour | (Off-year) | (Off-year) | Jago: A Life Underwater | Jago: A Life Underwater
+2014 | 20 Feet from Stardom | On a River in Ireland | On a River in Ireland | Particle Fever (SM*) | Particle Fever (SM*)
+2013 | Searching for Sugar Man | (Off-year) | (Off-year) | On a River in Ireland | On a River in Ireland
+2012 | Undefeated | My Life as a Turkey | My Life as a Turkey | My Life as a Turkey (SM*) | My Life as a Turkey (SM*)
+2011 | Inside Job | (Off-year) | (Off-year) | Broken Tail | Broken Tail
+2010 | The Cove | Life: Challenges of Life | Broken Tail | Into Eternity (SM*) | Into Eternity (SM*)
 
-A pitch deck modeled on any of these productions — with full act structure, production plan, and market analysis — should score 85-95. Use these as your north star for calibration.
+(SM* = Science/Nature Media category)
+
+A pitch deck that could realistically compete for a Wildscreen Golden Panda or Jackson Wild Grand Teton — with full act structure, production plan, and market analysis — should score 85-95. These award winners are your north star for calibration. Note: the Oscar column provides general documentary context; the Wildscreen and Jackson Wild columns are the specific natural history benchmarks.
 
 Anti-pattern reference — the Documentary Blacklist. These are real productions that DISGRACED the genre. If a pitch exhibits any of these methods or patterns, penalize heavily:
 Production | Year | The "Crime" | The Industry Fallout
-White Wilderness | 1958 | Animal Murder/Mass Fakery — lemmings imported and pushed off a turntable to stage "mass suicide" | Cemented a biological myth for decades
-Man vs. Wild | 2008 | Survival Fraud — presenter sleeping in hotels while claiming wilderness survival | Destroyed the "Pure Survival" sub-genre
-Frozen Planet | 2011 | Context Deception — zoo-filmed polar bear birth edited to look like wild Arctic without disclosure | Forced BBC to implement "Behind the Lens" segments
-Mermaids: The Body Found | 2012 | Pseudo-Science Fraud — CGI and actors presenting myth as scientific discovery | Decimated Animal Planet's credibility
-Megalodon: The Monster Shark Lives | 2013 | "Mockumentary" Betrayal — fake shark story aired as fact during Shark Week | Led to "Save Shark Week" movement
-Eaten Alive | 2014 | Bait-and-Switch — promised man eaten by anaconda, he tapped out when it bit his arm | Gold standard for clickbait commissioning
-Nightmares of Nature (Netflix) | 2025 | Horror-Genre Exploitation — horror tropes and staged animal deaths for jump scares | Confusion of the "documentary" label
-What Jennifer Did (Netflix) | 2024 | AI-Washing (Visual) — AI-enhanced photos without disclosure | Sparked "Generative Reality" ethics debate
-"The Tiger Attack" CCTV | 2025 | AI-Washing (Full Generation) — hyper-realistic AI clips went viral as "real CCTV" causing panic | Triggered AI-Generated watermark laws
+White Wilderness | 1958 | Animal Murder/Mass Fakery. Lemmings were imported to Alberta and pushed off a turntable into a river to stage a "mass suicide." | Cemented a biological myth for decades. The ultimate "Do Not Follow" blueprint.
+Man vs. Wild | 2008 | Survival Fraud. Bear Grylls was "surviving" in the wild while actually sleeping in hotels and having a crew build his "natural" shelters. | Destroyed the "Pure Survival" sub-genre. Every presenter show now requires a "Safety & Logistics" disclaimer.
+Frozen Planet | 2011 | Context Deception. The BBC filmed a polar bear birth in a zoo but edited it to look like the wild Arctic without disclosure. | Forced the BBC to implement "Behind the Lens" segments for every major series to regain trust.
+Mermaids: The Body Found | 2012 | Pseudo-Science Fraud. Used CGI and actors to present a myth as a scientific discovery. | High ratings, but decimated Animal Planet's credibility among scientists and serious commissioners.
+Megalodon: The Monster Shark Lives | 2013 | The "Mockumentary" Betrayal. Discovery aired a fake story about a giant shark during Shark Week as if it were fact. | Led to a massive "Save Shark Week" movement from the scientific community.
+Eaten Alive | 2014 | The Bait-and-Switch. A multi-month marketing campaign promised a man would be eaten by an anaconda. He tapped out when it bit his arm. | The gold standard for "Clickbait Commissioning" that insults the audience's intelligence.
+Nightmares of Nature (Netflix) | 2025 | Horror-Genre Exploitation. A Blumhouse/Netflix mashup that used "horror movie" tropes and staged animal deaths for jump scares. | Backlash over animal welfare and "staged" deaths in a format that confused the "documentary" label.
+What Jennifer Did (Netflix) | 2024 | AI-Washing (Visual). Used AI-generated/enhanced photos of the subject to make them "look better" in 4K without disclosure. | Sparked the first major mainstream ethics debate about "Generative Reality" in documentaries.
+"The Tiger Attack" CCTV | 2025 | AI-Washing (Full Generation). Hyper-realistic AI clips of tiger attacks in India/Russia went viral as "real CCTV," causing actual local panic. | Triggered 2025 laws in several countries requiring "AI-Generated" watermarks on all "factual" media.
 
 If a pitch deck exhibits ANY of these anti-patterns — staged behavior, undisclosed zoo footage, pseudo-science, clickbait promises, horror exploitation, or AI-generated "documentary" imagery — penalize the relevant dimension heavily (drop 15-25 points). Such a pitch should never score above 40.
 
-Be honest and calibrated. A typical good output should score 70-85. Reserve 90+ for truly exceptional work. Do not inflate scores.`;
+Scoring calibration: Use the award-winning productions in the table above as your north star. A pitch that matches the quality markers of a Wildscreen Golden Panda or Jackson Wild Grand Teton winner — specific named talent, full act structure with deliberate tonal progression, production plan with concrete equipment and budget, human story thread, and credible market analysis — should score 85-95. A competent pitch with some gaps should score 65-80. A weak pitch with major issues should score 40-64. Do NOT compress all outputs into a narrow band — differentiate between adequate and exceptional work.`;
 
 /**
  * Evaluate a pitch deck and return a structured scorecard.
@@ -149,100 +157,110 @@ export const BENCHMARK_SEEDS = [
 ];
 
 /**
- * Gold Standard Library — a decade of proven hit productions (2016–2025).
- * Each entry includes the original pitch, platform, and ground-truth marker values.
+ * Gold Standard Library — Wildscreen & Jackson Wild award winners (2012–2025).
+ * Each entry includes a reconstructed pitch seed, awards context, and ground-truth markers.
  * The dryrun selects one randomly as the calibration seed.
  */
 export const GOLD_STANDARD_LIBRARY = [
     {
-        id: 'gs-2016-planet-earth-ii',
-        year: 2016,
-        name: 'Planet Earth II (BBC)',
-        seed: `We aren't just filming nature; we're filming a Hollywood blockbuster. Forget the tripod and the long lens—we're putting the camera in the middle of the chase using stabilized handhelds and drones. We're going to give the audience 'the iguana vs. the snakes'—a level of tension usually reserved for action movies—all delivered in the first-ever 4K ultra-high-definition experience that makes the living room feel like the wilderness.`,
-        platform: 'BBC',
+        id: 'gs-2012-my-life-as-a-turkey',
+        year: 2012,
+        name: 'My Life as a Turkey (PBS/BBC)',
+        awards: 'Wildscreen Golden Panda, Wildscreen Best Script, Jackson Wild Grand Teton, Jackson Wild Best Writing',
+        seed: `What if a human could become a wild animal's parent — not in a zoo, but in the wild? Naturalist Joe Hutto raised sixteen wild turkey poults from eggs in the Florida flatwoods, and they imprinted on him as their mother. For over a year, he lived among them — learning their language, protecting them from predators, watching their complex social hierarchies form. This is a first-person psychological journey into the mind of another species, told through the eyes of the only human they ever trusted.`,
+        platform: 'PBS',
         expectedRange: [85, 95],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': false, 'tonal-evolution': true, 'commercial-viability': true },
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
     },
     {
-        id: 'gs-2017-blue-planet-ii',
-        year: 2017,
-        name: 'Blue Planet II (BBC)',
-        seed: `The ocean is no longer a silent blue void; it's a sophisticated society under siege. We will use 'Tow-Cams' to ride on the backs of orcas and suction-cup sensors to see the world through a whale's eyes. But this isn't just about wonder; it's a wake-up call. We will show the 'plastic soul' of the sea, transforming the documentary from a passive observation into a global movement that will change how the world views a single-use straw.`,
-        platform: 'BBC',
-        expectedRange: [88, 95],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
-    },
-    {
-        id: 'gs-2018-dynasties',
-        year: 2018,
-        name: 'Dynasties (BBC)',
-        seed: `It's The Crown, but for the animal kingdom. We aren't hopping between species; we are following five specific families—a lion, a chimpanzee, a painted wolf, a tiger, and a penguin—for years. This is a Shakespearean drama about power, betrayal, and legacy. We want the audience to know these individuals by name and feel the weight of their survival as they fight to maintain their bloodlines in a shrinking world.`,
-        platform: 'BBC',
-        expectedRange: [82, 92],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
-    },
-    {
-        id: 'gs-2019-our-planet',
-        year: 2019,
-        name: 'Our Planet (Netflix)',
-        seed: `Natural history is going global and digital. We are partnering with Netflix to create the first worldwide streaming event for the Earth. We won't just show the beauty; we will explicitly show the 'falling walruses' of climate change. This is the first series where the 'Environmental Message' isn't a post-script—it is the entire narrative spine, narrated by the only voice the world trusts to tell the hard truth: Attenborough.`,
+        id: 'gs-2016-the-ivory-game',
+        year: 2016,
+        name: 'The Ivory Game (Netflix)',
+        awards: 'Wildscreen Golden Panda, Jackson Wild Grand Teton',
+        seed: `This is a wildlife thriller shot like a spy film. We follow undercover intelligence operatives, frontline rangers, and activists as they infiltrate the global ivory trafficking network — from African poaching grounds to Chinese carving factories. The stakes are existential: African elephants face extinction within a generation. We're embedding with the people risking their lives to stop it, using hidden cameras and covert operations to expose the corruption. Executive produced by Leonardo DiCaprio, this is conservation filmmaking as geopolitical espionage.`,
         platform: 'Netflix',
-        expectedRange: [86, 95],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+        expectedRange: [85, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-2016-jago',
+        year: 2016,
+        name: 'Jago: A Life Underwater (BBC/Netflix)',
+        awards: 'Wildscreen Best Script, Jackson Wild Grand Teton',
+        seed: `Rohani is eighty years old. He is one of the last Bajau Laut — the 'sea nomads' of Indonesia — who has spent six decades hunting fish on a single breath. No tanks, no wetsuits, just a handmade spear and lungs that defy science. We are filming the final chapter of a 1,000-year-old maritime culture that is vanishing. The underwater cinematography will be intimate and unhurried, following Rohani's movements as he glides through reef systems with a grace that trained divers can't replicate. This is an elegy for a way of life the modern world is extinguishing.`,
+        platform: 'BBC',
+        expectedRange: [84, 93],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-2019-biggest-little-farm',
+        year: 2019,
+        name: 'The Biggest Little Farm (Neon)',
+        awards: 'Jackson Wild Grand Teton, Jackson Wild Best Writing',
+        seed: `A filmmaker and a chef leave Los Angeles with a dream: transform 200 acres of dead, lifeless soil into a self-sustaining farm that works WITH nature, not against it. Over eight years, we document every triumph and disaster — the coyotes eating the chickens, the snails devouring the crops, the cover crops that slowly bring the soil back to life. This is a real-time ecological experiment: can regenerative farming actually work at scale? The answer is beautiful, messy, and genuinely surprising. It's the anti-industrial-agriculture manifesto the world needs right now.`,
+        platform: 'Theatrical',
+        expectedRange: [85, 93],
+        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
     },
     {
         id: 'gs-2020-my-octopus-teacher',
         year: 2020,
         name: 'My Octopus Teacher (Netflix)',
-        seed: `Nature isn't 'out there'—it's a mirror. This is an intimate, first-person love story between a burnt-out filmmaker and a common mollusk in a South African kelp forest. We are stripping away the grand orchestral swells for a raw, psychological journey. It's a documentary that proves you don't need a global budget to win an Oscar; you just need a profound connection to a single life that reminds us we are part of the wild, not separate from it.`,
+        awards: 'Oscar Best Documentary, Wildscreen Golden Panda, Jackson Wild Grand Teton, Jackson Wild Best Writing',
+        seed: `This is an intimate, first-person love story between Craig Foster — a burnt-out South African filmmaker — and a wild common octopus (Octopus vulgaris) in the kelp forests of False Bay, Cape Town. Over a year of daily free-diving, Foster forms an extraordinary bond with this single octopus, witnessing her hunting strategies, her encounters with pajama sharks, and ultimately her reproduction and death. We are stripping away the grand orchestral swells for a raw, psychological journey narrated by Foster himself. No crew, no scuba tanks — just one man and one octopus in the cold Atlantic kelp. It's a documentary that proves you don't need a global budget to win an Oscar; you just need a profound connection to a single life that reminds us we are part of the wild, not separate from it.`,
         platform: 'Netflix',
-        expectedRange: [84, 93],
+        expectedRange: [88, 95],
         markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
     },
     {
-        id: 'gs-2021-a-perfect-planet',
-        year: 2021,
-        name: 'A Perfect Planet (BBC)',
-        seed: `Earth is a giant machine powered by five elemental forces: Volcanoes, the Sun, Weather, Oceans, and Humanity. We are going to visualize the 'Earth's life support system.' The aesthetic is high-concept and vibrant, using satellite data and specialized time-lapse to show how these forces balance the world. It's a story of perfect equilibrium—and the one 'rogue force' (us) that is currently tipping the scales.`,
-        platform: 'BBC',
-        expectedRange: [80, 90],
-        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
-    },
-    {
-        id: 'gs-2022-prehistoric-planet',
+        id: 'gs-2022-my-garden-of-1000-bees',
         year: 2022,
-        name: 'Prehistoric Planet (Apple TV+)',
-        seed: `What if we filmed dinosaurs with the same gear and naturalistic style we used for Planet Earth? No 'monsters' roaring at the camera—just animals living their lives. We are combining the world's leading paleontological research with the CGI mastery of The Lion King team. We're going to show a T-Rex as a feathered, swimming father, not a movie villain. This is the first time the past will look indistinguishable from the present.`,
-        platform: 'Apple TV+',
-        expectedRange: [83, 93],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': false, 'tonal-evolution': true, 'commercial-viability': true },
+        name: 'My Garden of a Thousand Bees (BBC/PBS)',
+        awards: 'Wildscreen Golden Panda, Wildscreen Best Script',
+        seed: `During lockdown, wildlife filmmaker Martin Dohrn turned his cameras on his own Bristol back garden — and discovered over sixty species of bee living in a world we walk past every day. Using a custom-built 'Frankencam' and lenses crafted at his kitchen table, he captured behaviors never filmed before: territorial battles between scissor bees, leaf-cutting construction projects, and the daily dramas playing out at a scale we can't see with the naked eye. This is the cheapest blue-chip film ever made — and the proof that the most extraordinary nature is right outside your door.`,
+        platform: 'BBC/PBS',
+        expectedRange: [85, 94],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
     },
     {
-        id: 'gs-2023-planet-earth-iii',
+        id: 'gs-2023-path-of-the-panther',
         year: 2023,
-        name: 'Planet Earth III (BBC)',
-        seed: `This is the finale of the trilogy: Nature's Last Stand. The boundary between the wild and the human world has finally collapsed. We're capturing the 'Survivors of the Anthropocene'—animals adapting in real-time to our cities and our trash. The tone moves from distant observation to urgent witness, backed by a modern, cinematic soundscape. We aren't just filming nature; we are filming the greatest survival story ever told.`,
-        platform: 'BBC',
-        expectedRange: [87, 95],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
-    },
-    {
-        id: 'gs-2024-mammals',
-        year: 2024,
-        name: 'Mammals (BBC)',
-        seed: `Sixty-six million years ago, the dinosaurs fell, and our ancestors stepped out of the shadows. This is the story of the most successful group of animals to ever walk the Earth. We'll use new low-light technology to reveal the 'dark world' where mammals evolved to hide, and show how their intelligence—our intelligence—is the only thing that can save the planet now. It's a 70th-anniversary celebration of Attenborough's career, focusing on the creatures most like us.`,
-        platform: 'BBC',
-        expectedRange: [84, 93],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
-    },
-    {
-        id: 'gs-2025-ocean',
-        year: 2025,
-        name: 'Ocean (Hulu/Disney+)',
-        seed: `We are going where light doesn't exist. Using revolutionary ultra-sensitive underwater sensors, we will film the 'Twilight Zone' of the ocean without using artificial lights that scare away the inhabitants. We'll discover 'brooding spas' on thermal vents and alien behaviors never before witnessed. This is the technical pinnacle of underwater cinematography—a hopeful, high-tech voyage into the 95% of the planet we still don't understand.`,
+        name: 'Path of the Panther (Nat Geo/Disney+)',
+        awards: 'Jackson Wild Grand Teton',
+        seed: `The Florida panther is America's most endangered large mammal — fewer than 200 survive. Photographer Carlton Ward Jr. spent five years deploying 500,000 camera trap images across the Florida Wildlife Corridor to prove that these ghost cats still roam. We are building a documentary that turns camera-trap data into a conservation thriller: can we prove, through irrefutable visual evidence, that the Corridor must be protected before developers pave it over? This film doesn't just document an endangered species — it aims to change legislation.`,
         platform: 'Disney+',
+        expectedRange: [84, 93],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-2024-billy-and-molly',
+        year: 2024,
+        name: 'Billy & Molly: An Otter Love Story (Nat Geo/Disney+)',
+        awards: 'Wildscreen Golden Panda, Wildscreen Best Script',
+        seed: `On the remote Shetland Islands, a weathered fisherman named Billy finds a half-drowned otter pup and brings her back to life. What unfolds is an extraordinary interspecies friendship — Molly the otter moves freely between the wild sea and Billy's cottage, choosing to return every day. From Silverback Films, shot in 4K against the raw beauty of Shetland's coastline, orcas, and seabird colonies, this is a deeply personal story about loneliness, grief, and the wild creature that healed a man's heart. It's My Octopus Teacher — but with a protagonist who talks back.`,
+        platform: 'Disney+',
+        expectedRange: [86, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-2025-yanuni',
+        year: 2025,
+        name: 'YANUNI (Theatrical)',
+        awards: 'Jackson Wild Grand Teton',
+        seed: `In the Brazilian Amazon, Indigenous chief Juma Xipaia has survived assassination attempts to protect her ancestral lands from illegal mining and logging. Co-produced by Leonardo DiCaprio and directed by Richard Ladkani, this is a conservation epic told through the eyes of a woman who embodies the resistance. We follow Juma and her husband — a former Special Forces ranger turned environmental agent — as they fight a corrupt system that values extraction over existence. 'YANUNI' is the name of Juma's unborn daughter — and the future she is fighting to protect.`,
+        platform: 'Theatrical',
         expectedRange: [85, 95],
-        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-2025-a-real-bugs-life',
+        year: 2025,
+        name: "A Real Bug's Life (Nat Geo/Disney+)",
+        awards: 'Jackson Wild Best Writing',
+        seed: `What if we took the charm and drama of Pixar's 'A Bug's Life' and made it real? Using motion-controlled macro rigs, ultra high-speed lenses, and cutting-edge probe cameras, we are going to shrink the audience down to insect scale and tell the stories of nine micro-worlds — from the streets of New York to the rainforests of Latin America. Narrated by Awkwafina, each episode follows a bug protagonist through a complete dramatic arc: survival, rivalry, courtship, parenthood. This is natural history filmmaking at a scale that makes an ant look like a dinosaur.`,
+        platform: 'Disney+',
+        expectedRange: [84, 93],
+        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': true, 'zeitgeist-relevance': true, 'human-element': false, 'tonal-evolution': true, 'commercial-viability': true },
     },
 ];
 
@@ -420,7 +438,7 @@ export const GOLD_STANDARD_MARKERS = [
     { id: 'tech-innovation', label: 'Camera / Tech Innovation', desc: 'Cutting-edge production technology (drones, submersibles, thermal, macro) as a selling point' },
     { id: 'zeitgeist-relevance', label: 'Zeitgeist Relevance', desc: 'Connection to current cultural or environmental concerns (climate, conservation, Anthropocene)' },
     { id: 'human-element', label: 'Human Element', desc: 'Human characters, defenders, scientists, or communities woven into the natural history narrative' },
-    { id: 'tonal-evolution', label: 'Tonal Arc', desc: 'Deliberate tonal progression or evolution from previous work — not just "more of the same"' },
+    { id: 'tonal-evolution', label: 'Tonal Arc', desc: 'Deliberate tonal progression WITHIN the pitch — the emotional journey shifts across acts (e.g., wonder → tension → devastation → hope), not a flat single-tone treatment' },
     { id: 'commercial-viability', label: 'Commercial Viability', desc: 'Clear buyer appeal, global market fit, and competitive positioning against existing catalogue' },
 ];
 

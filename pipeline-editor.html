@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NatHistory Writer — Pipeline Architect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #07080c;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 240px;
+            min-width: 240px;
+            background: #0d0f14;
+            border-right: 1px solid #1a1d28;
+            display: flex;
+            flex-direction: column;
+            z-index: 100
+        }
+
+        #sidebar h1 {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 14px 14px 4px;
+            color: #c8a96e;
+            letter-spacing: .5px
+        }
+
+        #sidebar .sub {
+            font-size: 10px;
+            color: #666;
+            padding: 0 14px 10px;
+            border-bottom: 1px solid #1a1d28
+        }
+
+        #sidebar-scroll {
+            flex: 1;
+            overflow-y: auto
+        }
+
+        #sidebar-scroll::-webkit-scrollbar {
+            width: 3px
+        }
+
+        #sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 2px
+        }
+
+        .ps {
+            padding: 6px 10px
+        }
+
+        .ps h3 {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            margin-bottom: 4px
+        }
+
+        .pn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            cursor: grab;
+            font-size: 11px;
+            font-weight: 500;
+            margin-bottom: 2px;
+            transition: background .15s;
+            border-left: 3px solid transparent
+        }
+
+        .pn:hover {
+            background: #161922
+        }
+
+        .pn.used {
+            opacity: .35;
+            text-decoration: line-through
+        }
+
+        .pn .d {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .cat-input .d {
+            background: #4fc3f7
+        }
+
+        .cat-research .d {
+            background: #81c784
+        }
+
+        .cat-creative .d {
+            background: #ffb74d
+        }
+
+        .cat-quality .d {
+            background: #ef5350
+        }
+
+        .cat-guard .d {
+            background: #ab47bc
+        }
+
+        .cat-output .d {
+            background: #26a69a
+        }
+
+        #toolbar {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            border-top: 1px solid #1a1d28;
+            background: #0a0c10
+        }
+
+        #toolbar button {
+            flex: 1;
+            padding: 7px 0;
+            border: 1px solid #2a2d38;
+            background: #12141c;
+            color: #bbb;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        #toolbar button:hover {
+            background: #1a1d28;
+            color: #fff;
+            border-color: #c8a96e
+        }
+
+        #toolbar button.pri {
+            background: #c8a96e22;
+            border-color: #c8a96e55;
+            color: #c8a96e
+        }
+
+        /* Canvas */
+        #wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden
+        }
+
+        #canvas {
+            position: absolute;
+            width: 8000px;
+            height: 6000px;
+            background-image: radial-gradient(circle, #1a1d28 1px, transparent 1px);
+            background-size: 24px 24px;
+            transform-origin: 0 0
+        }
+
+        #svg-conn {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none
+        }
+
+        #svg-conn path {
+            fill: none;
+            stroke-width: 2.5;
+            pointer-events: stroke;
+            cursor: pointer
+        }
+
+        #svg-conn path:hover {
+            stroke-width: 4;
+            filter: drop-shadow(0 0 6px currentColor)
+        }
+
+        #svg-temp {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none
+        }
+
+        /* Nodes */
+        .node {
+            position: absolute;
+            width: 220px;
+            border-radius: 8px;
+            cursor: default;
+            user-select: none;
+            background: #11131aee;
+            border: 1px solid #252835;
+            box-shadow: 0 4px 20px #00000060
+        }
+
+        .node.sel {
+            border-color: #c8a96e;
+            box-shadow: 0 0 0 2px #c8a96e44
+        }
+
+        .node-hdr {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 8px 8px 0 0;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: move;
+            border-bottom: 1px solid #1a1d28
+        }
+
+        .node-hdr .ic {
+            font-size: 13px
+        }
+
+        .node-desc {
+            padding: 4px 10px;
+            font-size: 9px;
+            color: #777;
+            line-height: 1.3
+        }
+
+        .node-ports {
+            padding: 2px 0 4px
+        }
+
+        .port-row {
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 22px;
+            padding: 0 10px;
+            font-size: 9px;
+            color: #888
+        }
+
+        .port-row.in {
+            justify-content: flex-start;
+            padding-left: 20px
+        }
+
+        .port-row.out {
+            justify-content: flex-end;
+            padding-right: 20px
+        }
+
+        /* port circle */
+        .port-dot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #444;
+            background: #1a1d28;
+            cursor: crosshair;
+            z-index: 20;
+            transition: all .12s
+        }
+
+        .port-dot:hover,
+        .port-dot.hot {
+            transform: scale(1.5);
+            border-color: #c8a96e;
+            background: #c8a96e;
+            box-shadow: 0 0 10px #c8a96e88
+        }
+
+        .port-row.in .port-dot {
+            left: -7px;
+            top: 4px
+        }
+
+        .port-row.out .port-dot {
+            right: -7px;
+            top: 4px
+        }
+
+        .node-notes {
+            padding: 4px 10px 6px
+        }
+
+        .node-notes textarea {
+            width: 100%;
+            height: 28px;
+            background: #090b0f;
+            border: 1px solid #1a1d28;
+            color: #aaa;
+            font-size: 9px;
+            font-family: 'Inter', sans-serif;
+            border-radius: 3px;
+            padding: 4px;
+            resize: vertical
+        }
+
+        .node-del {
+            position: absolute;
+            top: 3px;
+            right: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: #444;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .node-del:hover {
+            background: #ef535033;
+            color: #ef5350
+        }
+
+        /* Category header colors */
+        .cat-input .node-hdr {
+            background: #4fc3f708;
+            color: #4fc3f7
+        }
+
+        .cat-research .node-hdr {
+            background: #81c78408;
+            color: #81c784
+        }
+
+        .cat-creative .node-hdr {
+            background: #ffb74d08;
+            color: #ffb74d
+        }
+
+        .cat-quality .node-hdr {
+            background: #ef535008;
+            color: #ef5350
+        }
+
+        .cat-guard .node-hdr {
+            background: #ab47bc08;
+            color: #ab47bc
+        }
+
+        .cat-output .node-hdr {
+            background: #26a69a08;
+            color: #26a69a
+        }
+
+        .cat-input .port-dot {
+            border-color: #4fc3f744
+        }
+
+        .cat-research .port-dot {
+            border-color: #81c78444
+        }
+
+        .cat-creative .port-dot {
+            border-color: #ffb74d44
+        }
+
+        .cat-quality .port-dot {
+            border-color: #ef535044
+        }
+
+        .cat-guard .port-dot {
+            border-color: #ab47bc44
+        }
+
+        .cat-output .port-dot {
+            border-color: #26a69a44
+        }
+
+        #help {
+            position: fixed;
+            bottom: 12px;
+            right: 12px;
+            background: #11131aee;
+            border: 1px solid #252835;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 10px;
+            color: #555;
+            line-height: 1.6;
+            z-index: 200
+        }
+
+        #help kbd {
+            background: #1a1d28;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            color: #888
+        }
+
+        #zoom-ind {
+            position: fixed;
+            bottom: 12px;
+            left: 256px;
+            background: #11131aee;
+            border: 1px solid #252835;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 10px;
+            color: #555;
+            z-index: 200
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <h1>🎬 PIPELINE ARCHITECT</h1>
+        <p class="sub">Drag nodes onto canvas · drag ports to connect</p>
+        <div id="sidebar-scroll"></div>
+        <div id="toolbar">
+            <button onclick="resetLayout()">Reset</button>
+            <button onclick="clearAll()">Clear</button>
+            <button onclick="importJSON()">Import</button>
+            <button class="pri" onclick="exportJSON()">Export JSON</button>
+        </div>
+    </div>
+    <div id="wrap">
+        <div id="canvas">
+            <svg id="svg-conn" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="svg-temp" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+    </div>
+    <div id="help"><kbd>Drag</kbd> header to move · <kbd>Drag</kbd> port dot to connect · <kbd>Click</kbd> wire to
+        delete · <kbd>Scroll</kbd> zoom · <kbd>Space+Drag</kbd> pan</div>
+    <div id="zoom-ind">100%</div>
+
+    <script>
+        // ══════════════════════════════════════
+        // NODE TYPES
+        // ══════════════════════════════════════
+        const NT = {
+            // ═══ INPUTS ═══
+            'seed-input': { n: 'Seed Text', ic: '💡', cat: 'input', d: 'User concept idea', inp: [], out: ['seed'] },
+            'settings': { n: 'User Settings', ic: '⚙️', cat: 'input', d: 'Platform + Year + Genre + EP Directive', inp: [], out: ['settings'] },
+            'kb': { n: 'Knowledge Base', ic: '📚', cat: 'input', d: 'Uploaded PDFs → embeddings → RAG', inp: [], out: ['context'] },
+            'google': { n: 'Google Search', ic: '🔍', cat: 'input', d: 'Live web grounding', inp: [], out: ['web'] },
+
+            // ═══ RESEARCH AGENTS ═══
+            'discovery': { n: 'Discovery Scout', ic: '🔬', cat: 'research', d: 'Recent science discoveries (12 mo)', inp: ['seed', 'context', 'web'], out: ['brief'] },
+            'genre-strat': { n: 'Genre Strategist', ic: '🎲', cat: 'research', d: 'Suggests 3 genre lenses (market-blind)', inp: ['seed', 'context'], out: ['genres'] },
+            'market': { n: 'Market Analyst', ic: '📊', cat: 'research', d: 'Trends, gaps, narrative strategy', inp: ['seed', 'brief', 'web', 'settings'], out: ['mandate', 'narr-form'] },
+            'scientist': { n: 'Chief Scientist', ic: '🧬', cat: 'research', d: 'Species, B-story, location, biology', inp: ['seed', 'brief', 'mandate', 'market', 'web'], out: ['facts'] },
+            'producer': { n: 'Field Producer', ic: '🎥', cat: 'research', d: 'Camera, crew, budget, biome planning', inp: ['seed', 'mandate', 'market'], out: ['logistics'] },
+
+            // ═══ CREATIVE AGENTS ═══
+            'story': { n: 'Story Producer', ic: '✍️', cat: 'creative', d: 'Full pitch: structure, A/V, talent', inp: ['seed', 'mandate', 'facts', 'logistics', 'brief', 'market', 'guard', 'chaos'], out: ['draft'] },
+            'editor': { n: 'Commissioning Ed.', ic: '⚔️', cat: 'creative', d: 'Murder Board: 14 form-aware vectors', inp: ['draft', 'mandate', 'facts', 'logistics'], out: ['review', 'score'] },
+            'showrunner': { n: 'Showrunner', ic: '🎬', cat: 'creative', d: 'Receives compressed StatePayload, compiles', inp: ['state', 'draft-full', 'review-full'], out: ['final'] },
+            'provocateur': { n: 'Provocateur', ic: '🔥', cat: 'creative', d: 'Domain-constrained: narrative form only', inp: ['draft', 'mandate', 'facts', 'market', 'chaos'], out: ['challenge'] },
+
+            // ═══ QUALITY & GATES ═══
+            'compressor': { n: 'Context Compressor', ic: '🗜️', cat: 'quality', d: 'Rule-based → ~800 tok XML StatePayload', inp: ['review', 'score', 'challenge', 'draft', 'mandate'], out: ['payload'] },
+            'adversary': { n: 'Adversary', ic: '🛡️', cat: 'quality', d: 'Canon, YouTuber, Lawsuit, Boring audit', inp: ['deck', 'seed', 'web', 'mandate'], out: ['verdict'] },
+            'sci-gate': { n: 'Science Gate', ic: '⛔', cat: 'quality', d: 'Severity: catastrophic→kill, recoverable→≤3 pivots', inp: ['check'], out: ['ok'] },
+            'eth-gate': { n: 'Ethics Gate', ic: '⚖️', cat: 'quality', d: 'Severity: catastrophic→kill, recoverable→≤3 pivots', inp: ['check'], out: ['ok'] },
+            'q-gate': { n: 'Quality Gate', ic: '🔄', cat: 'quality', d: 'Score < 80 → tight Editor↔Story loop ≤3', inp: ['score'], out: ['pass'] },
+            'gk-gate': { n: 'Gatekeeper Gate', ic: '🚪', cat: 'quality', d: 'Hard reject → selective specialist callback ≤3', inp: ['verdict'], out: ['approved'] },
+
+            // ═══ GUARDS & MODIFIERS ═══
+            'seed-guard': { n: 'Seed Fidelity', ic: '⚓', cat: 'guard', d: 'Anchors all agents to user concept', inp: ['seed'], out: ['anchor'] },
+            'species-guard': { n: 'Species Guard', ic: '🐾', cat: 'guard', d: 'Regex-extract hero species → lock', inp: ['extract'], out: ['lock'] },
+            'genre-lock': { n: 'Genre Lock', ic: '🔒', cat: 'guard', d: 'User genre override → Narrative Mandate', inp: ['settings'], out: ['override'] },
+            'narr-mandate': { n: 'Narrative Mandate', ic: '📝', cat: 'guard', d: 'Rule-based JS → labeled 4-option menu', inp: ['creative', 'market', 'lock'], out: ['selected'] },
+            'chaos': { n: 'Chaos Engine', ic: '🎰', cat: 'guard', d: 'Random creative constraint → Story + Provocateur', inp: [], out: ['mutation'] },
+            'defame-guard': { n: 'Defamation Guard', ic: '⚠️', cat: 'guard', d: 'String-matching: attachment OK, fiction strip', inp: ['check', 'final'], out: ['clean'] },
+
+            // ═══ OUTPUT ═══
+            'output': { n: 'Final Pitch Card', ic: '📄', cat: 'output', d: 'Title + Logline + Summary + Best For', inp: ['deck'], out: [] },
+        };
+
+        const CATS = [
+            { k: 'input', l: 'INPUTS' },
+            { k: 'research', l: 'RESEARCH AGENTS' },
+            { k: 'creative', l: 'CREATIVE AGENTS' },
+            { k: 'quality', l: 'QUALITY & GATES' },
+            { k: 'guard', l: 'GUARDS & MODIFIERS' },
+            { k: 'output', l: 'OUTPUT' },
+        ];
+        const CC = { input: '#4fc3f7', research: '#81c784', creative: '#ffb74d', quality: '#ef5350', guard: '#ab47bc', output: '#26a69a' };
+
+        // ══════════════════════════════════════
+        // STATE
+        // ══════════════════════════════════════
+        let nodes = [], conns = [], nid = 1, scale = 1, px = 0, py = 0;
+        let drag = null, conn = null, pan = null, selId = null, spaceDown = false;
+
+        const cvs = document.getElementById('canvas');
+        const wrap = document.getElementById('wrap');
+        const svgC = document.getElementById('svg-conn');
+        const svgT = document.getElementById('svg-temp');
+
+        // ══════════════════════════════════════
+        // SIDEBAR
+        // ══════════════════════════════════════
+        (function buildSidebar() {
+            const s = document.getElementById('sidebar-scroll');
+            for (const c of CATS) {
+                let h = `<div class="ps"><h3>${c.l}</h3>`;
+                for (const [id, t] of Object.entries(NT)) {
+                    if (t.cat !== c.k) continue;
+                    h += `<div class="pn cat-${t.cat}" draggable="true" data-type="${id}"><span class="d"></span><span>${t.ic} ${t.n}</span></div>`;
+                }
+                h += '</div>';
+                s.insertAdjacentHTML('beforeend', h);
+            }
+            s.querySelectorAll('.pn').forEach(el => {
+                el.addEventListener('dragstart', e => { e.dataTransfer.setData('t', el.dataset.type); });
+            });
+        })();
+
+        // ══════════════════════════════════════
+        // NODE RENDERING
+        // ══════════════════════════════════════
+        function updateSidebar() {
+            const placed = new Set(nodes.map(n => n.type));
+            document.querySelectorAll('.pn[data-type]').forEach(el => {
+                el.classList.toggle('used', placed.has(el.dataset.type));
+            });
+        }
+
+        function addNode(type, x, y, note) {
+            const t = NT[type]; if (!t) return;
+            const nd = { id: nid++, type, x, y, note: note || '' };
+            nodes.push(nd);
+            render(nd);
+            updateSidebar();
+            return nd;
+        }
+
+        function render(nd) {
+            const t = NT[nd.type];
+            const el = document.createElement('div');
+            el.className = `node cat-${t.cat}`;
+            el.id = 'n' + nd.id;
+            el.style.left = nd.x + 'px';
+            el.style.top = nd.y + 'px';
+
+            let html = `<div class="node-hdr"><span class="ic">${t.ic}</span><span>${t.n}</span></div>`;
+            html += `<div class="node-desc">${t.d}</div>`;
+            html += `<div class="node-ports">`;
+            // Inputs
+            for (let i = 0; i < t.inp.length; i++) {
+                html += `<div class="port-row in"><div class="port-dot" data-nid="${nd.id}" data-dir="in" data-idx="${i}" data-pn="${t.inp[i]}"></div>${t.inp[i]}</div>`;
+            }
+            // Outputs
+            for (let i = 0; i < t.out.length; i++) {
+                html += `<div class="port-row out">${t.out[i]}<div class="port-dot" data-nid="${nd.id}" data-dir="out" data-idx="${i}" data-pn="${t.out[i]}"></div></div>`;
+            }
+            html += `</div>`;
+            html += `<div class="node-notes"><textarea placeholder="Notes…">${nd.note || ''}</textarea></div>`;
+            html += `<button class="node-del">×</button>`;
+            el.innerHTML = html;
+
+            // Header drag
+            el.querySelector('.node-hdr').addEventListener('mousedown', e => {
+                if (spaceDown) return;
+                e.stopPropagation(); e.preventDefault();
+                sel(nd.id);
+                drag = { id: nd.id, sx: e.clientX, sy: e.clientY, ox: nd.x, oy: nd.y };
+            });
+
+            // Port mousedown
+            el.querySelectorAll('.port-dot').forEach(dot => {
+                dot.addEventListener('mousedown', e => {
+                    e.stopPropagation(); e.preventDefault();
+                    conn = { nid: +dot.dataset.nid, dir: dot.dataset.dir, idx: +dot.dataset.idx, pn: dot.dataset.pn };
+                    dot.classList.add('hot');
+                });
+            });
+
+            // Delete
+            el.querySelector('.node-del').addEventListener('click', e => { e.stopPropagation(); rmNode(nd.id); });
+            // Notes
+            el.querySelector('textarea').addEventListener('input', e => { nd.note = e.target.value; });
+
+            cvs.appendChild(el);
+        }
+
+        function sel(id) {
+            document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+            selId = id;
+            const el = document.getElementById('n' + id);
+            if (el) el.classList.add('sel');
+        }
+
+        function rmNode(id) {
+            const el = document.getElementById('n' + id);
+            if (el) el.remove();
+            nodes = nodes.filter(n => n.id !== id);
+            conns = conns.filter(c => c.fn !== id && c.tn !== id);
+            updateSidebar();
+            drawConns();
+        }
+
+        function clearAll() {
+            nodes.forEach(n => { const e = document.getElementById('n' + n.id); if (e) e.remove(); });
+            nodes = []; conns = []; nid = 1; drawConns(); updateSidebar();
+        }
+
+        // ══════════════════════════════════════
+        // CONNECTIONS
+        // ══════════════════════════════════════
+        function portPos(nid, dir, idx) {
+            const el = document.getElementById('n' + nid);
+            if (!el) return { x: 0, y: 0 };
+            const dot = el.querySelector(`.port-dot[data-dir="${dir}"][data-idx="${idx}"]`);
+            if (!dot) return { x: 0, y: 0 };
+            const wr = wrap.getBoundingClientRect();
+            const dr = dot.getBoundingClientRect();
+            return { x: (dr.left + dr.width / 2 - wr.left - px) / scale, y: (dr.top + dr.height / 2 - wr.top - py) / scale };
+        }
+
+        function bez(x1, y1, x2, y2) {
+            const d = Math.abs(x2 - x1) * .5;
+            return `M${x1},${y1} C${x1 + d},${y1} ${x2 - d},${y2} ${x2},${y2}`;
+        }
+
+        function drawConns() {
+            svgC.innerHTML = '';
+            for (const c of conns) {
+                const f = portPos(c.fn, 'out', c.fi), t = portPos(c.tn, 'in', c.ti);
+                const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const nd = nodes.find(n => n.id === c.fn);
+                const col = nd ? CC[NT[nd.type]?.cat] || '#555' : '#555';
+                p.setAttribute('d', bez(f.x, f.y, t.x, t.y));
+                p.setAttribute('stroke', col);
+                p.setAttribute('opacity', '0.5');
+                p.style.pointerEvents = 'stroke'; p.style.cursor = 'pointer';
+                const cc = c; p.addEventListener('click', () => { conns = conns.filter(x => x !== cc); drawConns(); });
+                svgC.appendChild(p);
+            }
+        }
+
+        // ══════════════════════════════════════
+        // FIND NEAREST PORT
+        // ══════════════════════════════════════
+        function nearestPort(cx, cy, excludeNid, wantDir) {
+            let best = null, bd = 40;
+            document.querySelectorAll('.port-dot').forEach(dot => {
+                if (+dot.dataset.nid === excludeNid) return;
+                if (dot.dataset.dir !== wantDir) return;
+                const r = dot.getBoundingClientRect();
+                const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < bd) { bd = dist; best = dot; }
+            });
+            return best;
+        }
+
+        // ══════════════════════════════════════
+        // MOUSE HANDLERS
+        // ══════════════════════════════════════
+        document.addEventListener('mousemove', e => {
+            if (drag) {
+                const nd = nodes.find(n => n.id === drag.id);
+                if (nd) {
+                    nd.x = Math.round((drag.ox + (e.clientX - drag.sx) / scale) / 12) * 12;
+                    nd.y = Math.round((drag.oy + (e.clientY - drag.sy) / scale) / 12) * 12;
+                    const el = document.getElementById('n' + nd.id);
+                    if (el) { el.style.left = nd.x + 'px'; el.style.top = nd.y + 'px'; }
+                    drawConns();
+                }
+            }
+            if (conn) {
+                const wr = wrap.getBoundingClientRect();
+                const mx = (e.clientX - wr.left - px) / scale, my = (e.clientY - wr.top - py) / scale;
+                const s = portPos(conn.nid, conn.dir, conn.idx);
+                if (conn.dir === 'out') {
+                    svgT.innerHTML = `<path d="${bez(s.x, s.y, mx, my)}" stroke="#c8a96e" stroke-width="2" fill="none" stroke-dasharray="6,4" opacity=".7"/>`;
+                } else {
+                    svgT.innerHTML = `<path d="${bez(mx, my, s.x, s.y)}" stroke="#c8a96e" stroke-width="2" fill="none" stroke-dasharray="6,4" opacity=".7"/>`;
+                }
+                // highlight nearest valid port
+                document.querySelectorAll('.port-dot.hot').forEach(p => { if (+p.dataset.nid !== conn.nid) p.classList.remove('hot'); });
+                const wantDir = conn.dir === 'out' ? 'in' : 'out';
+                const near = nearestPort(e.clientX, e.clientY, conn.nid, wantDir);
+                if (near) near.classList.add('hot');
+            }
+            if (pan) {
+                px += e.clientX - pan.lx; py += e.clientY - pan.ly;
+                pan.lx = e.clientX; pan.ly = e.clientY;
+                applyTx();
+            }
+        });
+
+        document.addEventListener('mouseup', e => {
+            drag = null;
+            if (conn) {
+                const wantDir = conn.dir === 'out' ? 'in' : 'out';
+                const target = nearestPort(e.clientX, e.clientY, conn.nid, wantDir);
+                if (target) {
+                    const outN = conn.dir === 'out' ? conn.nid : +target.dataset.nid;
+                    const outI = conn.dir === 'out' ? conn.idx : +target.dataset.idx;
+                    const outP = conn.dir === 'out' ? conn.pn : target.dataset.pn;
+                    const inN = conn.dir === 'in' ? conn.nid : +target.dataset.nid;
+                    const inI = conn.dir === 'in' ? conn.idx : +target.dataset.idx;
+                    const inP = conn.dir === 'in' ? conn.pn : target.dataset.pn;
+                    conns.push({ fn: outN, fi: outI, fp: outP, tn: inN, ti: inI, tp: inP });
+                    drawConns();
+                }
+                document.querySelectorAll('.port-dot.hot').forEach(p => p.classList.remove('hot'));
+                conn = null; svgT.innerHTML = '';
+            }
+            if (pan) { pan = null; wrap.style.cursor = ''; }
+        });
+
+        // Pan & deselect
+        wrap.addEventListener('mousedown', e => {
+            if (spaceDown || e.button === 1) {
+                e.preventDefault(); pan = { lx: e.clientX, ly: e.clientY }; wrap.style.cursor = 'grabbing';
+            } else {
+                document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel')); selId = null;
+            }
+        });
+
+        // Zoom
+        wrap.addEventListener('wheel', e => {
+            e.preventDefault();
+            const d = e.deltaY > 0 ? .9 : 1.1, ns = Math.min(2, Math.max(.2, scale * d));
+            const wr = wrap.getBoundingClientRect(), mx = e.clientX - wr.left, my = e.clientY - wr.top;
+            px = mx - (mx - px) * (ns / scale); py = my - (my - py) * (ns / scale);
+            scale = ns; applyTx();
+            document.getElementById('zoom-ind').textContent = Math.round(scale * 100) + '%';
+        }, { passive: false });
+
+        function applyTx() { cvs.style.transform = `translate(${px}px,${py}px) scale(${scale})`; drawConns(); }
+
+        // Keys
+        document.addEventListener('keydown', e => {
+            if (e.code === 'Space' && !e.target.matches('textarea,input')) { e.preventDefault(); spaceDown = true; wrap.style.cursor = 'grab'; }
+            if ((e.code === 'Delete' || e.code === 'Backspace') && selId && !e.target.matches('textarea,input')) { e.preventDefault(); rmNode(selId); selId = null; }
+        });
+        document.addEventListener('keyup', e => { if (e.code === 'Space') { spaceDown = false; wrap.style.cursor = ''; } });
+
+        // Drop from palette
+        wrap.addEventListener('dragover', e => { e.preventDefault(); });
+        wrap.addEventListener('drop', e => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('t'); if (!type) return;
+            const wr = wrap.getBoundingClientRect();
+            const x = (e.clientX - wr.left - px) / scale, y = (e.clientY - wr.top - py) / scale;
+            addNode(type, Math.round(x / 12) * 12, Math.round(y / 12) * 12);
+        });
+
+        // ══════════════════════════════════════
+        // EXPORT
+        // ══════════════════════════════════════
+        function exportJSON() {
+            const data = {
+                nodes: nodes.map(n => ({ id: n.id, type: n.type, name: NT[n.type]?.n, x: n.x, y: n.y, note: n.note })),
+                connections: conns.map(c => ({ from: { node: nodes.find(n => n.id === c.fn)?.type, port: c.fp }, to: { node: nodes.find(n => n.id === c.tn)?.type, port: c.tp } })),
+                exportedAt: new Date().toISOString()
+            };
+            const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'pipeline-layout.json'; a.click();
+        }
+
+        // ══════════════════════════════════════
+        // IMPORT JSON
+        // ══════════════════════════════════════
+        function importJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        loadFromJSON(JSON.parse(ev.target.result));
+                    } catch (err) {
+                        alert('Invalid JSON: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function loadFromJSON(data) {
+            clearAll();
+            for (const nd of data.nodes) addNode(nd.type, nd.x, nd.y, nd.note);
+            for (const c of data.connections) {
+                const fn = nodes.find(n => n.type === c.from.node);
+                const tn = nodes.find(n => n.type === c.to.node);
+                if (!fn || !tn) continue;
+                const ft = NT[fn.type], tt = NT[tn.type];
+                if (!ft || !tt) continue;
+                const fi = ft.out.indexOf(c.from.port), ti = tt.inp.indexOf(c.to.port);
+                if (fi < 0 || ti < 0) continue;
+                conns.push({ fn: fn.id, fi, fp: c.from.port, tn: tn.id, ti, tp: c.to.port });
+            }
+            drawConns();
+            px = 20; py = 250; scale = .6; applyTx();
+            document.getElementById('zoom-ind').textContent = Math.round(scale * 100) + '%';
+        }
+
+        // ══════════════════════════════════════
+        // DEFAULT LAYOUT
+        // ══════════════════════════════════════
+        function resetLayout() {
+            clearAll();
+
+            // ═══ INPUTS (x=0) ═══
+            addNode('seed-input', 0, 300);
+            addNode('settings', 0, 450);
+            addNode('kb', 0, 600);
+            addNode('google', 0, 750);
+
+            // ═══ GUARDS & MODIFIERS (y=-80 row, above main flow) ═══
+            addNode('seed-guard', 0, 100, 'Injected into ALL agent prompts. No LLM call.');
+            addNode('genre-lock', 300, -80, 'Only active when user picks genre. Overrides Narrative Mandate auto-selection. No LLM call.');
+            addNode('species-guard', 700, -80, 'Regex-extracted from Scientist output. Injected into Story Producer + downstream. No LLM call.');
+            addNode('chaos', 1050, -80, 'Random creative constraint from library of ~30. Injected into Story Producer + Provocateur ONLY. No LLM call.');
+            addNode('defame-guard', 1400, -80, 'String-matching classification: \'X narrates/advises\'=OK, \'X does/says [fiction]\'=strip. Fires post-Provocateur AND on final output. No LLM call.');
+
+            // ═══ PHASE 0: RESEARCH (x=300, parallel) ═══
+            addNode('discovery', 300, 200, 'Phase 0 (PARALLEL). Google Search + KB. LLM call.');
+            addNode('genre-strat', 300, 450, 'Phase 0 (PARALLEL). KB + seed ONLY. Market-blind by design. LLM call.');
+            addNode('market', 300, 700, 'Phase 0 (PARALLEL). Google Search + Settings. Genre-Strategist-blind by design. LLM call.');
+
+            // ═══ NARRATIVE MANDATE (x=550) ═══
+            addNode('narr-mandate', 550, 450, 'RULE-BASED JS FUNCTION (zero API calls). Merges Genre Strategist + Market Analyst into labeled 4-option menu. Auto-selects COLLISION. Genre Lock overrides if active.');
+
+            // ═══ PHASE 1: PARALLEL RESEARCH (x=700) ═══
+            addNode('scientist', 700, 200, 'Phase 1 (PARALLEL with Field Producer). Google Search. LLM call.');
+            addNode('producer', 700, 700, 'Phase 1 (PARALLEL with Scientist). Plans for biome + budget tier level. LLM call.');
+            addNode('sci-gate', 850, 100, 'SEVERITY CLASSIFIER (regex, no LLM). CATASTROPHIC=\'biologically impossible\'→kill immediately. RECOVERABLE→≤3 pivots.');
+            addNode('eth-gate', 850, 800, 'SEVERITY CLASSIFIER (regex, no LLM). CATASTROPHIC=\'entire concept requires unethical methods\'→kill. RECOVERABLE→proportionality test + ≤3 pivots.');
+
+            // ═══ PHASE 2: DRAFT (x=1050) ═══
+            addNode('story', 1050, 450, 'Phase 2. Receives ALL inputs + Chaos Engine mutation. Named talent MANDATORY (real people as attached talent, NOT as fictional characters). LLM call.');
+
+            // ═══ PHASE 2.5-3: PARALLEL REVIEW (x=1300) ═══
+            addNode('editor', 1300, 250, 'Phase 3 (PARALLEL with Provocateur). Receives FULL package (seed, mandate, facts, logistics, draft). 14 form-aware critique vectors. LLM call.');
+            addNode('provocateur', 1300, 650, 'Phase 2.5 (PARALLEL with Editor). DOMAIN CONSTRAINT: may ONLY propose changes to narrative form, perspective, structure, tone, narrator identity, timeline. May NEVER propose species/behavior/filming/location/crew changes. + Chaos Engine. LLM call.');
+
+            // ═══ CONTEXT COMPRESSOR (x=1500) ═══
+            addNode('compressor', 1500, 450, 'RULE-BASED (zero API calls). Regex-extracts Editor score + MUST_FIX + strengths. Passes Provocateur output unchanged. Builds ~800 token XML StatePayload. Full texts as fallback AFTER payload.');
+
+            // ═══ PHASE 4: REVISION (x=1650) ═══
+            addNode('showrunner', 1650, 450, 'Phase 4. Receives compressed StatePayload (primary) + full texts (fallback). Must state INCORPORATING PROVOCATION: yes/no. Selective specialist re-engagement. LLM call.');
+            addNode('q-gate', 1800, 250, 'Score < 80 → TIGHT LOOP: Editor↔Story Producer only (2 calls/loop). Showrunner only on 1st pass. ≤3 loops. No LLM call (gate logic only).');
+
+            // ═══ PHASE 6: FINAL GATE (x=1950-2350) ═══
+            addNode('adversary', 1950, 450, 'Phase 6. FRESH EYES: has NOT seen intermediate drafts. Sees only final deck + original seed + Narrative Mandate. Google Search. LLM call.');
+            addNode('gk-gate', 2150, 450, 'Hard reject → Showrunner + selective specialist callback based on critique domain. ≤3 loops. No LLM call (gate logic only).');
+            addNode('output', 2350, 450);
+
+            // ═══════════════════════════════════════
+            // WIRING — v4 Writer's Room Patched
+            // ═══════════════════════════════════════
+            function w(ft, fp, tt, tp) {
+                const fn = nodes.find(n => n.type === ft), tn = nodes.find(n => n.type === tt);
+                if (!fn || !tn) return;
+                const fi = NT[ft].out.indexOf(fp), ti = NT[tt].inp.indexOf(tp);
+                if (fi < 0 || ti < 0) return;
+                conns.push({ fn: fn.id, fi, fp, tn: tn.id, ti, tp });
+            }
+
+            // ─── Seed → everything ───
+            w('seed-input', 'seed', 'seed-guard', 'seed');
+            w('seed-input', 'seed', 'discovery', 'seed');
+            w('seed-input', 'seed', 'genre-strat', 'seed');
+            w('seed-input', 'seed', 'market', 'seed');
+            w('seed-input', 'seed', 'scientist', 'seed');
+            w('seed-input', 'seed', 'producer', 'seed');
+            w('seed-input', 'seed', 'story', 'seed');
+            w('seed-input', 'seed', 'adversary', 'seed');
+
+            // ─── Settings ───
+            w('settings', 'settings', 'market', 'settings');
+            w('settings', 'settings', 'genre-lock', 'settings');
+
+            // ─── Knowledge Base ───
+            w('kb', 'context', 'discovery', 'context');
+            w('kb', 'context', 'genre-strat', 'context');
+
+            // ─── Google Search ───
+            w('google', 'web', 'discovery', 'web');
+            w('google', 'web', 'market', 'web');
+            w('google', 'web', 'scientist', 'web');
+            w('google', 'web', 'adversary', 'web');
+
+            // ─── Discovery Brief → downstream ───
+            w('discovery', 'brief', 'market', 'brief');
+            w('discovery', 'brief', 'scientist', 'brief');
+            w('discovery', 'brief', 'story', 'brief');
+
+            // ─── Genre Strategist + Market → Narrative Mandate ───
+            w('genre-strat', 'genres', 'narr-mandate', 'creative');
+            w('market', 'narr-form', 'narr-mandate', 'market');
+            w('genre-lock', 'override', 'narr-mandate', 'lock');
+
+            // ─── Narrative Mandate → all downstream agents ───
+            w('narr-mandate', 'selected', 'scientist', 'mandate');
+            w('narr-mandate', 'selected', 'producer', 'mandate');
+            w('narr-mandate', 'selected', 'story', 'mandate');
+            w('narr-mandate', 'selected', 'editor', 'mandate');
+            w('narr-mandate', 'selected', 'provocateur', 'mandate');
+            w('narr-mandate', 'selected', 'compressor', 'mandate');
+            w('narr-mandate', 'selected', 'adversary', 'mandate');
+
+            // ─── Market Mandate → downstream (full market context) ───
+            w('market', 'mandate', 'scientist', 'market');
+            w('market', 'mandate', 'producer', 'market');
+            w('market', 'mandate', 'story', 'market');
+            w('market', 'mandate', 'provocateur', 'market');
+
+            // ─── Scientist → downstream ───
+            w('scientist', 'facts', 'sci-gate', 'check');
+            w('scientist', 'facts', 'species-guard', 'extract');
+            w('scientist', 'facts', 'story', 'facts');
+            w('scientist', 'facts', 'provocateur', 'facts');
+            w('scientist', 'facts', 'editor', 'facts');
+
+            // ─── Producer → downstream ───
+            w('producer', 'logistics', 'eth-gate', 'check');
+            w('producer', 'logistics', 'story', 'logistics');
+            w('producer', 'logistics', 'editor', 'logistics');
+
+            // ─── Guards → Story Producer ───
+            w('species-guard', 'lock', 'story', 'guard');
+            w('chaos', 'mutation', 'story', 'chaos');
+            w('chaos', 'mutation', 'provocateur', 'chaos');
+
+            // ─── Story → parallel review ───
+            w('story', 'draft', 'editor', 'draft');
+            w('story', 'draft', 'provocateur', 'draft');
+
+            // ─── Editor → compressor + quality gate ───
+            w('editor', 'review', 'compressor', 'review');
+            w('editor', 'score', 'compressor', 'score');
+            w('editor', 'score', 'q-gate', 'score');
+
+            // ─── Provocateur → Defamation Guard → Compressor ───
+            w('provocateur', 'challenge', 'defame-guard', 'check');
+            w('defame-guard', 'clean', 'compressor', 'challenge');
+
+            // ─── Story draft → Compressor (for outline extraction) ───
+            w('story', 'draft', 'compressor', 'draft');
+
+            // ─── Compressor → Showrunner (primary payload) ───
+            w('compressor', 'payload', 'showrunner', 'state');
+            // ─── Full texts → Showrunner (fallback, AFTER payload) ───
+            w('story', 'draft', 'showrunner', 'draft-full');
+            w('editor', 'review', 'showrunner', 'review-full');
+
+            // ─── Showrunner → Adversary ───
+            w('showrunner', 'final', 'adversary', 'deck');
+
+            // ─── Adversary → Gatekeeper Gate ───
+            w('adversary', 'verdict', 'gk-gate', 'verdict');
+
+            // ─── Gatekeeper → Defamation Guard (final pass) → Output ───
+            w('gk-gate', 'approved', 'defame-guard', 'final');
+            w('defame-guard', 'clean', 'output', 'deck');
+
+            drawConns();
+            px = 20; py = 250; scale = .5; applyTx();
+            document.getElementById('zoom-ind').textContent = Math.round(scale * 100) + '%';
+        }
+
+        resetLayout();
+    </script>
+</body>
+
+</html>

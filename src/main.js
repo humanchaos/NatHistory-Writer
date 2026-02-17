@@ -1,5 +1,5 @@
 import { initGemini, createChat, callAgent, extractPdfText, extractUrlContent } from './agents/gemini.js';
-import { runPipeline, runAssessment, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
+import { runPipeline, runAssessment, suggestGenres, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
 import { loadCheckpoint, clearCheckpoint } from './pipelineState.js';
 import { chunkText } from './knowledge/chunker.js';
@@ -695,6 +695,19 @@ const genrePreferenceInput = document.getElementById('genre-preference');
 const genreCustomInput = document.getElementById('genre-custom');
 const maxIterationsInput = document.getElementById('max-iterations');
 
+// ─── Chaos Mode Toggle ──────────────────────────────────────────
+let selectedChaosMode = 'exploration';
+const chaosModeToggle = document.getElementById('chaos-mode-toggle');
+if (chaosModeToggle) {
+    chaosModeToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chaos-mode-btn');
+        if (!btn) return;
+        chaosModeToggle.querySelectorAll('.chaos-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedChaosMode = btn.dataset.chaos;
+    });
+}
+
 // Toggle custom genre input visibility
 genrePreferenceInput.addEventListener('change', () => {
     if (genrePreferenceInput.value === 'custom') {
@@ -797,11 +810,41 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
             seedInput.rows = 10;
             launchBtn.querySelector('.btn-text').textContent = 'Assess & Optimize →';
         } else {
-            seedInput.placeholder = 'e.g., A sequence about survival in the deep ocean abyss…';
+            seedInput.placeholder = 'Describe your wildlife documentary idea…\ne.g., Octopus intelligence and tool use in Indonesian coral reefs';
             seedInput.rows = 3;
-            launchBtn.querySelector('.btn-text').textContent = 'Launch Simulation';
+            updateLaunchButton();
         }
     });
+});
+
+// ─── Advanced Options Toggle ──────────────────────────
+const advancedOptions = document.getElementById('advanced-options');
+const advancedToggle = document.getElementById('advanced-toggle');
+
+/** Returns true if hands-free mode is active (no genre manually selected) */
+function isHandsFreeMode() {
+    const genreSet = genrePreferenceInput.value && genrePreferenceInput.value !== '';
+    return !genreSet && currentMode === 'seed';
+}
+
+/** Update the launch button text based on current mode */
+function updateLaunchButton() {
+    if (currentMode === 'script') {
+        launchBtn.querySelector('.btn-text').textContent = 'Assess & Optimize →';
+    } else if (isHandsFreeMode()) {
+        launchBtn.querySelector('.btn-text').textContent = '🚀 Launch Hands-Free';
+    } else {
+        launchBtn.querySelector('.btn-text').textContent = 'Launch Simulation';
+    }
+}
+
+advancedToggle.addEventListener('click', () => {
+    advancedOptions.classList.toggle('collapsed');
+});
+
+// Update button text when any advanced option changes
+[genrePreferenceInput, targetPlatformInput, productionYearInput].forEach(el => {
+    el.addEventListener('change', updateLaunchButton);
 });
 
 function buildPhaseIndicator(totalPhases) {
@@ -892,65 +935,12 @@ const RING_AGENTS = [
     'discovery-scout', 'market-analyst', 'chief-scientist', 'field-producer',
     'story-producer', 'commissioning-editor', 'showrunner', 'adversary',
 ];
-const RING_ARC_CIRCUMFERENCE = 540; // 2πr where r=86
-let ringSeenAgents = new Set();
+// Agent ring removed from UI — keep functions as no-ops for call-site compatibility
+function updateAgentRing() { }
+function resetAgentRing() { }
+function completeAgentRing() { }
 
-function updateAgentRing(agent) {
-    const nodes = document.querySelectorAll('.ring-node');
-    nodes.forEach(n => {
-        if (n.dataset.ringAgent === agent.id) {
-            n.classList.remove('ring-done');
-            n.classList.add('ring-active');
-        } else if (n.classList.contains('ring-active')) {
-            n.classList.remove('ring-active');
-            n.classList.add('ring-done');
-        }
-    });
-    ringSeenAgents.add(agent.id);
 
-    // Update hub
-    const hubIcon = document.getElementById('ring-hub-icon');
-    const hubLabel = document.getElementById('ring-hub-label');
-    if (hubIcon) hubIcon.textContent = agent.icon;
-    if (hubLabel) {
-        hubLabel.textContent = agent.name.split(' ').slice(-1)[0]; // last word
-        hubLabel.style.color = agent.color;
-    }
-
-    // Update SVG arc progress
-    const progress = ringSeenAgents.size / RING_AGENTS.length;
-    const arc = document.getElementById('ring-arc-progress');
-    if (arc) {
-        arc.style.strokeDashoffset = RING_ARC_CIRCUMFERENCE * (1 - progress);
-        arc.style.stroke = agent.color;
-    }
-}
-
-function resetAgentRing() {
-    ringSeenAgents = new Set();
-    document.querySelectorAll('.ring-node').forEach(n => {
-        n.classList.remove('ring-active', 'ring-done');
-    });
-    const hubIcon = document.getElementById('ring-hub-icon');
-    const hubLabel = document.getElementById('ring-hub-label');
-    if (hubIcon) hubIcon.textContent = '⏳';
-    if (hubLabel) { hubLabel.textContent = 'Waiting'; hubLabel.style.color = ''; }
-    const arc = document.getElementById('ring-arc-progress');
-    if (arc) arc.style.strokeDashoffset = RING_ARC_CIRCUMFERENCE;
-}
-
-function completeAgentRing() {
-    document.querySelectorAll('.ring-node').forEach(n => {
-        n.classList.remove('ring-active');
-        if (ringSeenAgents.has(n.dataset.ringAgent)) n.classList.add('ring-done');
-    });
-    const hubIcon = document.getElementById('ring-hub-icon');
-    const hubLabel = document.getElementById('ring-hub-label');
-    if (hubIcon) hubIcon.textContent = '✅';
-    if (hubLabel) { hubLabel.textContent = 'Complete'; hubLabel.style.color = 'var(--accent-gold)'; }
-    const arc = document.getElementById('ring-arc-progress');
-    if (arc) { arc.style.strokeDashoffset = 0; arc.style.stroke = 'var(--accent-gold)'; }
-}
 
 const pipelineCallbacks = {
     onPhaseStart(phaseNumber, phaseName) {
@@ -960,11 +950,13 @@ const pipelineCallbacks = {
         setPhaseActive(phaseNumber);
         createPhaseBlock(phaseNumber, phaseName);
         updatePipelineStatusBar(phaseName);
+
     },
     onAgentThinking(agent) {
         latestAgentCard = createAgentCard(agent);
         updatePipelineStatusBar(null, `${agent.icon} ${agent.name}`);
         updateAgentRing(agent);
+
     },
     onAgentOutput(agent, outputText) {
         if (latestAgentCard) {
@@ -973,6 +965,20 @@ const pipelineCallbacks = {
     },
     onPhaseComplete(phaseNumber) {
         setPhaseCompleted(phaseNumber);
+
+    },
+    onChaosEvent(type, data) {
+        const card = document.createElement('div');
+        card.className = 'chaos-event-card';
+        if (type === 'mutation') {
+            card.innerHTML = `<span class="chaos-event-icon">${data.mutation.icon}</span> <strong>${data.targetAgent}</strong> is now <em>${data.mutation.name}</em>`;
+        } else if (type === 'fatalQuestion') {
+            card.innerHTML = `<span class="chaos-event-icon">❓</span> <strong>Fatal Question:</strong> ${data.fatalQuestion || '(extracting…)'}`;
+        } else if (type === 'accident') {
+            card.innerHTML = `<span class="chaos-event-icon">🎲</span> <strong>Creative Accident:</strong> ${data.layer}${data.reference ? ` <em>(${data.reference})</em>` : ''}`;
+        }
+        timelineEl.appendChild(card);
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     },
 };
 
@@ -982,43 +988,51 @@ seedForm.addEventListener('submit', async (e) => {
     const rawInput = seedInput.value.trim();
     if (!rawInput) return;
 
-    // Split by newlines, trim, remove blanks
-    const seeds = rawInput.split('\n').map(s => s.trim()).filter(Boolean);
+    const isAssessment = currentMode === 'script';
+    const handsFreeModeActive = isHandsFreeMode() && !isAssessment;
+
+    // In hands-free mode, treat entire input as a single seed
+    const seeds = handsFreeModeActive
+        ? [rawInput]
+        : rawInput.split('\n').map(s => s.trim()).filter(Boolean);
     if (seeds.length === 0) return;
 
-    const isAssessment = currentMode === 'script';
-    const isBatch = seeds.length > 1;
+    const isBatch = !handsFreeModeActive && seeds.length > 1;
 
     // Disable form
     pipelineRunning = true;
     launchBtn.disabled = true;
-    launchBtn.querySelector('.btn-text').textContent = isBatch ? `Running 0/${seeds.length}…` : 'Running…';
+    launchBtn.querySelector('.btn-text').textContent = handsFreeModeActive ? '🎯 Analyzing genres…' : (isBatch ? `Running 0/${seeds.length}…` : 'Running…');
 
-    // Show simulation
+    // Show simulation, activate live diagram
     simulationEl.classList.remove('hidden');
+
     timelineEl.innerHTML = '';
-    pitchDeckEl.classList.add('hidden');
+    // Pitch deck stays visible if already open — user can close it manually
     scorecardEl.classList.add('hidden');
+
     simulationEl.scrollIntoView({ behavior: 'smooth' });
 
-    // ─── ABORT CONTROLLER ─────────────────────────────────
+    // Hide old genre strategy card
+    const genreStrategyCard = document.getElementById('genre-strategy-card');
+    const genreStrategyBody = document.getElementById('genre-strategy-body');
+    genreStrategyCard.classList.add('hidden');
+    genreStrategyBody.innerHTML = '';
+
+    // Abort support
     const abortController = new AbortController();
     setPipelineAbortSignal(abortController.signal);
+    const doCancel = () => { abortController.abort(); };
 
-    // Cancel button (inline in simulation)
+    // Cancel button in viewport
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'cancel-pipeline-btn';
-    cancelBtn.innerHTML = '✕ Cancel Pipeline';
-    const doCancel = () => {
-        abortController.abort();
-        cancelBtn.textContent = 'Cancelling…';
-        cancelBtn.disabled = true;
-    };
+    cancelBtn.innerHTML = `<span>⛔</span> Cancel`;
     cancelBtn.addEventListener('click', doCancel);
     simulationEl.insertBefore(cancelBtn, simulationEl.firstChild);
 
     // ─── FLOATING STATUS BAR ──────────────────────────────
-    const seedLabel = isBatch ? `${seeds.length} seeds` : seeds[0];
+    const seedLabel = handsFreeModeActive ? rawInput : (isBatch ? `${seeds.length} seeds` : seeds[0]);
     const statusBar = createPipelineStatusBar(seedLabel);
     statusBar.querySelector('.psb-cancel').addEventListener('click', doCancel);
 
@@ -1054,85 +1068,230 @@ seedForm.addEventListener('submit', async (e) => {
     const genrePreference = genrePreferenceInput.value === 'custom'
         ? (genreCustomInput.value.trim() || null)
         : (genrePreferenceInput.value || null);
-    const maxRevisions = parseInt(maxIterationsInput.value, 10);
-    const batchResults = []; // { seed, pitchDeck }
+    const maxRevisions = maxIterationsInput ? parseInt(maxIterationsInput.value, 10) : 3;
+    const batchResults = []; // { seed, pitchDeck, genreName? }
 
     try {
-        for (let i = 0; i < seeds.length; i++) {
-            const seedText = seeds[i];
+        // ═══════════════════════════════════════════════════
+        // HANDS-FREE MODE: Genre suggestion → 3 pipelines
+        // ═══════════════════════════════════════════════════
+        if (handsFreeModeActive) {
+            const seedText = seeds[0];
 
-            // Update batch banner
-            if (batchBanner) {
-                batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed ${i + 1}/${seeds.length}</span><span class="batch-seed-name"></span>`;
-                batchBanner.querySelector('.batch-seed-name').textContent = seedText;
-                launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/${seeds.length}…`;
+            // Step 1: Get genre suggestions from the Genre Strategist
+            let genreSuggestions;
+            try {
+                genreSuggestions = await suggestGenres(seedText);
+            } catch (err) {
+                if (err instanceof PipelineCancelled || err.name === 'PipelineCancelled') throw err;
+                console.warn('Genre suggestion failed, using fallbacks:', err.message);
+                genreSuggestions = [
+                    { genreKey: 'blue-chip-2', genreName: 'Blue Chip 2.0', rationale: 'Classic prestige format.', _isFallback: true },
+                    { genreKey: 'scientific-procedural', genreName: 'Scientific Procedural', rationale: 'Tech-driven investigation angle.', _isFallback: true },
+                    { genreKey: 'ecological-biography', genreName: 'Ecological Biography', rationale: 'Character-driven format.', _isFallback: true },
+                ];
             }
 
-            // Reset phase indicator + timeline for each seed
-            const totalPhases = isAssessment ? 4 : 6;
-            buildPhaseIndicator(totalPhases);
-            timelineEl.innerHTML = '';
-            resetAgentRing();
+            // Step 2: Display the genre strategy card
+            const isFallback = genreSuggestions[0]?._isFallback;
+            const sourceBadge = isFallback
+                ? '<span class="genre-source-badge fallback">⚙️ Default lenses</span>'
+                : '<span class="genre-source-badge ai">🤖 AI-selected</span>';
+            // Inject badge into the strategy header
+            const headerEl = genreStrategyCard.querySelector('.genre-strategy-header');
+            headerEl.innerHTML = `<span class="genre-strategy-icon">🎯</span><span>Suggested Market Pivot Lenses</span>${sourceBadge}`;
 
-            const finalPitchDeck = isAssessment
-                ? await runAssessment(seedText, pipelineCallbacks, prodYear)
-                : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions });
+            genreStrategyBody.innerHTML = genreSuggestions.map((g, i) => `
+                <div class="genre-lens-card" id="genre-card-${i}">
+                    <div class="genre-lens-name">🎭 ${g.genreName}</div>
+                    <div class="genre-lens-rationale">${g.rationale}</div>
+                    <div class="genre-lens-status" id="genre-status-${i}">⏳ Queued</div>
+                </div>
+            `).join('');
+            genreStrategyCard.classList.remove('hidden');
 
-            batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
-            completeAgentRing();
+            launchBtn.querySelector('.btn-text').textContent = 'Running 0/3…';
 
-            // Save each run to history individually
-            await saveRun({ seedIdea: seedText, finalPitchDeck });
+            // Step 3: Run 3 pipelines sequentially, building result cards progressively
+            const genreResultsGrid = document.getElementById('genre-results-grid');
+            const genreResultsBody = document.getElementById('genre-results-body');
+            genreResultsBody.innerHTML = '';
+            genreResultsGrid.classList.add('hidden');
 
-            // Auto-score each (non-blocking)
-            autoScore(finalPitchDeck, seedText);
-        }
+            // Helper: extract title and logline from pitch deck markdown
+            const extractMeta = (pitchDeck) => {
+                const titleMatch = pitchDeck.match(/^##\s+(.+)$/m);
+                const loglineMatch = pitchDeck.match(/\*\*Logline[:\s]*\*\*\s*(.+)/i)
+                    || pitchDeck.match(/\*Logline[:\s]*\*\s*(.+)/i)
+                    || pitchDeck.match(/Logline[:\s]+(.+)/i);
+                return {
+                    title: titleMatch?.[1]?.trim() || 'Untitled Pitch',
+                    logline: loglineMatch?.[1]?.trim() || '',
+                };
+            };
 
-        // Remove batch banner
-        if (batchBanner) batchBanner.remove();
+            for (let i = 0; i < genreSuggestions.length; i++) {
+                const genre = genreSuggestions[i];
+                const statusEl = document.getElementById(`genre-status-${i}`);
+                const cardEl = document.getElementById(`genre-card-${i}`);
 
-        // Track last seed for /rerun
-        lastSeedIdea = batchResults[batchResults.length - 1].seed;
+                // Mark as running
+                statusEl.textContent = '⚡ Running pipeline…';
+                statusEl.className = 'genre-lens-status running';
+                cardEl.classList.add('active-pipeline');
+                launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/3…`;
 
-        // ─── Display results ───
-        if (batchResults.length === 1) {
-            // Single seed — classic display
-            const { pitchDeck } = batchResults[0];
-            pitchDeckContent.innerHTML = md(pitchDeck);
-            pitchDeckEl.classList.remove('hidden');
-            updateGatekeeperBadges(pitchDeck);
-            pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
-            initChatSession(pitchDeck);
-        } else {
-            // Multi-seed — tabbed display
-            const tabBar = document.createElement('div');
-            tabBar.className = 'batch-tabs';
-            batchResults.forEach((r, idx) => {
-                const tab = document.createElement('button');
-                tab.className = `batch-tab${idx === 0 ? ' active' : ''}`;
-                tab.textContent = `🌱 ${r.seed.length > 40 ? r.seed.slice(0, 37) + '…' : r.seed}`;
-                tab.dataset.index = idx;
-                tab.addEventListener('click', () => {
-                    tabBar.querySelectorAll('.batch-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
+                // Reset phase indicator + timeline for each
+                const totalPhases = 6;
+                buildPhaseIndicator(totalPhases);
+                timelineEl.innerHTML = '';
+                resetAgentRing();
+
+                const finalPitchDeck = await runPipeline(seedText, pipelineCallbacks, {
+                    platform: targetPlatform,
+                    year: prodYear,
+                    genrePreference: genre.genreKey,
+                    maxRevisions,
+                    chaosMode: selectedChaosMode,
+                });
+
+                batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck, genreName: genre.genreName });
+                completeAgentRing();
+
+                // Mark strategy card as done
+                statusEl.textContent = '✅ Complete';
+                statusEl.className = 'genre-lens-status done';
+                cardEl.classList.remove('active-pipeline');
+
+                // Save each run
+                await saveRun({ seedIdea: `${seedText} [${genre.genreName}]`, finalPitchDeck });
+                autoScore(finalPitchDeck, seedText);
+
+                // ── Build a result card progressively ──
+                const meta = extractMeta(finalPitchDeck);
+                const resultCard = document.createElement('div');
+                resultCard.className = 'genre-result-card';
+                resultCard.dataset.index = batchResults.length - 1;
+                resultCard.innerHTML = `
+                    <span class="genre-result-badge">${genre.genreName}</span>
+                    <div class="genre-result-title">${meta.title}</div>
+                    ${meta.logline ? `<div class="genre-result-logline">${meta.logline}</div>` : ''}
+                    <div class="genre-result-cta">Click to view full pitch →</div>
+                `;
+
+                // Click handler: load this pitch deck
+                const idx = batchResults.length - 1;
+                resultCard.addEventListener('click', () => {
+                    // Highlight selected card
+                    genreResultsBody.querySelectorAll('.genre-result-card').forEach(c => c.classList.remove('selected'));
+                    resultCard.classList.add('selected');
+                    // Load pitch deck
+                    pitchDeckEl.querySelector('.batch-tabs')?.remove();
                     pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
                     updateGatekeeperBadges(batchResults[idx].pitchDeck);
                     initChatSession(batchResults[idx].pitchDeck);
-                    lastSeedIdea = batchResults[idx].seed;
+                    lastPitchDeck = batchResults[idx].pitchDeck;
+                    pitchDeckEl.classList.remove('hidden');
+                    pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
                 });
-                tabBar.appendChild(tab);
-            });
 
-            // Remove any existing tab bar
-            pitchDeckEl.querySelector('.batch-tabs')?.remove();
-            pitchDeckEl.insertBefore(tabBar, pitchDeckContent);
+                genreResultsBody.appendChild(resultCard);
+                genreResultsGrid.classList.remove('hidden');
 
-            // Show first result
-            pitchDeckContent.innerHTML = md(batchResults[0].pitchDeck);
-            pitchDeckEl.classList.remove('hidden');
-            updateGatekeeperBadges(batchResults[0].pitchDeck);
-            pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
-            initChatSession(batchResults[0].pitchDeck);
+                // Auto-select the first finished card
+                if (i === 0) {
+                    resultCard.classList.add('selected');
+                    pitchDeckContent.innerHTML = md(finalPitchDeck);
+                    pitchDeckEl.classList.remove('hidden');
+                    updateGatekeeperBadges(finalPitchDeck);
+                    initChatSession(finalPitchDeck);
+                    lastPitchDeck = finalPitchDeck;
+                }
+            }
+
+            // Track last seed
+            lastSeedIdea = seedText;
+
+        } else {
+            // ═══════════════════════════════════════════════════
+            // STANDARD MODE: Single pipeline (or batch)
+            // ═══════════════════════════════════════════════════
+            for (let i = 0; i < seeds.length; i++) {
+                const seedText = seeds[i];
+
+                // Update batch banner
+                if (batchBanner) {
+                    batchBanner.innerHTML = `<span class="batch-progress">🌱 Seed ${i + 1}/${seeds.length}</span><span class="batch-seed-name"></span>`;
+                    batchBanner.querySelector('.batch-seed-name').textContent = seedText;
+                    launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/${seeds.length}…`;
+                }
+
+                // Reset phase indicator + timeline for each seed
+                const totalPhases = isAssessment ? 4 : 6;
+                buildPhaseIndicator(totalPhases);
+                timelineEl.innerHTML = '';
+                resetAgentRing();
+
+                const finalPitchDeck = isAssessment
+                    ? await runAssessment(seedText, pipelineCallbacks, prodYear)
+                    : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions, chaosMode: selectedChaosMode });
+
+                batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
+                completeAgentRing();
+
+                // Save each run to history individually
+                await saveRun({ seedIdea: seedText, finalPitchDeck });
+
+                // Auto-score each (non-blocking)
+                autoScore(finalPitchDeck, seedText);
+            }
+
+            // Remove batch banner
+            if (batchBanner) batchBanner.remove();
+
+            // Track last seed for /rerun
+            lastSeedIdea = batchResults[batchResults.length - 1].seed;
+
+            // ─── Display results ───
+            if (batchResults.length === 1) {
+                // Single seed — classic display
+                const { pitchDeck } = batchResults[0];
+                pitchDeckContent.innerHTML = md(pitchDeck);
+                pitchDeckEl.classList.remove('hidden');
+                updateGatekeeperBadges(pitchDeck);
+                pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                initChatSession(pitchDeck);
+            } else {
+                // Multi-seed — tabbed display
+                const tabBar = document.createElement('div');
+                tabBar.className = 'batch-tabs';
+                batchResults.forEach((r, idx) => {
+                    const tab = document.createElement('button');
+                    tab.className = `batch-tab${idx === 0 ? ' active' : ''}`;
+                    tab.textContent = `🌱 ${r.seed.length > 40 ? r.seed.slice(0, 37) + '…' : r.seed}`;
+                    tab.dataset.index = idx;
+                    tab.addEventListener('click', () => {
+                        tabBar.querySelectorAll('.batch-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
+                        updateGatekeeperBadges(batchResults[idx].pitchDeck);
+                        initChatSession(batchResults[idx].pitchDeck);
+                        lastSeedIdea = batchResults[idx].seed;
+                    });
+                    tabBar.appendChild(tab);
+                });
+
+                // Remove any existing tab bar
+                pitchDeckEl.querySelector('.batch-tabs')?.remove();
+                pitchDeckEl.insertBefore(tabBar, pitchDeckContent);
+
+                // Show first result
+                pitchDeckContent.innerHTML = md(batchResults[0].pitchDeck);
+                pitchDeckEl.classList.remove('hidden');
+                updateGatekeeperBadges(batchResults[0].pitchDeck);
+                pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                initChatSession(batchResults[0].pitchDeck);
+            }
         }
 
         // Show chat toast
@@ -1168,10 +1327,9 @@ seedForm.addEventListener('submit', async (e) => {
         setPipelineAbortSignal(null);
         simulationEl.querySelector('.cancel-pipeline-btn')?.remove();
         removePipelineStatusBar();
+
         launchBtn.disabled = false;
-        launchBtn.querySelector('.btn-text').textContent = isAssessment
-            ? 'Assess & Optimize →'
-            : 'Launch Simulation';
+        updateLaunchButton();
     }
 });
 
@@ -2326,7 +2484,7 @@ async function startDryrun(resume) {
 
                 simulationEl.classList.remove('hidden');
                 timelineEl.innerHTML = '';
-                pitchDeckEl.classList.add('hidden');
+                // Pitch deck stays visible if already open
                 scorecardEl.classList.add('hidden');
                 simulationEl.scrollIntoView({ behavior: 'smooth' });
 

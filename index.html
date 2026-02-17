@@ -90,95 +90,129 @@
       <h1><span class="title-accent">Script</span>Writer</h1>
       <p class="hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
       <p class="hero-description">
-        Enter a seed idea or paste an existing script. Eight AI agents — a Discovery Scout, Analyst, Scientist,
-        Field Producer, Story Producer, a ruthless Commissioning Editor, a Showrunner, and
-        a cynical Gatekeeper — will debate, reject, revise, and ultimately greenlight your wildlife film pitch.
+        Enter a seed idea. Eight AI agents will debate, reject, revise, and greenlight your wildlife film pitch
+        — in <strong>3 different genre lenses</strong> automatically.
       </p>
-
-      <!-- Mode Toggle -->
-      <div class="mode-toggle">
-        <button class="mode-tab active" data-mode="seed">🌱 Seed Idea</button>
-        <button class="mode-tab" data-mode="script">📝 Assess Script</button>
-      </div>
 
       <form id="seed-form">
         <div class="input-group">
           <textarea id="seed-input"
-            placeholder="One idea per line — each runs the full pipeline&#10;e.g., A sequence about survival in the deep ocean abyss…&#10;Arctic fox migration patterns in a warming world"
-            rows="4" required></textarea>
-          <div class="optional-params">
-            <div class="param-field">
-              <label for="target-platform">📺 Platform <span class="param-hint">(optional)</span></label>
-              <select id="target-platform">
-                <option value="">Auto-detect best fit</option>
-                <option value="Netflix">Netflix</option>
-                <option value="Apple TV+">Apple TV+</option>
-                <option value="BBC Studios">BBC Studios</option>
-                <option value="Disney+">Disney+ / National Geographic</option>
-                <option value="Amazon Prime">Amazon Prime</option>
-                <option value="ZDF / ARTE">ZDF / ARTE</option>
-                <option value="Channel 4">Channel 4</option>
-                <option value="Smithsonian Channel">Smithsonian Channel</option>
-                <option value="PBS">PBS</option>
-              </select>
-            </div>
-            <div class="param-field">
-              <label for="production-year">📅 Delivery Year <span class="param-hint">(optional)</span></label>
-              <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2028">
-            </div>
-            <div class="param-field">
-              <label for="genre-preference">🎭 Genre Lens <span class="param-hint">(optional)</span></label>
-              <select id="genre-preference">
-                <option value="">Auto — Let AI Decide</option>
-                <option value="scientific-procedural"
-                  title="ROI: Highest. The CSI of ecology — eDNA, satellite tagging, AI forensics. Tech partnerships + research grants.">
-                  🔬 Scientific Procedural</option>
-                <option value="nature-noir"
-                  title="ROI: High. True Crime for the planet — environmental crimes via forensic filmmaking. Legal/Gov funding + SVOD.">
-                  🕵️ Nature Noir</option>
-                <option value="speculative-nh"
-                  title="ROI: High. AI-generated future-casts of ecosystems under climate stress. Education licensing + VR/XR.">
-                  🌐 Speculative NH</option>
-                <option value="urban-rewilding"
-                  title="ROI: Mid-High. Wildlife adapting to industrial/urban ruins. Youth-first AVOD + local gov sponsorship.">
-                  🏙️ Urban Rewilding</option>
-                <option value="biocultural-history"
-                  title="ROI: Moderate. Prestige essays on deep time human-nature connection. Global streamers + heritage grants.">
-                  📜 Biocultural History</option>
-                <option value="blue-chip-2"
-                  title="ROI: Moderate. Ultra-scarcity verified-real captures of rare behaviors. High-ticket one-off licenses.">
-                  💎 Blue Chip 2.0</option>
-                <option value="indigenous-wisdom"
-                  title="ROI: Moderate. Co-created narratives with TEK (Traditional Ecological Knowledge). ESG + philanthropic grants.">
-                  🌿 Indigenous Wisdom</option>
-                <option value="ecological-biography"
-                  title="ROI: Low-Mid. Decades-long deep-time tracking of single organisms via autonomous units. Museum + science licensing.">
-                  🌳 Ecological Biography</option>
-                <option value="extreme-micro"
-                  title="ROI: Low-Mid. Alien visuals via nano-tech and electron microscopy. Short-form social + biotech partnerships.">
-                  🔭 Extreme Micro</option>
-                <option value="astro-ecology"
-                  title="ROI: Low. The orbital view — satellites showing global system cycles. UN/EU + space agency subsidies.">
-                  🛰️ Astro-Ecology</option>
-                <option value="process-doc"
-                  title="ROI: Ancillary. Meta-commentary on shoot ethics and difficulty. Bundled proof-of-work for verification.">
-                  🎬 The Process Doc</option>
-                <option value="symbiotic-pov"
-                  title="ROI: Speculative. Extreme immersion via on-animal cameras and bio-logging. Niche VR + ethology research.">
-                  🐾 Symbiotic POV</option>
-                <option value="custom">✏️ Custom…</option>
-              </select>
-              <input type="text" id="genre-custom" class="genre-custom-input hidden"
-                placeholder="e.g., sci-fi nat-history noir">
-            </div>
+            placeholder="Describe your wildlife documentary idea…&#10;e.g., Octopus intelligence and tool use in Indonesian coral reefs"
+            rows="3" required></textarea>
 
+          <!-- ═══ Advanced Options (collapsed by default) ═══ -->
+          <div id="advanced-options" class="advanced-options collapsed">
+            <button type="button" id="advanced-toggle" class="advanced-toggle">
+              <span class="toggle-icon">▸</span> Advanced Options
+            </button>
+            <div class="advanced-options-body">
+              <!-- Mode Toggle -->
+              <div class="mode-toggle">
+                <button type="button" class="mode-tab active" data-mode="seed">🌱 Seed Idea</button>
+                <button type="button" class="mode-tab" data-mode="script">📝 Assess Script</button>
+              </div>
+
+              <div class="optional-params">
+                <div class="param-field">
+                  <label for="target-platform">📺 Platform <span class="param-hint">(optional)</span></label>
+                  <select id="target-platform">
+                    <option value="">Auto-detect best fit</option>
+                    <option value="Netflix">Netflix</option>
+                    <option value="Apple TV+">Apple TV+</option>
+                    <option value="BBC Studios">BBC Studios</option>
+                    <option value="Disney+">Disney+ / National Geographic</option>
+                    <option value="Amazon Prime">Amazon Prime</option>
+                    <option value="ZDF / ARTE">ZDF / ARTE</option>
+                    <option value="Channel 4">Channel 4</option>
+                    <option value="Smithsonian Channel">Smithsonian Channel</option>
+                    <option value="PBS">PBS</option>
+                  </select>
+                </div>
+                <div class="param-field">
+                  <label for="production-year">📅 Delivery Year <span class="param-hint">(optional)</span></label>
+                  <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2028">
+                </div>
+                <div class="param-field">
+                  <label for="genre-preference">🎭 Genre Lens <span class="param-hint">(locks to 1 genre)</span></label>
+                  <select id="genre-preference">
+                    <option value="">Auto — Hands-Free (3 genres)</option>
+                    <option value="scientific-procedural"
+                      title="ROI: Highest. The CSI of ecology — eDNA, satellite tagging, AI forensics. Tech partnerships + research grants.">
+                      🔬 Scientific Procedural</option>
+                    <option value="nature-noir"
+                      title="ROI: High. True Crime for the planet — environmental crimes via forensic filmmaking. Legal/Gov funding + SVOD.">
+                      🕵️ Nature Noir</option>
+                    <option value="speculative-nh"
+                      title="ROI: High. AI-generated future-casts of ecosystems under climate stress. Education licensing + VR/XR.">
+                      🌐 Speculative NH</option>
+                    <option value="urban-rewilding"
+                      title="ROI: Mid-High. Wildlife adapting to industrial/urban ruins. Youth-first AVOD + local gov sponsorship.">
+                      🏙️ Urban Rewilding</option>
+                    <option value="biocultural-history"
+                      title="ROI: Moderate. Prestige essays on deep time human-nature connection. Global streamers + heritage grants.">
+                      📜 Biocultural History</option>
+                    <option value="blue-chip-2"
+                      title="ROI: Moderate. Ultra-scarcity verified-real captures of rare behaviors. High-ticket one-off licenses.">
+                      💎 Blue Chip 2.0</option>
+                    <option value="indigenous-wisdom"
+                      title="ROI: Moderate. Co-created narratives with TEK (Traditional Ecological Knowledge). ESG + philanthropic grants.">
+                      🌿 Indigenous Wisdom</option>
+                    <option value="ecological-biography"
+                      title="ROI: Low-Mid. Decades-long deep-time tracking of single organisms via autonomous units. Museum + science licensing.">
+                      🌳 Ecological Biography</option>
+                    <option value="extreme-micro"
+                      title="ROI: Low-Mid. Alien visuals via nano-tech and electron microscopy. Short-form social + biotech partnerships.">
+                      🔭 Extreme Micro</option>
+                    <option value="astro-ecology"
+                      title="ROI: Low. The orbital view — satellites showing global system cycles. UN/EU + space agency subsidies.">
+                      🛰️ Astro-Ecology</option>
+                    <option value="process-doc"
+                      title="ROI: Ancillary. Meta-commentary on shoot ethics and difficulty. Bundled proof-of-work for verification.">
+                      🎬 The Process Doc</option>
+                    <option value="symbiotic-pov"
+                      title="ROI: Speculative. Extreme immersion via on-animal cameras and bio-logging. Niche VR + ethology research.">
+                      🐾 Symbiotic POV</option>
+                    <option value="custom">✏️ Custom…</option>
+                  </select>
+                  <input type="text" id="genre-custom" class="genre-custom-input hidden"
+                    placeholder="e.g., sci-fi nat-history noir">
+                </div>
+                <div class="param-field param-field-full">
+                  <label>🔥 Creative Mode</label>
+                  <div class="chaos-mode-toggle" id="chaos-mode-toggle">
+                    <button type="button" class="chaos-mode-btn" data-chaos="precision"
+                      title="Standard structured pipeline — no surprises">
+                      <span class="chaos-mode-icon">🎯</span> Precision
+                    </button>
+                    <button type="button" class="chaos-mode-btn active" data-chaos="exploration"
+                      title="1 agent mutation + The Provocateur + a creative accident">
+                      <span class="chaos-mode-icon">🔮</span> Exploration
+                    </button>
+                    <button type="button" class="chaos-mode-btn" data-chaos="chaos"
+                      title="2 agent mutations + The Provocateur + creative accidents — maximum productive friction">
+                      <span class="chaos-mode-icon">🔥</span> Chaos
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
           <button type="submit" class="btn-primary btn-launch" id="launch-btn">
-            <span class="btn-text">Launch Simulation</span>
+            <span class="btn-text">🚀 Launch Hands-Free</span>
             <span class="btn-icon">→</span>
           </button>
         </div>
       </form>
+
+      <!-- ═══ Genre Strategy Card (shown during hands-free mode) ═══ -->
+      <div id="genre-strategy-card" class="genre-strategy-card hidden">
+        <div class="genre-strategy-header">
+          <span class="genre-strategy-icon">🎯</span>
+          <span>Suggested Market Pivot Lenses</span>
+        </div>
+        <div id="genre-strategy-body" class="genre-strategy-body"></div>
+      </div>
 
       <div class="agent-roster">
         <div class="agent-chip" style="--agent-color: #69db7c" data-agent-id="discovery-scout">🔬 Scout</div>
@@ -186,6 +220,7 @@
         <div class="agent-chip" style="--agent-color: #4dabf7" data-agent-id="chief-scientist">🔬 Scientist</div>
         <div class="agent-chip" style="--agent-color: #ffa94d" data-agent-id="field-producer">🎥 Field Producer</div>
         <div class="agent-chip" style="--agent-color: #da77f2" data-agent-id="story-producer">✍️ Story Producer</div>
+        <div class="agent-chip" style="--agent-color: #ff4444" data-agent-id="provocateur">🔥 Provocateur</div>
         <div class="agent-chip" style="--agent-color: #ff6b6b" data-agent-id="commissioning-editor">⚔️ Commissioning
           Editor</div>
         <div class="agent-chip" style="--agent-color: #ffd43b" data-agent-id="showrunner">🎬 Showrunner</div>
@@ -212,50 +247,17 @@
     </div>
     <div class="simulation-body">
       <div id="timeline" class="timeline"></div>
-      <div id="agent-ring" class="agent-ring">
-        <div class="agent-ring-hub">
-          <span id="ring-hub-icon">⏳</span>
-          <span id="ring-hub-label">Waiting</span>
-        </div>
-        <div class="ring-node" data-ring-agent="discovery-scout" style="--i:0; --agent-color:#69db7c">
-          <span class="ring-node-icon">🔬</span>
-          <span class="ring-node-label">Scout</span>
-        </div>
-        <div class="ring-node" data-ring-agent="market-analyst" style="--i:1; --agent-color:#00d4aa">
-          <span class="ring-node-icon">📊</span>
-          <span class="ring-node-label">Analyst</span>
-        </div>
-        <div class="ring-node" data-ring-agent="chief-scientist" style="--i:2; --agent-color:#4dabf7">
-          <span class="ring-node-icon">🔬</span>
-          <span class="ring-node-label">Scientist</span>
-        </div>
-        <div class="ring-node" data-ring-agent="field-producer" style="--i:3; --agent-color:#ffa94d">
-          <span class="ring-node-icon">🎥</span>
-          <span class="ring-node-label">Field</span>
-        </div>
-        <div class="ring-node" data-ring-agent="story-producer" style="--i:4; --agent-color:#da77f2">
-          <span class="ring-node-icon">✍️</span>
-          <span class="ring-node-label">Story</span>
-        </div>
-        <div class="ring-node" data-ring-agent="commissioning-editor" style="--i:5; --agent-color:#ff6b6b">
-          <span class="ring-node-icon">⚔️</span>
-          <span class="ring-node-label">Editor</span>
-        </div>
-        <div class="ring-node" data-ring-agent="showrunner" style="--i:6; --agent-color:#ffd43b">
-          <span class="ring-node-icon">🎬</span>
-          <span class="ring-node-label">Showrunner</span>
-        </div>
-        <div class="ring-node" data-ring-agent="adversary" style="--i:7; --agent-color:#e03131">
-          <span class="ring-node-icon">🛡️</span>
-          <span class="ring-node-label">Gatekeeper</span>
-        </div>
-        <svg class="ring-arc" viewBox="0 0 200 200">
-          <circle id="ring-arc-track" cx="100" cy="100" r="86" />
-          <circle id="ring-arc-progress" cx="100" cy="100" r="86" />
-        </svg>
-      </div>
     </div>
   </main>
+
+  <!-- ═══════ Genre Result Cards ═══════ -->
+  <section id="genre-results-grid" class="genre-results-grid hidden">
+    <div class="genre-results-header">
+      <span class="genre-results-icon">🎬</span>
+      <span>Your Pitches</span>
+    </div>
+    <div id="genre-results-body" class="genre-results-body"></div>
+  </section>
 
   <!-- ═══════ Final Pitch Deck ═══════ -->
   <section id="pitch-deck" class="hidden">
