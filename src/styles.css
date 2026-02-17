@@ -1925,6 +1925,50 @@ h4 {
   margin: 1.5rem 0;
 }
 
+/* ─── Sources Footnote Block ───────────────────────── */
+.pitch-sources {
+  margin-top: 1.5rem;
+}
+
+.pitch-sources hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 0 0 0.75rem 0;
+}
+
+.pitch-sources p,
+.pitch-sources ol,
+.pitch-sources ul,
+.pitch-sources li {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-muted, rgba(255, 255, 255, 0.45));
+}
+
+.pitch-sources p {
+  margin-bottom: 0.25rem;
+}
+
+.pitch-sources ol,
+.pitch-sources ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.pitch-sources li {
+  margin-bottom: 0.15rem;
+}
+
+.pitch-sources a {
+  color: var(--text-muted, rgba(255, 255, 255, 0.45));
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.2);
+}
+
+.pitch-sources a:hover {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+}
+
 /* ─── Error Toast ───────────────────────────────────── */
 .error-toast {
   position: fixed;

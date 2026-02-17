@@ -26,7 +26,15 @@ marked.setOptions({ breaks: true, gfm: true });
 
 function md(text) {
     if (!text) return '';
-    return marked.parse(text);
+    let html = marked.parse(text);
+
+    // Wrap the Sources section in a footnote-styled container.
+    // The Showrunner outputs **Sources:** followed by a numbered list.
+    html = html.replace(
+        /(<p><strong>Sources:<\/strong>(?:<\/p>)?)([\s\S]*?)$/i,
+        '<div class="pitch-sources"><hr>$1$2</div>'
+    );
+    return html;
 }
 
 // ─── Init ─────────────────────────────────────────────

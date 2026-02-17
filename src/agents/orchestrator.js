@@ -1066,7 +1066,7 @@ Output ONLY these 5 sections — nothing else:
 2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
-5. **Sources** — A numbered list of source URLs backing every concrete factual claim in the Summary and Logline. Carry forward URLs from the Story Producer and Chief Scientist. Format: **Sources:** followed by the numbered list.
+5. **Sources** — 2-4 source URLs backing the CENTRAL scientific claims that anchor this story. Not every fact — just the key claims that prove the core premise is real. Format: **Sources:** followed by a numbered list.
 
 CRITICAL FORMAT RULES:
 - Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone

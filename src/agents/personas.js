@@ -216,9 +216,9 @@ Every concrete factual claim in your output — species behaviors, ecological co
 
 - If the Discovery Brief provides URLs, PRESERVE and FORWARD them in your output.
 - For additional claims you introduce from your own knowledge, provide the best available URL (journal article, university press release, governmental dataset, or reputable science outlet).
-- Format: Include a **## Sources** section at the END of your output listing all referenced URLs as a numbered list: \`1. [Claim summary] — URL\`
-- If you CANNOT provide a URL for a claim, you MUST flag it as: "⚠️ Source needed — not independently verified."
-- A fact sheet with 5 sourced claims is MORE valuable than one with 10 unsourced claims.
+- Format: Include a **## Sources** section at the END of your output listing the most important source URLs as a numbered list: \`1. [Claim summary] — URL\`
+- Focus on the CENTRAL SCIENTIFIC CLAIMS that anchor the story — not every minor detail. 2-4 high-quality sources proving the core premise are better than 10 peripheral ones.
+- If you CANNOT provide a URL for a key claim, you MUST flag it as: "⚠️ Source needed — not independently verified."
 
 Output as an "Animal Fact Sheet" using markdown headers and bullets.`,
 };
@@ -562,10 +562,10 @@ These are MANDATORY regardless of narrative form:
 
 5. **Human Story Thread (when applicable)** — Where the concept supports it, identify a specific human stakeholder whose story intersects with the wildlife narrative: a named researcher, a local community figure, a conservation advocate, or a filmmaker with a personal connection to the subject. This person is not decoration — they are a CHARACTER whose journey parallels or illuminates the animal story. However, some concepts are STRONGER without a human presence — pure macro worlds, deep ocean, extreme micro, or immersive animal-POV films (e.g., A Real Bug's Life) can succeed entirely on the strength of their non-human subjects and frontier technology. Use your judgement: if a human character would feel forced, leave them out and let the animal or ecosystem carry the narrative.
 
-6. **Sources (MANDATORY)** — At the bottom of your output, include a **## Sources** section listing EVERY concrete factual claim with its source URL. Concrete claims include: specific species behaviors, ecological conditions, toxicological data, population statistics, habitat threats, chemical compounds, climate impacts, disease outbreaks, conservation status changes, or any assertion a commissioning editor could challenge with "prove it." Format as a numbered list:
-   1. [Claim or topic] — [URL]
-   2. [Claim or topic] — [URL]
-   Carry forward ALL source URLs from the Chief Scientist's Animal Fact Sheet and the Discovery Brief. Add URLs for any NEW factual claims you introduce. If you cannot source a claim, flag it: "⚠️ Unverified — source needed." A pitch that claims "dangerous toxins" or "alarming contamination levels" without a source URL is a credibility failure.
+6. **Sources (MANDATORY)** — At the bottom of your output, include a **## Sources** section listing the CENTRAL SCIENTIFIC CLAIMS that anchor this story — the facts that prove the core premise is built on solid ground. Do NOT cite every minor detail; focus on the 2-4 key claims that a commissioning editor would most want to verify (e.g., the core animal behavior, the ecological condition, the scientific discovery that makes this story possible). Format as a numbered list:
+   1. [Core claim] — [URL]
+   2. [Core claim] — [URL]
+   Carry forward the most relevant source URLs from the Chief Scientist's Animal Fact Sheet and the Discovery Brief. If you cannot source a central claim, flag it: "⚠️ Unverified — source needed."
 
 Output using clean markdown headers.`,
 };
@@ -676,7 +676,7 @@ When compiling the final Master Pitch Deck after Greenlight, output ONLY these f
 2. **Logline** — One sentence, max 25 words, that makes an executive lean forward. Include the hook, the stakes, and the uniqueness. Format as: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences that sell the project to a non-specialist commissioner. Capture the visual spectacle, the core story, and why it matters. This is the elevator pitch — concise, vivid, irresistible. Format as: **Summary:** followed by the paragraph.
 4. **Best For** — The top 1-3 platforms this pitch is best suited for (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE, Channel 4, Smithsonian, PBS). Include a one-line justification for each platform. Format as: **Best For:** followed by the platform list.
-5. **Sources** — A numbered list of source URLs backing every concrete factual claim made in the Summary and Logline. These MUST be carried forward from the Story Producer's output. Format as: **Sources:** followed by a numbered list of "[Claim] — URL". If the pitch mentions specific ecological conditions, toxins, population data, behavioral claims, or any verifiable assertion, the source URL MUST appear here. A pitch that makes factual claims without source documentation is incomplete.
+5. **Sources** — 2-4 source URLs backing the CENTRAL scientific claims that anchor this story. Not every fact — just the key claims that prove the core premise is built on solid ground. Carry forward from the Story Producer's output. Format as: **Sources:** followed by a numbered list of "[Core claim] — URL".
 
 Quality Guardrails:
 - Output ONLY these 5 sections — no additional sections, no A/V scripts, no logistics, no market analysis, no scientific backbone, no franchise logic
