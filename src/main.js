@@ -884,7 +884,7 @@ function buildPhaseIndicator(totalPhases) {
 }
 
 // ─── Main Flow ────────────────────────────────────────
-let latestAgentCard = null;
+const agentCardMap = new Map();
 let pipelineRunning = false;
 let pipelineStatusBar = null;
 let pipelineStartTime = null;
@@ -973,14 +973,16 @@ const pipelineCallbacks = {
 
     },
     onAgentThinking(agent) {
-        latestAgentCard = createAgentCard(agent);
+        const card = createAgentCard(agent);
+        agentCardMap.set(agent.id, card);
         updatePipelineStatusBar(null, `${agent.icon} ${agent.name}`);
         updateAgentRing(agent);
 
     },
     onAgentOutput(agent, outputText) {
-        if (latestAgentCard) {
-            fillAgentCard(latestAgentCard, outputText);
+        const card = agentCardMap.get(agent.id);
+        if (card) {
+            fillAgentCard(card, outputText);
         }
     },
     onPhaseComplete(phaseNumber) {
