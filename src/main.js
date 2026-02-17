@@ -2,8 +2,7 @@ import { initGemini, createChat, callAgent, extractPdfText, extractUrlContent } 
 import { runPipeline, runAssessment, suggestGenres, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
 import { loadCheckpoint, clearCheckpoint } from './pipelineState.js';
-import { chunkText } from './knowledge/chunker.js';
-import { embedBatch } from './knowledge/embeddings.js';
+// chunkText and embedBatch are handled inside ragWorker.js (Web Worker)
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
 import { evaluatePitchDeck, runDryrun } from './quality/evaluator.js';
 import {
@@ -35,7 +34,7 @@ try {
     initGemini();
 } catch (err) {
     if (err.message === 'MISSING_API_KEY') {
-        showError('API key missing. Set VITE_GEMINI_API_KEY in your .env file and restart.');
+        showError('API key missing. Set GEMINI_API_KEY in your Vercel environment and redeploy.');
     }
 }
 
@@ -362,6 +361,36 @@ fileInput.addEventListener('change', () => {
     fileInput.value = '';
 });
 
+function runRagWorker(text, isPdf) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            new URL('./knowledge/ragWorker.js', import.meta.url),
+            { type: 'classic' }
+        );
+
+        worker.onmessage = (e) => {
+            const msg = e.data;
+            if (msg.type === 'progress') {
+                progressFill.style.width = `${msg.pct}%`;
+                progressText.textContent = msg.phase;
+            } else if (msg.type === 'done') {
+                worker.terminate();
+                resolve({ chunks: msg.chunks, embeddings: msg.embeddings });
+            } else if (msg.type === 'error') {
+                worker.terminate();
+                reject(new Error(msg.message));
+            }
+        };
+
+        worker.onerror = (err) => {
+            worker.terminate();
+            reject(new Error(err.message || 'Worker error'));
+        };
+
+        worker.postMessage({ type: 'process', text, isPdf });
+    });
+}
+
 async function handleFiles(fileList) {
     for (const file of fileList) {
         const ext = file.name.split('.').pop().toLowerCase();
@@ -397,23 +426,12 @@ async function handleFiles(fileList) {
                 text = await file.text();
             }
 
-            const chunks = chunkText(text);
-            if (chunks.length === 0) {
-                showError(`File "${file.name}" is empty or too short.`);
-                continue;
-            }
-
-            // Show progress
+            // Show progress and offload chunking + embedding to Web Worker
             uploadProgress.classList.remove('hidden');
             progressFill.style.width = ext === 'pdf' ? '40%' : '0%';
-            progressText.textContent = `Embedding "${file.name}"… 0/${chunks.length}`;
+            progressText.textContent = `Processing "${file.name}"…`;
 
-            const embeddings = await embedBatch(chunks, (current, total) => {
-                const base = ext === 'pdf' ? 40 : 0;
-                const pct = base + Math.round((current / total) * (100 - base));
-                progressFill.style.width = `${pct}%`;
-                progressText.textContent = `Embedding "${file.name}"… ${current}/${total}`;
-            });
+            const { chunks, embeddings } = await runRagWorker(text, ext === 'pdf');
 
             progressText.textContent = 'Saving to knowledge base…';
             await addDocument(file.name, chunks, embeddings);
@@ -502,22 +520,16 @@ async function handleUrl() {
         }
 
         progressFill.style.width = '30%';
-        progressText.textContent = `Chunking content…`;
+        progressText.textContent = `Processing content…`;
 
-        const chunks = chunkText(text);
+        // Offload chunking + embedding to Web Worker
+        const { chunks, embeddings } = await runRagWorker(text, false);
+
         if (chunks.length === 0) {
             showError('Extracted content was too short to store.');
             uploadProgress.classList.add('hidden');
             return;
         }
-
-        progressText.textContent = `Embedding… 0/${chunks.length}`;
-
-        const embeddings = await embedBatch(chunks, (current, total) => {
-            const pct = 30 + Math.round((current / total) * 60);
-            progressFill.style.width = `${pct}%`;
-            progressText.textContent = `Embedding… ${current}/${total}`;
-        });
 
         progressFill.style.width = '95%';
         progressText.textContent = 'Saving to knowledge base…';

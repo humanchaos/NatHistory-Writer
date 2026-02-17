@@ -1,46 +1,43 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-let genAI = null;
+/**
+ * Gemini API client — proxied through Vercel serverless functions.
+ *
+ * All calls route through /api/* so the API key never reaches the browser.
+ * In dev mode (Vite), requests are proxied to `vercel dev` via vite.config.js.
+ */
 
 /**
- * Initialize the Gemini client. Call once at startup.
+ * Initialize the Gemini client. Now a no-op — kept for backward compatibility
+ * so callers that used to call initGemini() don't break.
  */
 export function initGemini() {
-    if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
-        throw new Error('MISSING_API_KEY');
-    }
-    genAI = new GoogleGenerativeAI(API_KEY);
+    // No-op: the API key lives server-side now.
+    // We keep this function so main.js doesn't need to remove its try/catch.
 }
 
 /**
  * Call an agent with the given system prompt and user message.
- * Creates a fresh model instance per call with the system instruction baked in.
+ * Routes through /api/generate.
  * Optionally accepts tools (e.g. Google Search grounding).
  * Returns the response text.
  */
 export async function callAgent(systemPrompt, userMessage, { retries = 2, tools = [], signal } = {}) {
-    if (!genAI) initGemini();
-
-    const modelConfig = {
-        model: 'gemini-2.0-flash',
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-    };
-
-    if (tools.length > 0) {
-        modelConfig.tools = tools;
-    }
-
     for (let attempt = 0; attempt <= retries; attempt++) {
         if (signal?.aborted) throw new DOMException('Agent call aborted', 'AbortError');
         try {
-            const model = genAI.getGenerativeModel(modelConfig);
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ systemPrompt, userMessage, tools }),
+                signal,
+            });
 
-            const result = await model.generateContent(userMessage);
-            if (signal?.aborted) throw new DOMException('Agent call aborted', 'AbortError');
-            const response = await result.response;
-            return response.text();
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: res.statusText }));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+            return data.text;
         } catch (err) {
             if (err.name === 'AbortError') throw err;
             console.warn(`Agent call attempt ${attempt + 1} failed:`, err.message);
@@ -53,72 +50,83 @@ export async function callAgent(systemPrompt, userMessage, { retries = 2, tools 
 
 /**
  * Create a multi-turn chat session with a system prompt.
- * Optionally accepts tools (e.g. Google Search grounding).
+ * Stateless: accumulates history client-side and sends it with each turn
+ * via /api/generate (Vercel serverless functions are stateless).
  * Returns an object with send(message) → Promise<string>.
  */
 export function createChat(systemPrompt, { tools = [] } = {}) {
-    if (!genAI) initGemini();
-
-    const modelConfig = {
-        model: 'gemini-2.0-flash',
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-    };
-
-    if (tools.length > 0) {
-        modelConfig.tools = tools;
-    }
-
-    const model = genAI.getGenerativeModel(modelConfig);
-    const chat = model.startChat();
+    // Accumulate conversation history for multi-turn
+    const history = [];
 
     return {
         async send(message) {
-            const result = await chat.sendMessage(message);
-            const response = await result.response;
-            return response.text();
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemPrompt,
+                    userMessage: message,
+                    tools,
+                    history,
+                }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: res.statusText }));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            // Append to history for next turn
+            history.push(
+                { role: 'user', parts: [{ text: message }] },
+                { role: 'model', parts: [{ text: data.text }] }
+            );
+
+            return data.text;
         },
     };
 }
 
 /**
- * Extract text content from a PDF via Gemini multimodal.
+ * Extract text content from a PDF via the server-side proxy.
  * @param {string} base64Data — base64-encoded PDF bytes
  * @returns {Promise<string>} — extracted text
  */
 export async function extractPdfText(base64Data) {
-    if (!genAI) initGemini();
+    const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'pdf', data: base64Data }),
+    });
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
 
-    const result = await model.generateContent([
-        {
-            inlineData: {
-                mimeType: 'application/pdf',
-                data: base64Data,
-            },
-        },
-        { text: 'Extract ALL text content from this PDF document. Preserve the structure (headings, paragraphs, lists, tables). Output ONLY the extracted text — no commentary, no summary, no analysis. If the PDF contains images with text, OCR them.' },
-    ]);
-
-    return (await result.response).text();
+    const data = await res.json();
+    return data.text;
 }
 
 /**
- * Extract text content from a URL via Gemini + Google Search grounding.
+ * Extract text content from a URL via the server-side proxy.
  * @param {string} url — the URL to read
  * @returns {Promise<string>} — extracted text
  */
 export async function extractUrlContent(url) {
-    if (!genAI) initGemini();
-
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        tools: [{ googleSearch: {} }],
+    const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'url', data: url }),
     });
 
-    const result = await model.generateContent(
-        `Read the full content of this web page and extract ALL text: ${url}\n\nOutput ONLY the extracted text content — preserve headings, paragraphs, lists, and key data. Do NOT summarize or analyze. Include all substantive text visible on the page.`
-    );
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
 
-    return (await result.response).text();
+    const data = await res.json();
+    return data.text;
 }

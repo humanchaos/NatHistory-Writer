@@ -1,16 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-let embeddingModel = null;
-
-function getModel() {
-    if (!embeddingModel) {
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
-    }
-    return embeddingModel;
-}
+/**
+ * Text embedding client — proxied through /api/embed.
+ * The API key never reaches the browser.
+ */
 
 /**
  * Embed a single text string. Returns a float array.
@@ -18,13 +9,24 @@ function getModel() {
  * @returns {Promise<number[]>}
  */
 export async function embedText(text) {
-    const model = getModel();
-    const result = await model.embedContent(text);
-    return result.embedding.values;
+    const res = await fetch('/api/embed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.embedding;
 }
 
 /**
- * Embed multiple text chunks in batch (sequential to respect rate limits).
+ * Embed multiple text chunks sequentially with progress callback.
+ * Each chunk is sent as a separate request to keep progress reporting accurate.
  * @param {string[]} texts
  * @param {function} [onProgress] — optional callback(current, total)
  * @returns {Promise<number[][]>}
