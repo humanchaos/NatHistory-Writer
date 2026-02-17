@@ -1136,7 +1136,7 @@ Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch c
 2. **Logline** — One sentence, max 25 words
 3. **Summary** — 3-5 sentences, cinematic and compelling
 4. **Best For** — Top 1-3 platforms with one-line justification each
-5. **Sources** — Numbered list of source URLs for all factual claims
+5. **Sources** — Each source must directly support a specific claim in the Summary
 
 CRITICAL: Output ONLY these 5 sections. No preamble, no agent meta-commentary, no "INCORPORATING PROVOCATION" lines. Start with the ## Title heading.`,
             cbs
