@@ -1058,20 +1058,19 @@ ${ctx.draftV2}
 ### Full Editor Review (FALLBACK)
 ${ctx.greenlightReview}
 
-IMPORTANT: You MUST state whether you are incorporating the Provocateur's challenge:
-- INCORPORATING PROVOCATION: YES — [explain what you took]
-- INCORPORATING PROVOCATION: NO — [explain why you rejected it]
+Internally decide whether to incorporate the Provocateur's challenge — but do NOT include any meta-commentary about provocation in your output.
 
-Output ONLY these 4 sections — nothing else:
+Output ONLY these 5 sections — nothing else:
 
 1. **Title** — As a prominent ## heading. Evocative, marketable, unique.
 2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
+5. **Sources** — A numbered list of source URLs backing every concrete factual claim in the Summary and Logline. Carry forward URLs from the Story Producer and Chief Scientist. Format: **Sources:** followed by the numbered list.
 
 CRITICAL FORMAT RULES:
-- Output ONLY these 4 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone
-- No agent commentary, no preamble, no "Okay, Showrunner here"
+- Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone
+- No agent commentary, no preamble, no "Okay, Showrunner here", no "INCORPORATING PROVOCATION" lines
 - Do NOT include action items, revision directives, or routing instructions
 - Start directly with the ## Title heading
 - This must be clean, compact, and presentation-ready.`,
@@ -1132,13 +1131,14 @@ ${ctx.finalPitchDeck}
 ### Original Seed Idea:
 "${seedIdea}"
 
-Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch card with ONLY these 4 sections:
+Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch card with ONLY these 5 sections:
 1. **Title** — ## heading
 2. **Logline** — One sentence, max 25 words
 3. **Summary** — 3-5 sentences, cinematic and compelling
 4. **Best For** — Top 1-3 platforms with one-line justification each
+5. **Sources** — Numbered list of source URLs for all factual claims
 
-CRITICAL: Output ONLY these 4 sections. No preamble, no agent meta-commentary. Start with the ## Title heading.`,
+CRITICAL: Output ONLY these 5 sections. No preamble, no agent meta-commentary, no "INCORPORATING PROVOCATION" lines. Start with the ## Title heading.`,
             cbs
         );
 
@@ -1203,6 +1203,9 @@ function sanitizeFinalOutput(text) {
 
     // Remove agent routing like "(Routed to Scientific Consultant/Scriptwriter)"
     cleaned = cleaned.replace(/\(Routed to [^)]+\)/gi, '');
+
+    // Remove "INCORPORATING PROVOCATION" meta-commentary that leaks from the prompt
+    cleaned = cleaned.replace(/\n*INCORPORATING PROVOCATION:.*(?:\n(?!##|$|\*\*).*)*/gi, '');
 
     // Remove trailing meta-commentary after the pitch card content
     // (e.g., "Let me know if you'd like adjustments..." or "---\n\nAction Items:...")
