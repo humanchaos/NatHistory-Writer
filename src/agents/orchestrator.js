@@ -577,6 +577,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
     // ─── SCIENCE GATE: Severity-classified pivot loop (Patch 4) ──────
     const sciRejection = detectRejection(ctx.animalFactSheet);
+    let scienceAttempts = 0;
     if (sciRejection.rejected) {
         const sciSeverity = classifySeverity(ctx.animalFactSheet, 'SCIENTIFIC');
 
@@ -590,7 +591,6 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         }
 
         // RECOVERABLE: ≤3 pivots
-        let scienceAttempts = 0;
         while (detectRejection(ctx.animalFactSheet).rejected && scienceAttempts < maxRevisions) {
             scienceAttempts++;
             cbs.onPhaseStart(1, `🔄 Science Pivot — Attempt ${scienceAttempts}/${maxRevisions}`);
