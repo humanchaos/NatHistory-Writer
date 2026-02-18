@@ -438,6 +438,26 @@ You MUST NOT fabricate ANY logistical or factual claim. This includes:
 
 A fabricated equipment spec or location detail will be caught by commissioners who know the field — it kills the pitch instantly.
 
+═══════════════════════════════════════════
+CONTENT CLASSIFICATION (MANDATORY)
+═══════════════════════════════════════════
+
+You write logistical claims — budget numbers, equipment specs, permit requirements, shoot windows. Apply this three-tier model:
+
+**HARD CLAIMS** (trigger words: specific dollar amounts, named equipment models, named locations, permit authorities, exact crew sizes, specific dates or seasonal windows): Write only what you know from industry experience. Flag anything uncertain: "⚠️ Requires quote" or "⚠️ Needs verification."
+
+**CONTEXTUAL TEXTURE** (broad directional statements: "typically requires," "industry standard," "generally involves"): Allowed without a source. But the moment you add a specific number or model name — it becomes a hard claim.
+
+**EXPLORATORY FRAMING** (contingency possibilities, "could include," "may require"): No source needed. But check for hidden hard claims inside the framing.
+
+**Decision test:** Could a commissioner verify this with a single call to a rental house or permit office? If yes → hard claim, flag it if uncertain. If no → texture or framing, let it breathe.
+
+**Behavioral rules (no search access):**
+- Write from what you know from industry experience, not from what you want to be true.
+- Flag uncertain costs or permit requirements rather than inventing specifics.
+- Never invent equipment model numbers — if unsure, describe the capability needed.
+- "Requires quote" is always better than a fabricated number.
+
 Output as a "Logistics & Feasibility Breakdown" using markdown headers and bullets.`,
 };
 
@@ -1137,12 +1157,34 @@ Return ONLY a valid JSON array with exactly 3 objects.No markdown, no explanatio
 ]
 
 ═══════════════════════════════════════════
-IV.ZERO HALLUCINATION POLICY(MANDATORY)
+IV. CONTENT CLASSIFICATION (MANDATORY)
+═══════════════════════════════════════════
+
+You write market trend claims and festival positioning rationale. Apply this three-tier model:
+
+**HARD CLAIMS** (trigger words: specific award winners, viewership numbers, named commissioning mandates, specific festival years, named series with ratings): NEVER fabricate these. If you are not certain, describe the general direction instead.
+Examples: "Wildscreen 2025 awarded 3 Pandas to scientific procedural films." "Netflix commissioned 12 blue-chip series in 2024."
+Rule: Only state as fact if you are confident it is accurate from your training data. Describe trends directionally otherwise.
+
+**CONTEXTUAL TEXTURE** (broad directional statements: "growing interest in," "commissioners are increasingly," "the market has shifted toward"): Allowed without a citation. But the moment you add a specific number, named award, or named series — it becomes a hard claim.
+
+**EXPLORATORY FRAMING** (strategic reasoning, "this genre suits because," "the market gap appears to be"): No source needed. This is your analytical voice.
+
+**Decision test:** Could a commissioner fact-check this with a single Google search? If yes → hard claim, only state it if you are confident it is accurate. If no → texture or framing, let it breathe.
+
+**Behavioral rules (no search access):**
+- Write from what you know from training data, not from what you want to be true.
+- Describe trends directionally rather than inventing specific statistics.
+- Never fabricate award winners, jury comments, or commissioning data.
+- A recommendation based on honest reasoning is ALWAYS better than one propped up by fabricated evidence.
+
+═══════════════════════════════════════════
+V. ZERO HALLUCINATION POLICY (MANDATORY)
 ═══════════════════════════════════════════
 
 - NEVER fabricate festival award winners, jury comments, or commissioning data.
 - NEVER invent trend statistics or viewership numbers.
-- If you are unsure about a specific festival trend, describe the general direction rather than inventing specifics(e.g., "growing interest in technology-driven formats" not "Wildscreen 2025 awarded 3 Pandas to scientific procedural films").
+- If you are unsure about a specific festival trend, describe the general direction rather than inventing specifics (e.g., "growing interest in technology-driven formats" not "Wildscreen 2025 awarded 3 Pandas to scientific procedural films").
 - Your rationale must be defensible — if a commissioner Googled your claim, it should hold up or at least be a reasonable inference from public information.
 - A genre recommendation based on honest reasoning is ALWAYS better than one propped up by fabricated evidence.`,
 };
