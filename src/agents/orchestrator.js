@@ -8,12 +8,14 @@ import {
     SHOWRUNNER,
     ADVERSARY,
     DISCOVERY_SCOUT,
+    DRIFT_GATE,
     GENRE_STRATEGIST,
     ALL_AGENTS,
 } from './personas.js';
 import { retrieveContext, retrieveNarrativeContext } from '../knowledge/rag.js';
 import { saveCheckpoint, clearCheckpoint } from '../pipelineState.js';
 import { PROVOCATEUR, rollMutations, applyMutations, generateAccident, CHAOS_MODES } from './chaos.js';
+import { validateSources } from './urlValidator.js';
 export { CHAOS_MODES };
 
 /**
@@ -484,7 +486,71 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         cbs.onPhaseComplete(0);
     }
 
-    const discoveryBrief = ctx._discoveryBrief || '';
+    let discoveryBrief = ctx._discoveryBrief || '';
+
+    // ─── DRIFT GATE ──────────────────────────────────────────────────────────
+    // Binary checkpoint: validates the Discovery Brief is relevant to the seed.
+    // Runs without Google Search (text comparison only — cheap and fast).
+    // Max 2 retries if FAIL, then continues with a warning.
+    if (discoveryBrief && !shouldSkip('discovery')) {
+        const MAX_GATE_RETRIES = 2;
+        let gateAttempts = 0;
+        let gatePassed = false;
+
+        while (gateAttempts < MAX_GATE_RETRIES && !gatePassed) {
+            gateAttempts++;
+            let gateRaw = '';
+            try {
+                gateRaw = await mutatedAgentStep(
+                    DRIFT_GATE,
+                    `Seed idea: "${seedIdea}"\n\nDiscovery Brief:\n${discoveryBrief}`,
+                    cbs
+                    // No Google Search — pure text comparison
+                );
+            } catch (e) {
+                console.warn('Drift Gate error:', e.message);
+                break; // If Gate itself fails, proceed without blocking
+            }
+
+            // Parse the JSON response
+            let gateResult = null;
+            try {
+                const jsonMatch = gateRaw.match(/\{[\s\S]*\}/);
+                if (jsonMatch) gateResult = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                console.warn('Drift Gate: could not parse JSON response, proceeding.');
+                break;
+            }
+
+            if (!gateResult) break;
+
+            if (gateResult.status === 'PASS') {
+                gatePassed = true;
+                console.log(`Drift Gate: PASS (${gateResult.confidence}) — ${gateResult.alignment_summary}`);
+            } else if (gateResult.status === 'FAIL' && gateAttempts < MAX_GATE_RETRIES) {
+                // Re-run Scout with tighter constraints from Gate's recommendation
+                console.warn(`Drift Gate: FAIL (${gateResult.drift_type}) — ${gateResult.explanation}`);
+                cbs.onPhaseStart(0, '🔬 Re-Scouting (Drift Gate triggered)');
+                try {
+                    discoveryBrief = await mutatedAgentStep(
+                        DISCOVERY_SCOUT,
+                        `${seedAnchor}${gateResult.recommendation}\n\nSearch for recent scientific discoveries related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\n⛔ ANTI-DRIFT RULE: Stay STRICTLY on the seed topic. The previous search drifted. Do NOT repeat that drift.\n\nReturn a structured Discovery Brief.`,
+                        cbs,
+                        { tools: [{ googleSearch: {} }] }
+                    );
+                    ctx._discoveryBrief = discoveryBrief;
+                } catch (e) {
+                    console.warn('Scout re-run failed:', e.message);
+                    break;
+                }
+                cbs.onPhaseComplete(0);
+            } else {
+                // Final FAIL after retries — log and continue with warning
+                console.warn(`Drift Gate: FAIL after ${gateAttempts} attempts. Proceeding with warning.`);
+                discoveryBrief = `⚠️ DRIFT GATE WARNING: The Discovery Brief may not be fully aligned with the seed idea. Downstream agents: treat the Brief as background context only — the seed is the anchor.\n\n${discoveryBrief}`;
+            }
+        }
+    }
     // ⚠️ ANTI-DRIFT WARNING injected with every Discovery Brief:
     // The Brief provides scientific depth — it must NOT be treated as a concept replacement.
     // If the Brief introduces species or locations not present in the original seed, IGNORE those elements.
@@ -1212,7 +1278,19 @@ Re-evaluate. Have your core concerns been addressed? Run your full audit again.$
     }
 
     // Return the compact pitch card only (Title, Logline, Summary, Best For)
-    return sanitizeFinalOutput(ctx.finalPitchDeck);
+    // ─── URL VALIDATOR: strip broken/hallucinated source links before delivery ───
+    try {
+        const validated = await validateSources(ctx.finalPitchDeck);
+        if (validated.summary.broken > 0) {
+            console.warn(`URL Validator: ${validated.note}`);
+        }
+        clearCheckpoint();
+        return sanitizeFinalOutput(validated.output);
+    } catch (e) {
+        console.warn('URL Validator failed, returning unvalidated output:', e.message);
+        clearCheckpoint();
+        return sanitizeFinalOutput(ctx.finalPitchDeck);
+    }
 }
 
 /**
