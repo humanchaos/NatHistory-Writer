@@ -1089,7 +1089,10 @@ Output ONLY these 5 sections — nothing else:
 2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
-5. **Sources** — 2-4 source URLs backing the CENTRAL scientific claims that anchor this story. Not every fact — just the key claims that prove the core premise is real. Format: **Sources:** followed by a numbered list.
+5. **Sources** — For each central factual claim in your Summary, you MUST use your Google Search tool to find and verify a real source URL. The standard is:
+   - The source must DIRECTLY support the exact claim as written in your Summary, OR
+   - If you cannot find a source that supports the claim, REWRITE the claim in your Summary to match what a real source actually says.
+   There is no third option. Do NOT carry forward URLs from upstream agents without searching to verify them yourself. Do NOT invent URLs. If after searching you still cannot verify a claim, remove it from the Summary entirely rather than presenting an unverified claim. Format: **Sources:** followed by a numbered list of "[Exact claim from Summary] — [verified URL]".
 
 CRITICAL FORMAT RULES:
 - Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone
@@ -1097,7 +1100,8 @@ CRITICAL FORMAT RULES:
 - Do NOT include action items, revision directives, or routing instructions
 - Start directly with the ## Title heading
 - This must be clean, compact, and presentation-ready.`,
-            cbs
+            cbs,
+            { tools: [{ googleSearch: {} }] }
         );
         checkpoint_('finalPitchDeck', 5);
     }
@@ -1159,11 +1163,13 @@ Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch c
 2. **Logline** — One sentence, max 25 words
 3. **Summary** — 3-5 sentences, cinematic and compelling
 4. **Best For** — Top 1-3 platforms with one-line justification each
-5. **Sources** — Each source must directly support a specific claim in the Summary
+5. **Sources** — Use your Google Search tool to verify each source. For every factual claim in the Summary: either find a real URL that directly supports it, or rewrite the claim to match what a real source actually says. Do NOT invent URLs. Do NOT carry forward unverified URLs from the previous pitch card.
 
 CRITICAL: Output ONLY these 5 sections. No preamble, no agent meta-commentary, no "INCORPORATING PROVOCATION" lines. Start with the ## Title heading.`,
-            cbs
+            cbs,
+            { tools: [{ googleSearch: {} }] }
         );
+
 
         // Adversary reviews the revision
         ctx.gatekeeperVerdict = await mutatedAgentStep(
