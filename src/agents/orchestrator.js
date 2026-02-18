@@ -11,7 +11,7 @@ import {
     GENRE_STRATEGIST,
     ALL_AGENTS,
 } from './personas.js';
-import { retrieveContext } from '../knowledge/rag.js';
+import { retrieveContext, retrieveNarrativeContext } from '../knowledge/rag.js';
 import { saveCheckpoint, clearCheckpoint } from '../pipelineState.js';
 import { PROVOCATEUR, rollMutations, applyMutations, generateAccident, CHAOS_MODES } from './chaos.js';
 export { CHAOS_MODES };
@@ -238,18 +238,25 @@ function extractScore(agentOutput) {
  */
 export async function suggestGenres(seedIdea) {
 
-    // 1. Retrieve knowledge base context
+    // 1. Retrieve knowledge base context (topic + narrative form signals in parallel)
     let knowledgeContext = '';
+    let narrativeContext = '';
     try {
-        knowledgeContext = await retrieveContext(seedIdea);
+        [knowledgeContext, narrativeContext] = await Promise.all([
+            retrieveContext(seedIdea),
+            retrieveNarrativeContext(),
+        ]);
     } catch (e) {
         console.warn('Knowledge retrieval skipped for genre suggestion:', e.message);
     }
     const kbBlock = knowledgeContext
         ? `\n\nThe user has uploaded the following research/reports to the knowledge base. Use these signals to inform your genre recommendations:\n\n${knowledgeContext}\n\n`
         : '';
+    const narrativeKbBlock = narrativeContext
+        ? `\n\n${narrativeContext}\n\nUse these live industry signals to inform which narrative forms are currently in demand, gaining momentum, or experiencing fatigue.\n\n`
+        : '';
 
-    const prompt = `Analyze this seed idea and recommend 3 maximally different genre lenses from the genre menu:\n\n"${seedIdea}"${kbBlock}\n\nReturn ONLY the JSON array — no markdown fences, no explanation.`;
+    const prompt = `Analyze this seed idea and recommend 3 maximally different genre lenses from the genre menu:\n\n"${seedIdea}"${kbBlock}${narrativeKbBlock}\n\nReturn ONLY the JSON array — no markdown fences, no explanation.`;
 
     // Helper: extract and validate a JSON array of genre objects from raw text
     const extractGenres = (raw) => {
@@ -430,14 +437,25 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     const optionsSuffix = seedOverrideNote + platformNote + yearNote + directiveNote + genreNote;
 
     // Retrieve relevant knowledge from the vector store (no-op if empty)
+    // Two parallel queries: (1) topic-matched content, (2) narrative form signals
     let knowledgeContext = '';
+    let narrativeContext = '';
     try {
-        knowledgeContext = await retrieveContext(seedIdea);
+        [knowledgeContext, narrativeContext] = await Promise.all([
+            retrieveContext(seedIdea),
+            retrieveNarrativeContext(),
+        ]);
     } catch (e) {
         console.warn('Knowledge retrieval skipped:', e.message);
     }
 
     const kbBlock = knowledgeContext ? `\n\n${knowledgeContext}\n\n` : '';
+
+    // narrativeKbBlock is injected specifically into Market Analyst and Genre Strategist
+    // — the agents responsible for setting narrative form for all downstream agents
+    const narrativeKbBlock = narrativeContext
+        ? `\n\n${narrativeContext}\n\n⚡ NARRATIVE FORM MANDATE: The signals above are LIVE industry data on what narrative formats commissioners are actively buying, what formats are gaining momentum, and what is experiencing fatigue. Your Narrative Strategy Recommendation (Section 7) MUST be grounded in these signals — not generic assumptions. Reference specific format trends from the signals when justifying your recommended narrative form.\n\n`
+        : '';
 
     // ─── SEED FIDELITY GUARD ─────────────────────────────
     // Prevents concept drift: every agent is anchored to the user's original idea
@@ -477,7 +495,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
         ctx.marketMandate = await mutatedAgentStep(
             MARKET_ANALYST,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${narrativeKbBlock}${discoveryBlock}${optionsSuffix}Analyze this against current market trends. You MUST include: specific buyer slate gaps with platform names, 3 trend examples with series names and years, competitive differentiation against the top 3 closest existing titles, and a budget tier recommendation. Output your full Market Mandate.`,
             cbs,
             { tools: [{ googleSearch: {} }] }
         );

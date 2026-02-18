@@ -5,7 +5,7 @@
             "category": "Deal Flow",
             "label": "Realscreen — Factual & Documentary",
             "url": "https://realscreen.com/category/factual-and-documentary/",
-            "extractionTarget": "Extract all article headlines, summaries, executive names, deal announcements, greenlight news, and streamer mentions (Netflix, Disney+, Apple TV+, BBC). Flag any executive reshuffles or first-look deals.",
+            "extractionTarget": "Extract all article headlines, summaries, executive names, deal announcements, greenlight news, and streamer mentions (Netflix, Disney+, Apple TV+, BBC). Flag any executive reshuffles or first-look deals. CRITICAL — also extract: episode count and series structure for every commissioned title (e.g. '3-part limited series', '6x60', 'feature-length special'), narrative format descriptors (character-led, observational, archive-driven, presenter-led, immersive POV), and any explicit commissioning editor statements about what narrative forms they are actively seeking or avoiding.",
             "signalKeywords": [
                 "greenlight",
                 "first-look",
@@ -17,7 +17,15 @@
                 "Apple TV+",
                 "BBC",
                 "co-production",
-                "budget"
+                "budget",
+                "limited series",
+                "character-led",
+                "observational",
+                "presenter-led",
+                "narrative form",
+                "episode count",
+                "series structure",
+                "format"
             ]
         },
         {
@@ -25,7 +33,7 @@
             "category": "Deal Flow",
             "label": "C21Media — Factual Genre",
             "url": "https://www.c21media.net/genre/factual/",
-            "extractionTarget": "Extract co-production announcements, budget trend signals, funding gap mentions, tax credit news, and partner broadcaster names. Focus on wildlife and natural history content.",
+            "extractionTarget": "Extract co-production announcements, budget trend signals, funding gap mentions, tax credit news, and partner broadcaster names. Focus on wildlife and natural history content. CRITICAL — also extract: the narrative format of every commissioned title (e.g. 'blue-chip', 'authored documentary', 'immersive series', 'event special'), any statements about format fatigue or format momentum (e.g. 'buyers moving away from X toward Y'), and episode structure details (number of episodes, runtime per episode).",
             "signalKeywords": [
                 "co-production",
                 "co-pro",
@@ -35,7 +43,15 @@
                 "partner",
                 "natural history",
                 "wildlife",
-                "factual"
+                "factual",
+                "blue-chip",
+                "authored",
+                "immersive",
+                "format fatigue",
+                "narrative form",
+                "episode structure",
+                "limited series",
+                "event special"
             ]
         },
         {
@@ -43,7 +59,7 @@
             "category": "Innovation Hubs",
             "label": "Wildscreen — News",
             "url": "https://wildscreen.org/news/",
-            "extractionTarget": "Extract Digital-First initiatives, Panda Award category changes, Gen Z audience strategy mentions, conservation storytelling trends, and ethical production debates.",
+            "extractionTarget": "Extract Digital-First initiatives, Panda Award category changes, Gen Z audience strategy mentions, conservation storytelling trends, and ethical production debates. CRITICAL — also extract: any statements about which storytelling formats are winning awards or gaining industry recognition (e.g. 'immersive VR', 'character-driven arc', 'community-embedded filmmaking'), shifts in how stories are being structured (e.g. 'moving from species-focused to ecosystem-focused narratives'), and any explicit discussion of narrative innovation in wildlife filmmaking.",
             "signalKeywords": [
                 "digital-first",
                 "Panda Award",
@@ -52,7 +68,13 @@
                 "impact",
                 "local storytellers",
                 "ethical",
-                "authentic"
+                "authentic",
+                "storytelling format",
+                "narrative innovation",
+                "character arc",
+                "immersive",
+                "ecosystem narrative",
+                "community filmmaking"
             ]
         },
         {
@@ -60,7 +82,7 @@
             "category": "Innovation Hubs",
             "label": "Jackson Wild — Blog",
             "url": "https://jacksonwild.org/blog",
-            "extractionTarget": "Extract mentions of impact storytelling, conservation data, local storytellers, indigenous knowledge, AI in filmmaking, and ethical production debates. This is the moral compass of the industry.",
+            "extractionTarget": "Extract mentions of impact storytelling, conservation data, local storytellers, indigenous knowledge, AI in filmmaking, and ethical production debates. This is the moral compass of the industry. CRITICAL — also extract: any discussion of narrative structure and form (e.g. 'non-linear storytelling', 'first-person narration', 'multi-protagonist structure', 'hybrid doc-drama'), statements about what narrative approaches resonate with modern audiences, and any critique of outdated narrative conventions in wildlife filmmaking.",
             "signalKeywords": [
                 "impact",
                 "conservation data",
@@ -69,7 +91,14 @@
                 "AI",
                 "ethical",
                 "authentic capture",
-                "generating"
+                "generating",
+                "non-linear",
+                "first-person",
+                "multi-protagonist",
+                "hybrid",
+                "narrative structure",
+                "modern audience",
+                "storytelling approach"
             ]
         },
         {
@@ -77,7 +106,7 @@
             "category": "UK Core",
             "label": "Broadcast Now — Natural History",
             "url": "https://www.broadcastnow.co.uk/natural-history",
-            "extractionTarget": "Extract technical delivery specs (8K, VR, remote production), UK production house news, Bristol-based company announcements, and any commissioning editor moves.",
+            "extractionTarget": "Extract technical delivery specs (8K, VR, remote production), UK production house news, Bristol-based company announcements, and any commissioning editor moves. CRITICAL — also extract: any commissioning editor quotes about preferred narrative formats, statements about what BBC/ITV/Channel 4 are commissioning vs. passing on in terms of format and structure, and any discussion of how technical innovation is enabling new narrative forms (e.g. 'remote cameras enabling observational storytelling without crew presence').",
             "signalKeywords": [
                 "8K",
                 "VR",
@@ -87,7 +116,13 @@
                 "natural history",
                 "commission",
                 "HDR",
-                "streaming"
+                "streaming",
+                "narrative format",
+                "commissioning preference",
+                "observational",
+                "authored",
+                "presenter-led",
+                "format trend"
             ]
         },
         {
@@ -95,7 +130,7 @@
             "category": "UK Core",
             "label": "Televisual — Factual",
             "url": "https://www.televisual.com/news-category/factual/",
-            "extractionTarget": "Extract production craft details: camera rigs, software tools, drone technology, underwater systems, and any mentions of specific production companies and their technical innovations.",
+            "extractionTarget": "Extract production craft details: camera rigs, software tools, drone technology, underwater systems, and any mentions of specific production companies and their technical innovations. CRITICAL — also extract: how specific technical capabilities are shaping narrative choices (e.g. 'new tracking tech enabling continuous behaviour observation enabling long-form character arcs'), any discussion of production approach that implies narrative form (e.g. 'embedded crew over 18 months' implies observational/authored format), and format-defining production decisions.",
             "signalKeywords": [
                 "rig",
                 "drone",
@@ -105,7 +140,13 @@
                 "production",
                 "craft",
                 "tracking",
-                "simulating"
+                "simulating",
+                "character arc",
+                "embedded crew",
+                "observational",
+                "long-form",
+                "narrative choice",
+                "production approach"
             ]
         },
         {
@@ -113,7 +154,7 @@
             "category": "Science Horizon",
             "label": "Trends in Ecology & Evolution",
             "url": "https://www.cell.com/trends/ecology-evolution/home",
-            "extractionTarget": "Extract newly published research on animal behaviour, ecosystem discoveries, conservation crises, and the Annual Horizon Scan of Global Conservation Issues. Flag any 'first observed' or 'never before documented' findings — these are future filming opportunities.",
+            "extractionTarget": "Extract newly published research on animal behaviour, ecosystem discoveries, conservation crises, and the Annual Horizon Scan of Global Conservation Issues. Flag any 'first observed' or 'never before documented' findings — these are future filming opportunities. CRITICAL — also note: whether a discovery lends itself to a specific narrative form (e.g. a multi-year longitudinal study suggests a character-following series; a crisis discovery suggests an urgent investigative format; a social behaviour finding suggests a community/ensemble narrative structure).",
             "signalKeywords": [
                 "first observed",
                 "never before",
@@ -124,7 +165,12 @@
                 "species",
                 "climate",
                 "extinction",
-                "discovery"
+                "discovery",
+                "longitudinal",
+                "social behaviour",
+                "crisis",
+                "investigative",
+                "character following"
             ]
         },
         {
@@ -132,7 +178,7 @@
             "category": "Creator Disruption",
             "label": "Think with Google — Consumer Insights",
             "url": "https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/",
-            "extractionTarget": "Extract YouTube viewing habit data for nature, science, and wildlife content. Look for audience shift signals showing amateur creators gaining market share. Extract any data on Gen Z nature content consumption.",
+            "extractionTarget": "Extract YouTube viewing habit data for nature, science, and wildlife content. Look for audience shift signals showing amateur creators gaining market share. Extract any data on Gen Z nature content consumption. CRITICAL — also extract: data about which narrative formats audiences prefer (e.g. 'short-form episodic vs. feature-length', 'personality-driven vs. species-focused', 'real-time unfolding vs. retrospective narration'), any signals about audience appetite for specific storytelling structures, and viewing completion rates by format type if mentioned.",
             "signalKeywords": [
                 "nature",
                 "science",
@@ -143,13 +189,19 @@
                 "audience",
                 "creator",
                 "streaming",
-                "market share"
+                "market share",
+                "short-form",
+                "episodic",
+                "personality-driven",
+                "completion rate",
+                "storytelling preference",
+                "narrative format preference"
             ]
         }
     ],
     "refreshConfig": {
         "blobPrefix": "kb/intel/",
         "maxAgeDays": 7,
-        "description": "Industry intelligence sources for wildlife documentary market signals"
+        "description": "Industry intelligence sources for wildlife documentary market signals — content AND narrative form"
     }
 }

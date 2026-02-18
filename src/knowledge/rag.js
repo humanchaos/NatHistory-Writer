@@ -53,3 +53,46 @@ export async function retrieveContext(query, topK = 5) {
         return '';
     }
 }
+
+/**
+ * Retrieve narrative form signals from the knowledge base.
+ * Uses a fixed, format-focused query — independent of seed topic — so that
+ * commissioning trends, episode structures, and format preferences are ALWAYS
+ * retrieved regardless of what the pitch is about.
+ *
+ * @param {number} topK — number of chunks to retrieve
+ * @returns {Promise<string>}
+ */
+export async function retrieveNarrativeContext(topK = 6) {
+    const hasShared = await hasSharedDocuments();
+    if (!hasShared) return '';
+
+    // Fixed narrative-form query — topic-agnostic, format-focused
+    const NARRATIVE_QUERY = [
+        'narrative form format series structure episode count commissioning preference',
+        'limited series character-led observational presenter-led blue-chip authored immersive',
+        'format trend greenlight deal flow what buyers want storytelling approach',
+        'format fatigue narrative innovation co-production structure episode runtime',
+    ].join(' ');
+
+    try {
+        const queryEmbedding = await embedText(NARRATIVE_QUERY);
+        const results = await searchShared(queryEmbedding, topK);
+
+        // Lower threshold for narrative signals — 0.2 — since format language
+        // may not score as high as topically-matched content
+        const relevant = results.filter(r => r.score > 0.2);
+        if (relevant.length === 0) return '';
+
+        console.log(`[RAG:narrative] Retrieved ${relevant.length} narrative-form signal chunks`);
+
+        const contextBlocks = relevant.map(
+            (r, i) => `[Signal ${i + 1}] (relevance: ${(r.score * 100).toFixed(0)}%) 🌐\n${r.text}`
+        );
+
+        return `### Live Industry Narrative Form Signals\n\n${contextBlocks.join('\n\n---\n\n')}`;
+    } catch (err) {
+        console.warn('RAG narrative retrieval failed:', err.message);
+        return '';
+    }
+}
