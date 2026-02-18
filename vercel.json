@@ -2,6 +2,11 @@
     "framework": "vite",
     "buildCommand": "vite build",
     "outputDirectory": "dist",
+    "functions": {
+        "api/extract.js": {
+            "maxDuration": 30
+        }
+    },
     "rewrites": [
         {
             "source": "/api/(.*)",

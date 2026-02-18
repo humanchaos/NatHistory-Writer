@@ -783,10 +783,27 @@ async function handleSharedFiles(fileList) {
                 sharedProgressFill.style.width = '0%';
                 sharedProgressText.textContent = `Reading PDF "${file.name}"…`;
 
-                const formData = new FormData();
-                formData.append('file', file);
-                const extractRes = await fetch('/api/extract', { method: 'POST', body: formData });
-                if (!extractRes.ok) throw new Error('PDF extraction failed');
+                // Convert PDF to base64 (chunked — safe for large files)
+                if (file.size > 4 * 1024 * 1024) {
+                    throw new Error(`PDF too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 4 MB.`);
+                }
+                const arrayBuffer = await file.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                const CHUNK = 8192;
+                for (let i = 0; i < bytes.length; i += CHUNK) {
+                    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+                }
+                const base64 = btoa(binary);
+                const extractRes = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'pdf', data: base64 }),
+                });
+                if (!extractRes.ok) {
+                    const errBody = await extractRes.json().catch(() => ({}));
+                    throw new Error(errBody.error || 'PDF extraction failed');
+                }
                 const { text: extracted } = await extractRes.json();
                 text = extracted;
             } else {
