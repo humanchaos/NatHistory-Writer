@@ -44,28 +44,99 @@
       <button class="panel-close" data-close="knowledge-panel">✕</button>
     </div>
     <div class="panel-body">
-      <p class="panel-description">Upload documents (.txt, .md, .pdf) or add web links. Agents will reference
-        this knowledge via RAG.</p>
-      <div id="upload-zone" class="upload-zone">
-        <input type="file" id="file-input" accept=".txt,.md,.text,.markdown,.pdf" multiple hidden />
-        <div class="upload-zone-content">
-          <span class="upload-icon">⬆</span>
-          <span>Drop files here or <button id="browse-btn" class="link-btn">browse</button></span>
+
+      <!-- ─── Shared KB Section ─── -->
+      <div class="kb-section">
+        <div class="kb-section-header">
+          <span class="kb-section-icon">🌐</span>
+          <span class="kb-section-title">Shared Knowledge Base</span>
+          <span class="kb-section-hint">All users</span>
+        </div>
+        <p class="panel-description">Documents here are available to everyone using this tool.</p>
+
+        <!-- Admin unlock -->
+        <div id="kb-admin-unlock" class="kb-admin-unlock">
+          <input type="password" id="kb-admin-password" class="kb-admin-input" placeholder="Admin password to upload…"
+            autocomplete="off" />
+          <button id="kb-admin-unlock-btn" class="kb-admin-unlock-btn">Unlock</button>
+        </div>
+
+        <!-- Admin upload zone (hidden until unlocked) -->
+        <div id="kb-shared-upload-area" class="hidden">
+          <div id="shared-upload-zone" class="upload-zone upload-zone-shared">
+            <input type="file" id="shared-file-input" accept=".txt,.md,.text,.markdown,.pdf" multiple hidden />
+            <div class="upload-zone-content">
+              <span class="upload-icon">⬆</span>
+              <span>Drop files or <button id="shared-browse-btn" class="link-btn">browse</button></span>
+            </div>
+          </div>
+          <div class="url-input-row">
+            <input type="text" id="shared-url-input" class="url-input" placeholder="Paste a URL to add to shared KB…" />
+            <button id="shared-url-add-btn" class="url-add-btn">🔗 Add</button>
+          </div>
+          <div id="shared-upload-progress" class="upload-progress hidden">
+            <div class="progress-bar">
+              <div id="shared-progress-fill" class="progress-fill"></div>
+            </div>
+            <span id="shared-progress-text" class="progress-text">Uploading…</span>
+          </div>
+
+          <!-- Intelligence Refresh -->
+          <div class="intel-refresh-section">
+            <div class="intel-refresh-header">
+              <span class="intel-refresh-title">🔄 Industry Intelligence</span>
+              <span id="intel-last-refreshed" class="intel-last-refreshed">Never refreshed</span>
+            </div>
+            <p class="intel-refresh-desc">Fetches 8 curated industry sources (Realscreen, C21Media, Wildscreen, Jackson
+              Wild, Broadcast Now, Televisual, Trends in Ecology, Think with Google) and indexes them into the shared
+              KB.</p>
+            <button id="intel-refresh-btn" class="intel-refresh-btn">
+              <span class="intel-refresh-btn-icon">🔄</span>
+              <span id="intel-refresh-btn-text">Refresh Industry Intelligence</span>
+            </button>
+            <div id="intel-refresh-log" class="intel-refresh-log hidden"></div>
+          </div>
+        </div>
+
+
+        <div id="shared-doc-list" class="doc-list">
+          <p class="panel-empty">Loading shared documents…</p>
         </div>
       </div>
-      <div class="url-input-row">
-        <input type="text" id="url-input" class="url-input" placeholder="Paste a URL to add as knowledge…" />
-        <button id="url-add-btn" class="url-add-btn">🔗 Add</button>
-      </div>
-      <div id="upload-progress" class="upload-progress hidden">
-        <div class="progress-bar">
-          <div id="progress-fill" class="progress-fill"></div>
+
+      <hr class="kb-divider" />
+
+      <!-- ─── Personal KB Section ─── -->
+      <div class="kb-section">
+        <div class="kb-section-header">
+          <span class="kb-section-icon">💻</span>
+          <span class="kb-section-title">Your Documents</span>
+          <span class="kb-section-hint">This browser only</span>
         </div>
-        <span id="progress-text" class="progress-text">Embedding...</span>
+        <p class="panel-description">Upload documents (.txt, .md, .pdf) or add web links. Only visible to you.</p>
+        <div id="upload-zone" class="upload-zone">
+          <input type="file" id="file-input" accept=".txt,.md,.text,.markdown,.pdf" multiple hidden />
+          <div class="upload-zone-content">
+            <span class="upload-icon">⬆</span>
+            <span>Drop files here or <button id="browse-btn" class="link-btn">browse</button></span>
+          </div>
+        </div>
+        <div class="url-input-row">
+          <input type="text" id="url-input" class="url-input" placeholder="Paste a URL to add as knowledge…" />
+          <button id="url-add-btn" class="url-add-btn">🔗 Add</button>
+        </div>
+        <div id="upload-progress" class="upload-progress hidden">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <span id="progress-text" class="progress-text">Embedding...</span>
+        </div>
+        <div id="doc-list" class="doc-list"></div>
       </div>
-      <div id="doc-list" class="doc-list"></div>
+
     </div>
   </aside>
+
 
   <!-- ═══════ History Panel (Right Slide) ═══════ -->
   <aside id="history-panel" class="side-panel hidden">

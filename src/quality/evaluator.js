@@ -381,6 +381,137 @@ export const RED_FLAG_MARKERS = [
     { id: 'ai-washing', label: 'AI-Washing', desc: 'Using AI-generated or AI-enhanced imagery/footage without clear disclosure in a factual context (cf. What Jennifer Did, Tiger Attack CCTV)' },
 ];
 
+/**
+ * Dimension → Agent ownership map.
+ * Maps each scored dimension to the agent(s) most responsible for it.
+ */
+export const DIMENSION_AGENT_MAP = {
+    'Narrative Structure': ['story-producer', 'showrunner'],
+    'Scientific Rigor': ['chief-scientist'],
+    'Market Viability': ['market-analyst'],
+    'Production Feasibility': ['field-producer'],
+    'Originality': ['story-producer', 'provocateur'],
+    'Presentation Quality': ['story-producer'],
+    'Platform Compliance': ['market-analyst', 'story-producer'],
+    'Narrative Mandate Compliance': ['story-producer', 'market-analyst'],
+};
+
+const AGENT_DISPLAY_NAMES = {
+    'story-producer': '✍️ Story Producer',
+    'chief-scientist': '🔬 Chief Scientist',
+    'market-analyst': '📊 Market Analyst',
+    'field-producer': '🎥 Field Producer',
+    'showrunner': '🎬 Showrunner',
+    'commissioning-editor': '⚔️ Commissioning Editor',
+    'provocateur': '🔥 Provocateur',
+    'adversary': '🛡️ Adversary',
+    'discovery-scout': '🔬 Discovery Scout',
+};
+
+const SYSTEMIC_DIAGNOSIS_PROMPT = `You are a SYSTEMIC QUALITY ANALYST for a multi-agent AI pipeline that generates wildlife documentary pitch decks.
+
+You are given the aggregate results of a benchmark dryrun — 5 diverse test seeds were run through the full pipeline and scored. Your job is NOT to improve any individual pitch. Instead, you must diagnose SYSTEMIC weaknesses in the pipeline's agents, prompts, and logic that cause recurring quality issues.
+
+You must respond ONLY with valid JSON — no markdown, no code fences, no extra text. The JSON must follow this exact schema:
+
+{
+  "clusteredRecommendations": [
+    {
+      "rootCause": "<2-5 word category, e.g., 'Weak Tonal Progression', 'Generic Market Analysis'>",
+      "severity": "<critical|high|medium|low>",
+      "affectedDimensions": ["<dimension name>", ...],
+      "responsibleAgents": ["<agent-id>", ...],
+      "evidence": "<1 sentence summarizing the pattern across seeds>",
+      "fix": "<specific, actionable prompt addition or pipeline change — not vague advice>"
+    }
+  ],
+  "agentUpgrades": [
+    {
+      "agentId": "<agent-id>",
+      "issue": "<1 sentence diagnosis>",
+      "promptAddition": "<exact text to append to the agent's system prompt, or 'none' if a pipeline change is needed>",
+      "pipelineChange": "<description of non-prompt fix, or 'none'>"
+    }
+  ],
+  "overallAssessment": "<2-3 sentences summarizing the pipeline's systemic health>"
+}
+
+Rules:
+- Focus ONLY on patterns that appear across 2+ seeds. A one-off issue is noise, not signal.
+- Each clusteredRecommendation should be a ROOT CAUSE, not a symptom. "Act 2 lacks tension" is a symptom; "Story Producer defaults to linear escalation without tonal shifts" is a root cause.
+- Agent IDs must be from: story-producer, chief-scientist, market-analyst, field-producer, showrunner, commissioning-editor, provocateur, adversary, discovery-scout
+- promptAddition should be concrete enough to paste directly into a prompt (e.g., "MANDATORY: Every treatment MUST include a tonal compass showing the emotional trajectory across acts: wonder → tension → devastation → hope")
+- Limit to 3-5 clusteredRecommendations and 2-4 agentUpgrades — focus on highest-impact fixes
+- severity levels: critical = pipeline is fundamentally broken here, high = consistently weak, medium = room for improvement, low = minor polish`;
+
+/**
+ * Generate a systemic diagnosis from dryrun results.
+ * Takes the aggregate data and produces actionable agent-level recommendations.
+ *
+ * @param {object} aggregate — the aggregate from runDryrun
+ * @param {object|null} calibration — calibration health data
+ * @param {Array} results — individual seed results
+ * @returns {Promise<object>} — { clusteredRecommendations, agentUpgrades, overallAssessment, dimensionHealth }
+ */
+export async function generateSystemicDiagnosis(aggregate, calibration, results) {
+    // Build the context payload for the AI
+    const dimSummary = aggregate.dimensions.map(d =>
+        `${d.name}: avg=${d.avg}, min=${d.min}, max=${d.max}`
+    ).join('\n');
+
+    const seedDetails = results.filter(r => !r.rejected).map(r => {
+        const dims = r.scorecard.dimensions.map(d => `${d.name}: ${d.score}`).join(', ');
+        const recs = r.scorecard.recommendations.join('; ');
+        return `Seed: "${r.seed.name}" (${r.seed.platform || 'general'}) — Overall: ${r.scorecard.overall}\n  Dimensions: ${dims}\n  Recommendations: ${recs}`;
+    }).join('\n\n');
+
+    const calContext = calibration && !calibration.rejected
+        ? `\nCalibration (${calibration.production}): Score ${calibration.score}/100 (expected ${calibration.expected}), Status: ${calibration.status}\nMarker failures: ${(calibration.markers || []).filter(m => m.pass === false).map(m => m.label).join(', ') || 'none'}\nRed flags triggered: ${(calibration.redFlags || []).filter(f => f.triggered).map(f => f.label).join(', ') || 'none'}`
+        : '';
+
+    const userPrompt = `## Dryrun Aggregate\nOverall avg: ${aggregate.overall}/100\nScored: ${aggregate.scored}/${aggregate.total} (${aggregate.rejected} rejected)\n\n## Dimension Scores\n${dimSummary}\n\n## Individual Results\n${seedDetails}${calContext}\n\n## All Recommendations (per-seed)\n${aggregate.allRecommendations.map(r => `[${r.seed}] ${r.recommendation}`).join('\n')}`;
+
+    const response = await callAgent(SYSTEMIC_DIAGNOSIS_PROMPT, userPrompt);
+
+    let cleaned = response.trim();
+    if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+
+    let diagnosis;
+    try {
+        diagnosis = JSON.parse(cleaned);
+    } catch (e) {
+        console.error('Failed to parse systemic diagnosis:', cleaned);
+        diagnosis = {
+            clusteredRecommendations: [],
+            agentUpgrades: [],
+            overallAssessment: 'Systemic diagnosis failed — could not parse AI response.',
+        };
+    }
+
+    // Enrich with dimension health (computed locally, not by AI)
+    const dimensionHealth = aggregate.dimensions.map(d => {
+        const agents = DIMENSION_AGENT_MAP[d.name] || [];
+        const agentLabels = agents.map(id => AGENT_DISPLAY_NAMES[id] || id);
+        const status = d.avg >= 85 ? 'strong' : d.avg >= 70 ? 'adequate' : d.avg >= 55 ? 'weak' : 'critical';
+        return { ...d, agents, agentLabels, status };
+    }).sort((a, b) => (a.avg ?? 0) - (b.avg ?? 0)); // weakest first
+
+    // Enrich agentUpgrades with display names
+    if (diagnosis.agentUpgrades) {
+        diagnosis.agentUpgrades = diagnosis.agentUpgrades.map(u => ({
+            ...u,
+            agentDisplayName: AGENT_DISPLAY_NAMES[u.agentId] || u.agentId,
+        }));
+    }
+
+    return {
+        ...diagnosis,
+        dimensionHealth,
+    };
+}
+
 const RED_FLAG_CHECK_PROMPT = `You are a RED FLAG CHECKER for a wildlife film pitch deck generator.
 
 Below is a pitch deck generated by our pipeline. Your job is to check whether the output exhibits any of the following known FAILURE PATTERNS from the worst natural history productions of the past decade.

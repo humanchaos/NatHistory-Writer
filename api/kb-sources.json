@@ -1,0 +1,155 @@
+{
+    "sources": [
+        {
+            "id": "realscreen-factual",
+            "category": "Deal Flow",
+            "label": "Realscreen — Factual & Documentary",
+            "url": "https://realscreen.com/category/factual-and-documentary/",
+            "extractionTarget": "Extract all article headlines, summaries, executive names, deal announcements, greenlight news, and streamer mentions (Netflix, Disney+, Apple TV+, BBC). Flag any executive reshuffles or first-look deals.",
+            "signalKeywords": [
+                "greenlight",
+                "first-look",
+                "commission",
+                "executive",
+                "streamer",
+                "Netflix",
+                "Disney+",
+                "Apple TV+",
+                "BBC",
+                "co-production",
+                "budget"
+            ]
+        },
+        {
+            "id": "c21media-factual",
+            "category": "Deal Flow",
+            "label": "C21Media — Factual Genre",
+            "url": "https://www.c21media.net/genre/factual/",
+            "extractionTarget": "Extract co-production announcements, budget trend signals, funding gap mentions, tax credit news, and partner broadcaster names. Focus on wildlife and natural history content.",
+            "signalKeywords": [
+                "co-production",
+                "co-pro",
+                "funding",
+                "tax credit",
+                "budget",
+                "partner",
+                "natural history",
+                "wildlife",
+                "factual"
+            ]
+        },
+        {
+            "id": "wildscreen-news",
+            "category": "Innovation Hubs",
+            "label": "Wildscreen — News",
+            "url": "https://wildscreen.org/news/",
+            "extractionTarget": "Extract Digital-First initiatives, Panda Award category changes, Gen Z audience strategy mentions, conservation storytelling trends, and ethical production debates.",
+            "signalKeywords": [
+                "digital-first",
+                "Panda Award",
+                "Gen Z",
+                "conservation",
+                "impact",
+                "local storytellers",
+                "ethical",
+                "authentic"
+            ]
+        },
+        {
+            "id": "jacksonwild-blog",
+            "category": "Innovation Hubs",
+            "label": "Jackson Wild — Blog",
+            "url": "https://jacksonwild.org/blog",
+            "extractionTarget": "Extract mentions of impact storytelling, conservation data, local storytellers, indigenous knowledge, AI in filmmaking, and ethical production debates. This is the moral compass of the industry.",
+            "signalKeywords": [
+                "impact",
+                "conservation data",
+                "local storytellers",
+                "indigenous",
+                "AI",
+                "ethical",
+                "authentic capture",
+                "generating"
+            ]
+        },
+        {
+            "id": "broadcastnow-natural-history",
+            "category": "UK Core",
+            "label": "Broadcast Now — Natural History",
+            "url": "https://www.broadcastnow.co.uk/natural-history",
+            "extractionTarget": "Extract technical delivery specs (8K, VR, remote production), UK production house news, Bristol-based company announcements, and any commissioning editor moves.",
+            "signalKeywords": [
+                "8K",
+                "VR",
+                "remote production",
+                "delivery spec",
+                "Bristol",
+                "natural history",
+                "commission",
+                "HDR",
+                "streaming"
+            ]
+        },
+        {
+            "id": "televisual-factual",
+            "category": "UK Core",
+            "label": "Televisual — Factual",
+            "url": "https://www.televisual.com/news-category/factual/",
+            "extractionTarget": "Extract production craft details: camera rigs, software tools, drone technology, underwater systems, and any mentions of specific production companies and their technical innovations.",
+            "signalKeywords": [
+                "rig",
+                "drone",
+                "underwater",
+                "camera",
+                "software",
+                "production",
+                "craft",
+                "tracking",
+                "simulating"
+            ]
+        },
+        {
+            "id": "trends-ecology-evolution",
+            "category": "Science Horizon",
+            "label": "Trends in Ecology & Evolution",
+            "url": "https://www.cell.com/trends/ecology-evolution/home",
+            "extractionTarget": "Extract newly published research on animal behaviour, ecosystem discoveries, conservation crises, and the Annual Horizon Scan of Global Conservation Issues. Flag any 'first observed' or 'never before documented' findings — these are future filming opportunities.",
+            "signalKeywords": [
+                "first observed",
+                "never before",
+                "horizon scan",
+                "conservation",
+                "behaviour",
+                "ecosystem",
+                "species",
+                "climate",
+                "extinction",
+                "discovery"
+            ]
+        },
+        {
+            "id": "thinkwithgoogle-nature",
+            "category": "Creator Disruption",
+            "label": "Think with Google — Consumer Insights",
+            "url": "https://www.thinkwithgoogle.com/consumer-insights/consumer-trends/",
+            "extractionTarget": "Extract YouTube viewing habit data for nature, science, and wildlife content. Look for audience shift signals showing amateur creators gaining market share. Extract any data on Gen Z nature content consumption.",
+            "signalKeywords": [
+                "nature",
+                "science",
+                "wildlife",
+                "YouTube",
+                "viewing habits",
+                "Gen Z",
+                "audience",
+                "creator",
+                "streaming",
+                "market share"
+            ]
+        }
+    ],
+    "refreshConfig": {
+        "blobPrefix": "kb/intel/",
+        "maxAgeDays": 7,
+        "description": "Industry intelligence sources for wildlife documentary market signals"
+    }
+}

@@ -4,7 +4,8 @@ import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunRes
 import { loadCheckpoint, clearCheckpoint } from './pipelineState.js';
 // chunkText and embedBatch are handled inside ragWorker.js (Web Worker)
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
-import { evaluatePitchDeck, runDryrun } from './quality/evaluator.js';
+import { listSharedDocuments, searchShared, addSharedDocument, deleteSharedDocument, triggerRefresh, listSources } from './knowledge/sharedKB.js';
+import { evaluatePitchDeck, runDryrun, generateSystemicDiagnosis } from './quality/evaluator.js';
 import {
     MARKET_ANALYST,
     CHIEF_SCIENTIST,
@@ -46,6 +47,25 @@ try {
     }
 }
 
+// ─── Persistent Storage Request ───────────────────────
+// Prevents the browser from silently evicting IndexedDB data (run history,
+// knowledge base, checkpoints) under disk pressure. Without this, Chrome/Safari
+// classify our storage as "best-effort" and can wipe it at any time.
+(async () => {
+    try {
+        if (navigator.storage && navigator.storage.persist) {
+            const granted = await navigator.storage.persist();
+            if (granted) {
+                console.log('[Storage] Persistent storage granted — data is protected from eviction.');
+            } else {
+                console.warn('[Storage] Persistent storage denied — run history and knowledge base may be evicted by the browser under disk pressure.');
+            }
+        }
+    } catch (err) {
+        console.warn('[Storage] Could not request persistent storage:', err.message);
+    }
+})();
+
 // ─── DOM References ───────────────────────────────────
 const seedForm = document.getElementById('seed-form');
 const seedInput = document.getElementById('seed-input');
@@ -67,7 +87,7 @@ const btnHistory = document.getElementById('btn-history');
 const kbBadge = document.getElementById('kb-badge');
 const historyBadge = document.getElementById('history-badge');
 
-// Knowledge elements
+// Knowledge elements — personal (local)
 const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('file-input');
 const browseBtn = document.getElementById('browse-btn');
@@ -75,6 +95,27 @@ const uploadProgress = document.getElementById('upload-progress');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
 const docList = document.getElementById('doc-list');
+
+// Knowledge elements — shared
+const sharedDocList = document.getElementById('shared-doc-list');
+const sharedUploadArea = document.getElementById('kb-shared-upload-area');
+const sharedUploadZone = document.getElementById('shared-upload-zone');
+const sharedFileInput = document.getElementById('shared-file-input');
+const sharedBrowseBtn = document.getElementById('shared-browse-btn');
+const sharedUploadProgress = document.getElementById('shared-upload-progress');
+const sharedProgressFill = document.getElementById('shared-progress-fill');
+const sharedProgressText = document.getElementById('shared-progress-text');
+const sharedUrlInput = document.getElementById('shared-url-input');
+const sharedUrlAddBtn = document.getElementById('shared-url-add-btn');
+const kbAdminPasswordInput = document.getElementById('kb-admin-password');
+const kbAdminUnlockBtn = document.getElementById('kb-admin-unlock-btn');
+const intelRefreshBtn = document.getElementById('intel-refresh-btn');
+const intelRefreshBtnText = document.getElementById('intel-refresh-btn-text');
+const intelRefreshLog = document.getElementById('intel-refresh-log');
+const intelLastRefreshed = document.getElementById('intel-last-refreshed');
+
+// Admin state
+let adminPassword = null; // set when admin unlocks
 
 // History elements
 const historyList = document.getElementById('history-list');
@@ -323,8 +364,101 @@ btnKnowledge.addEventListener('click', () => {
     } else {
         openPanel(knowledgePanel);
         refreshDocList();
+        refreshSharedDocList();
     }
 });
+
+// ─── Admin Unlock ─────────────────────────────────────
+kbAdminUnlockBtn.addEventListener('click', async () => {
+    const pw = kbAdminPasswordInput.value.trim();
+    if (!pw) return;
+    // Validate by attempting a list (any error = wrong password)
+    // We do a lightweight check: try to upload nothing — server will reject with 401 if wrong
+    // Instead, just store it and let the first real action validate
+    adminPassword = pw;
+    sharedUploadArea.classList.remove('hidden');
+    kbAdminPasswordInput.value = '';
+    kbAdminUnlockBtn.textContent = '✓ Unlocked';
+    kbAdminUnlockBtn.disabled = true;
+    kbAdminPasswordInput.disabled = true;
+});
+
+kbAdminPasswordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') kbAdminUnlockBtn.click();
+});
+
+// ─── Intelligence Refresh ──────────────────────────────
+if (intelRefreshBtn) {
+    intelRefreshBtn.addEventListener('click', async () => {
+        if (!adminPassword) {
+            showError('Admin password required to refresh intelligence.');
+            return;
+        }
+
+        // Disable button, show spinner
+        intelRefreshBtn.disabled = true;
+        intelRefreshBtnText.textContent = 'Refreshing…';
+        intelRefreshBtn.querySelector('.intel-refresh-btn-icon').style.animation = 'spin 1s linear infinite';
+
+        // Show log panel
+        intelRefreshLog.classList.remove('hidden');
+        intelRefreshLog.innerHTML = '<div class="intel-log-entry intel-log-running">⏳ Starting refresh of 8 industry sources…</div>';
+
+        try {
+            const results = await triggerRefresh(adminPassword);
+
+            // Render per-source results
+            intelRefreshLog.innerHTML = '';
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const r of results) {
+                const entry = document.createElement('div');
+                if (r.status === 'ok') {
+                    entry.className = 'intel-log-entry intel-log-ok';
+                    entry.textContent = `✓ ${r.label} — ${r.chunkCount} chunks`;
+                    successCount++;
+                } else if (r.status === 'error') {
+                    entry.className = 'intel-log-entry intel-log-error';
+                    entry.textContent = `✗ ${r.label} — ${r.error}`;
+                    errorCount++;
+                } else {
+                    entry.className = 'intel-log-entry intel-log-skip';
+                    entry.textContent = `⚠ ${r.label} — ${r.reason || 'skipped'}`;
+                }
+                intelRefreshLog.appendChild(entry);
+            }
+
+            // Summary line
+            const summary = document.createElement('div');
+            summary.className = 'intel-log-entry intel-log-summary';
+            summary.textContent = `Done — ${successCount} updated, ${errorCount} failed`;
+            intelRefreshLog.appendChild(summary);
+
+            // Update last-refreshed timestamp
+            const now = new Date();
+            intelLastRefreshed.textContent = `Last refreshed: ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            // Refresh the shared doc list to show new intel docs
+            refreshSharedDocList();
+            refreshDocList();
+
+        } catch (err) {
+            intelRefreshLog.innerHTML = `<div class="intel-log-entry intel-log-error">✗ Refresh failed: ${err.message}</div>`;
+            if (err.message.includes('401') || err.message.toLowerCase().includes('invalid')) {
+                adminPassword = null;
+                sharedUploadArea.classList.add('hidden');
+                kbAdminUnlockBtn.textContent = 'Unlock';
+                kbAdminUnlockBtn.disabled = false;
+                kbAdminPasswordInput.disabled = false;
+            }
+        } finally {
+            intelRefreshBtn.disabled = false;
+            intelRefreshBtnText.textContent = 'Refresh Industry Intelligence';
+            intelRefreshBtn.querySelector('.intel-refresh-btn-icon').style.animation = '';
+        }
+    });
+}
 
 btnHistory.addEventListener('click', () => {
     if (historyPanel.classList.contains('open')) {
@@ -454,26 +588,29 @@ async function handleFiles(fileList) {
 }
 
 async function refreshDocList() {
-    const docs = await listDocuments();
-    docList.innerHTML = '';
+    const [localDocs, sharedDocs] = await Promise.all([
+        listDocuments(),
+        listSharedDocuments(),
+    ]);
 
-    // Update badge
-    if (docs.length > 0) {
-        kbBadge.textContent = docs.length;
+    // Update badge — total of both sources
+    const total = localDocs.length + sharedDocs.length;
+    if (total > 0) {
+        kbBadge.textContent = total;
         kbBadge.classList.remove('hidden');
     } else {
         kbBadge.classList.add('hidden');
     }
 
-    if (docs.length === 0) {
-        docList.innerHTML = '<p class="panel-empty">No documents uploaded yet.</p>';
-        return;
-    }
-
-    docs.forEach(doc => {
-        const item = document.createElement('div');
-        item.className = 'doc-item';
-        item.innerHTML = `
+    // Render local docs
+    docList.innerHTML = '';
+    if (localDocs.length === 0) {
+        docList.innerHTML = '<p class="panel-empty">No personal documents yet.</p>';
+    } else {
+        localDocs.forEach(doc => {
+            const item = document.createElement('div');
+            item.className = 'doc-item';
+            item.innerHTML = `
       <span class="doc-item-icon">📄</span>
       <div class="doc-item-info">
         <div class="doc-item-name">${doc.filename}</div>
@@ -481,12 +618,51 @@ async function refreshDocList() {
       </div>
       <button class="doc-item-delete" title="Remove">🗑️</button>
     `;
-        item.querySelector('.doc-item-delete').addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await deleteDocument(doc.id);
-            refreshDocList();
+            item.querySelector('.doc-item-delete').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await deleteDocument(doc.id);
+                refreshDocList();
+            });
+            docList.appendChild(item);
         });
-        docList.appendChild(item);
+    }
+}
+
+async function refreshSharedDocList() {
+    sharedDocList.innerHTML = '<p class="panel-empty">Loading…</p>';
+    const docs = await listSharedDocuments();
+
+    sharedDocList.innerHTML = '';
+    if (docs.length === 0) {
+        sharedDocList.innerHTML = '<p class="panel-empty">No shared documents yet.</p>';
+        return;
+    }
+
+    docs.forEach(doc => {
+        const item = document.createElement('div');
+        item.className = 'doc-item doc-item-shared';
+        const canDelete = !!adminPassword;
+        item.innerHTML = `
+      <span class="doc-item-icon">🌐</span>
+      <div class="doc-item-info">
+        <div class="doc-item-name">${doc.filename}</div>
+        <div class="doc-item-meta">${doc.chunkCount} chunks · ${new Date(doc.addedAt).toLocaleDateString()}</div>
+      </div>
+      ${canDelete ? '<button class="doc-item-delete" title="Remove from shared KB">🗑️</button>' : ''}
+    `;
+        if (canDelete) {
+            item.querySelector('.doc-item-delete').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                    await deleteSharedDocument(adminPassword, doc.id);
+                    refreshSharedDocList();
+                    refreshDocList();
+                } catch (err) {
+                    showError(`Delete failed: ${err.message}`);
+                }
+            });
+        }
+        sharedDocList.appendChild(item);
     });
 }
 
@@ -552,7 +728,198 @@ async function handleUrl() {
     }
 }
 
-// ─── History Panel ────────────────────────────────────
+// ─── Shared KB: File Upload ────────────────────────────
+if (sharedBrowseBtn) {
+    sharedBrowseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sharedFileInput.click();
+    });
+}
+
+if (sharedUploadZone) {
+    sharedUploadZone.addEventListener('click', () => sharedFileInput.click());
+
+    sharedUploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        sharedUploadZone.classList.add('dragover');
+    });
+
+    sharedUploadZone.addEventListener('dragleave', () => {
+        sharedUploadZone.classList.remove('dragover');
+    });
+
+    sharedUploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        sharedUploadZone.classList.remove('dragover');
+        handleSharedFiles(e.dataTransfer.files);
+    });
+}
+
+if (sharedFileInput) {
+    sharedFileInput.addEventListener('change', () => {
+        handleSharedFiles(sharedFileInput.files);
+        sharedFileInput.value = '';
+    });
+}
+
+async function handleSharedFiles(fileList) {
+    if (!adminPassword) {
+        showError('Enter the admin password first to upload to the shared KB.');
+        return;
+    }
+
+    for (const file of fileList) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['txt', 'md', 'text', 'markdown', 'pdf'].includes(ext)) {
+            showError(`Unsupported file type: .${ext}. Use .txt, .md, or .pdf files.`);
+            continue;
+        }
+
+        try {
+            let text;
+
+            if (ext === 'pdf') {
+                sharedUploadProgress.classList.remove('hidden');
+                sharedProgressFill.style.width = '0%';
+                sharedProgressText.textContent = `Reading PDF "${file.name}"…`;
+
+                const formData = new FormData();
+                formData.append('file', file);
+                const extractRes = await fetch('/api/extract', { method: 'POST', body: formData });
+                if (!extractRes.ok) throw new Error('PDF extraction failed');
+                const { text: extracted } = await extractRes.json();
+                text = extracted;
+            } else {
+                text = await file.text();
+            }
+
+            sharedUploadProgress.classList.remove('hidden');
+            sharedProgressFill.style.width = ext === 'pdf' ? '40%' : '0%';
+            sharedProgressText.textContent = `Processing "${file.name}"…`;
+
+            // Reuse ragWorker for chunking + embedding
+            const { chunks, embeddings } = await runRagWorkerShared(text, ext === 'pdf');
+
+            sharedProgressText.textContent = 'Uploading to shared knowledge base…';
+            sharedProgressFill.style.width = '90%';
+
+            await addSharedDocument(adminPassword, file.name, chunks, embeddings);
+
+            sharedUploadProgress.classList.add('hidden');
+            refreshSharedDocList();
+            refreshDocList(); // update badge
+        } catch (err) {
+            sharedUploadProgress.classList.add('hidden');
+            if (err.message.includes('401') || err.message.toLowerCase().includes('invalid')) {
+                showError('Admin password incorrect. Please re-enter and unlock again.');
+                adminPassword = null;
+                sharedUploadArea.classList.add('hidden');
+                kbAdminUnlockBtn.textContent = 'Unlock';
+                kbAdminUnlockBtn.disabled = false;
+                kbAdminPasswordInput.disabled = false;
+            } else {
+                showError(`Failed to upload "${file.name}": ${err.message}`);
+            }
+        }
+    }
+}
+
+// Shared URL ingestion
+if (sharedUrlAddBtn) {
+    sharedUrlAddBtn.addEventListener('click', () => handleSharedUrl());
+}
+if (sharedUrlInput) {
+    sharedUrlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleSharedUrl(); }
+    });
+}
+
+async function handleSharedUrl() {
+    if (!adminPassword) {
+        showError('Enter the admin password first to add URLs to the shared KB.');
+        return;
+    }
+
+    const url = sharedUrlInput?.value.trim();
+    if (!url) return;
+
+    try { new URL(url); } catch {
+        showError('Please enter a valid URL (e.g. https://example.com/article)');
+        return;
+    }
+
+    const displayName = new URL(url).hostname + new URL(url).pathname.slice(0, 40);
+
+    try {
+        sharedUploadProgress.classList.remove('hidden');
+        sharedProgressFill.style.width = '10%';
+        sharedProgressText.textContent = `Reading ${displayName}…`;
+
+        const text = await extractUrlContent(url);
+        if (!text || text.trim().length < 30) {
+            showError('Could not extract meaningful content from that URL.');
+            sharedUploadProgress.classList.add('hidden');
+            return;
+        }
+
+        sharedProgressFill.style.width = '30%';
+        sharedProgressText.textContent = 'Processing content…';
+
+        const { chunks, embeddings } = await runRagWorkerShared(text, false);
+
+        if (chunks.length === 0) {
+            showError('Extracted content was too short to store.');
+            sharedUploadProgress.classList.add('hidden');
+            return;
+        }
+
+        sharedProgressFill.style.width = '90%';
+        sharedProgressText.textContent = 'Uploading to shared knowledge base…';
+
+        await addSharedDocument(adminPassword, `🔗 ${url}`, chunks, embeddings);
+
+        sharedUploadProgress.classList.add('hidden');
+        sharedUrlInput.value = '';
+        refreshSharedDocList();
+        refreshDocList();
+    } catch (err) {
+        sharedUploadProgress.classList.add('hidden');
+        showError(`Failed to ingest URL: ${err.message}`);
+    }
+}
+
+// Shared ragWorker — uses shared progress bars
+function runRagWorkerShared(text, isPdf) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            new URL('./knowledge/ragWorker.js', import.meta.url),
+            { type: 'classic' }
+        );
+
+        worker.onmessage = (e) => {
+            const msg = e.data;
+            if (msg.type === 'progress') {
+                sharedProgressFill.style.width = `${msg.pct}%`;
+                sharedProgressText.textContent = msg.phase;
+            } else if (msg.type === 'done') {
+                worker.terminate();
+                resolve({ chunks: msg.chunks, embeddings: msg.embeddings });
+            } else if (msg.type === 'error') {
+                worker.terminate();
+                reject(new Error(msg.message));
+            }
+        };
+
+        worker.onerror = (err) => {
+            worker.terminate();
+            reject(new Error(err.message || 'Worker error'));
+        };
+
+        worker.postMessage({ type: 'process', text, isPdf });
+    });
+}
+
+
 async function refreshHistoryList() {
     const runs = await getRuns();
     historyList.innerHTML = '';
@@ -2305,11 +2672,21 @@ async function startDryrun(resume) {
         });
 
         dryrunProgressFill.style.width = '100%';
-        dryrunProgressText.textContent = 'Complete!';
+        dryrunProgressText.textContent = 'Analyzing systemic patterns…';
         clearDryrunState();
 
-        // Persist dryrun result to IndexedDB
-        await saveDryrunResult({ results, aggregate, calibration });
+        // Generate systemic diagnosis (AI-powered)
+        let systemicDiagnosis = null;
+        try {
+            systemicDiagnosis = await generateSystemicDiagnosis(aggregate, calibration, results);
+        } catch (err) {
+            console.warn('Systemic diagnosis failed:', err.message);
+        }
+
+        dryrunProgressText.textContent = 'Complete!';
+
+        // Persist dryrun result to IndexedDB (include diagnosis)
+        await saveDryrunResult({ results, aggregate, calibration, systemicDiagnosis });
 
         // Render results
         dryrunResults.classList.remove('hidden');
@@ -2367,6 +2744,111 @@ async function startDryrun(resume) {
             `;
         })() : '';
 
+        // ─── Systemic Diagnosis Panel ────────────────────────
+        const diagnosisHtml = systemicDiagnosis ? (() => {
+            // Overall assessment
+            const assessmentHtml = systemicDiagnosis.overallAssessment
+                ? `<div class="sd-assessment">${systemicDiagnosis.overallAssessment}</div>`
+                : '';
+
+            // Dimension Health Cards (weakest first)
+            const dimHealthHtml = systemicDiagnosis.dimensionHealth && systemicDiagnosis.dimensionHealth.length > 0
+                ? `<div class="sd-section">
+                    <div class="sd-section-title">📊 Dimension Health</div>
+                    <div class="sd-dim-grid">
+                        ${systemicDiagnosis.dimensionHealth.map(d => {
+                    const statusIcon = d.status === 'strong' ? '🟢' : d.status === 'adequate' ? '🔵' : d.status === 'weak' ? '🟡' : '🔴';
+                    return `
+                                <div class="sd-dim-card sd-dim-${d.status}">
+                                    <div class="sd-dim-header">
+                                        <span class="sd-dim-icon">${statusIcon}</span>
+                                        <span class="sd-dim-name">${d.name}</span>
+                                        <span class="sd-dim-score">${d.avg ?? '—'}</span>
+                                    </div>
+                                    <div class="sd-dim-bar">
+                                        <div class="sd-dim-bar-fill" style="width: ${d.avg || 0}%"></div>
+                                        ${d.min != null ? `<div class="sd-dim-range-marker" style="left: ${d.min}%" title="Min: ${d.min}"></div>` : ''}
+                                        ${d.max != null ? `<div class="sd-dim-range-marker" style="left: ${d.max}%" title="Max: ${d.max}"></div>` : ''}
+                                    </div>
+                                    <div class="sd-dim-agents">${d.agentLabels.join(' · ')}</div>
+                                </div>
+                            `;
+                }).join('')}
+                    </div>
+                </div>`
+                : '';
+
+            // Clustered Recommendations
+            const clusteredHtml = systemicDiagnosis.clusteredRecommendations && systemicDiagnosis.clusteredRecommendations.length > 0
+                ? `<div class="sd-section">
+                    <div class="sd-section-title">🔍 Root Cause Analysis</div>
+                    ${systemicDiagnosis.clusteredRecommendations.map(c => {
+                    const sevIcon = c.severity === 'critical' ? '🔴' : c.severity === 'high' ? '🟠' : c.severity === 'medium' ? '🟡' : '🔵';
+                    return `
+                            <div class="sd-cluster sd-severity-${c.severity}">
+                                <div class="sd-cluster-header">
+                                    <span class="sd-cluster-sev">${sevIcon}</span>
+                                    <span class="sd-cluster-cause">${c.rootCause}</span>
+                                    <span class="sd-cluster-severity">${c.severity.toUpperCase()}</span>
+                                </div>
+                                <div class="sd-cluster-evidence">${c.evidence}</div>
+                                <div class="sd-cluster-meta">
+                                    <span class="sd-cluster-dims">${(c.affectedDimensions || []).join(', ')}</span>
+                                </div>
+                                <div class="sd-cluster-fix">
+                                    <span class="sd-fix-label">Fix:</span> ${c.fix}
+                                </div>
+                            </div>
+                        `;
+                }).join('')}
+                </div>`
+                : '';
+
+            // Agent Upgrades
+            const upgradesHtml = systemicDiagnosis.agentUpgrades && systemicDiagnosis.agentUpgrades.length > 0
+                ? `<div class="sd-section">
+                    <div class="sd-section-title">🛠️ Agent Prompt Upgrades</div>
+                    ${systemicDiagnosis.agentUpgrades.map((u, idx) => {
+                    const hasPrompt = u.promptAddition && u.promptAddition !== 'none';
+                    const hasPipeline = u.pipelineChange && u.pipelineChange !== 'none';
+                    return `
+                            <div class="sd-upgrade">
+                                <div class="sd-upgrade-header">
+                                    <span class="sd-upgrade-agent">${u.agentDisplayName || u.agentId}</span>
+                                </div>
+                                <div class="sd-upgrade-issue">${u.issue}</div>
+                                ${hasPrompt ? `
+                                    <div class="sd-upgrade-prompt">
+                                        <div class="sd-upgrade-prompt-label">Suggested prompt addition:</div>
+                                        <pre class="sd-upgrade-prompt-text">${u.promptAddition}</pre>
+                                        <button class="sd-apply-btn" data-agent-id="${u.agentId}" data-upgrade-idx="${idx}">✏️ Open in Prompt Editor</button>
+                                    </div>
+                                ` : ''}
+                                ${hasPipeline ? `
+                                    <div class="sd-upgrade-pipeline">
+                                        <span class="sd-pipeline-label">Pipeline change:</span> ${u.pipelineChange}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                }).join('')}
+                </div>`
+                : '';
+
+            return `
+                <div class="systemic-diagnosis">
+                    <div class="sd-header">
+                        <span class="sd-header-icon">🧬</span>
+                        <span class="sd-header-title">Systemic Diagnosis</span>
+                    </div>
+                    ${assessmentHtml}
+                    ${dimHealthHtml}
+                    ${clusteredHtml}
+                    ${upgradesHtml}
+                </div>
+            `;
+        })() : '';
+
         dryrunResults.innerHTML = `
             ${calBanner}
 
@@ -2384,6 +2866,8 @@ async function startDryrun(resume) {
                     </div>
                 `).join('')}
             </div>
+
+            ${diagnosisHtml}
 
             <div class="dryrun-seed-results">
                 <h4>Individual Results</h4>
@@ -2419,17 +2903,35 @@ async function startDryrun(resume) {
                     `;
         }).join('')}
             </div>
-
-            <div class="dryrun-recs">
-                <h4>💡 Cross-Seed Recommendations</h4>
-                ${aggregate.allRecommendations.map(r => `
-                    <div class="dryrun-rec-item">
-                        ${r.recommendation}
-                        <span class="dryrun-rec-seed"> — ${r.seed}</span>
-                    </div>
-                `).join('')}
-            </div>
         `;
+
+        // ─── Wire up "Open in Prompt Editor" buttons ────────
+        dryrunResults.querySelectorAll('.sd-apply-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const agentId = btn.dataset.agentId;
+                const upgradeIdx = parseInt(btn.dataset.upgradeIdx, 10);
+                const upgrade = systemicDiagnosis?.agentUpgrades?.[upgradeIdx];
+                if (!upgrade) return;
+
+                // Find the agent chip and trigger click to open prompt editor
+                const chip = document.querySelector(`.agent-chip[data-agent-id="${agentId}"]`);
+                if (chip) {
+                    chip.click();
+                    // After modal opens, append the suggested text
+                    setTimeout(() => {
+                        const textarea = document.getElementById('prompt-editor-textarea');
+                        if (textarea && upgrade.promptAddition && upgrade.promptAddition !== 'none') {
+                            textarea.value += `\n\n// ─── DRYRUN UPGRADE SUGGESTION ───\n${upgrade.promptAddition}`;
+                            textarea.scrollTop = textarea.scrollHeight;
+                            // Flash the textarea to draw attention
+                            textarea.style.transition = 'box-shadow 0.3s';
+                            textarea.style.boxShadow = '0 0 0 2px #da77f2';
+                            setTimeout(() => { textarea.style.boxShadow = ''; }, 2000);
+                        }
+                    }, 300);
+                }
+            });
+        });
     } catch (err) {
         showError(`Dryrun failed: ${err.message}`);
     } finally {
