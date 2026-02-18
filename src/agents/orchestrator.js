@@ -1089,10 +1089,11 @@ Output ONLY these 5 sections — nothing else:
 2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
-5. **Sources** — For each central factual claim in your Summary, you MUST use your Google Search tool to find and verify a real source URL. The standard is:
-   - The source must DIRECTLY support the exact claim as written in your Summary, OR
-   - If you cannot find a source that supports the claim, REWRITE the claim in your Summary to match what a real source actually says.
-   There is no third option. Do NOT carry forward URLs from upstream agents without searching to verify them yourself. Do NOT invent URLs. If after searching you still cannot verify a claim, remove it from the Summary entirely rather than presenting an unverified claim. Format: **Sources:** followed by a numbered list of "[Exact claim from Summary] — [verified URL]".
+5. **Sources** — Your Summary contains two types of claims. Handle them differently:
+   - **Seed facts** (names, roles, affiliations from the user's original seed): Search to verify the person is real and the affiliation is correct. If verified, no citation needed. If wrong, flag it: "⚠️ Seed fact unverified: [claim]".
+   - **Pipeline-introduced facts** (anything the pipeline ADDED — species behaviors, ecological claims, statistics, locations, scientific discoveries): Every single one MUST have a search-verified source URL. If you cannot find a source, rewrite the claim to match what a real source says, or remove it. There is no third option.
+   Format: **Sources:** followed by a numbered list of "[Exact pipeline-introduced claim] — [verified URL]". Do NOT invent URLs. Do NOT carry forward URLs from upstream agents without re-verifying them.
+
 
 CRITICAL FORMAT RULES:
 - Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis, no scientific backbone

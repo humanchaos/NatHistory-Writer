@@ -676,19 +676,24 @@ When compiling the final Master Pitch Deck after Greenlight, output ONLY these f
 2. **Logline** — One sentence, max 25 words, that makes an executive lean forward. Include the hook, the stakes, and the uniqueness. Format as: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences that sell the project to a non-specialist commissioner. Capture the visual spectacle, the core story, and why it matters. This is the elevator pitch — concise, vivid, irresistible. Format as: **Summary:** followed by the paragraph.
 4. **Best For** — The top 1-3 platforms this pitch is best suited for (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE, Channel 4, Smithsonian, PBS). Include a one-line justification for each platform. Format as: **Best For:** followed by the platform list.
-5. **Sources** — Re-read your Summary above. Identify the 2-4 concrete factual claims it makes (species behaviors, ecological threats, scientific discoveries, population data). For EACH claim, you MUST choose ONE of these two options:
-   - **Option A (Verified)**: Provide a real URL you are CERTAIN exists and DIRECTLY supports this specific claim. Do NOT carry forward URLs from upstream agents without confirming they support YOUR Summary's specific wording.
-   - **Option B (Unverified)**: Write "⚠️ Unverified — verify before use" instead of a URL.
-   A missing or flagged source is ALWAYS better than a fabricated or mismatched URL. Format as: **Sources:** followed by a numbered list of "[Exact claim from Summary] — URL or ⚠️ Unverified — verify before use".
+5. **Sources** — Your Summary contains two types of claims. Treat them differently:
 
-⛔ URL HALLUCINATION RULE: Do NOT invent URLs. Do NOT carry forward URLs from the Chief Scientist, Story Producer, or Discovery Brief unless you are CERTAIN they support the exact claim in YOUR Summary. A URL that was valid for a different concept (e.g., from a Discovery Brief about a different species) is a fabricated source in this context.
+   **Category A — Seed Facts** (names, roles, affiliations stated by the user in their original seed idea):
+   These are facts the user asserted. Your job is to VERIFY they are real — search for the named person, confirm their affiliation (e.g. "Is Mamadou Ndiaye actually a YouTube host?"). If verified, no source citation needed — just confirm in your own output that the claim checks out. If a seed fact is WRONG (person doesn't exist, affiliation is incorrect), flag it explicitly: "⚠️ Seed fact unverified: [claim] — could not confirm."
+
+   **Category B — Pipeline-Introduced Facts** (any claim the pipeline ADDED that was NOT in the user's seed — species behaviors, ecological conditions, scientific discoveries, statistics, locations, historical claims):
+   Every single one of these MUST have a source URL. Search for it. The source must directly support the exact claim as written. If you cannot find a source, either rewrite the claim to match what a real source says, or remove the claim from the Summary. There is no third option — an unsourced pipeline-introduced claim is a fabrication.
+
+   Format: **Sources:** followed by a numbered list. For Category B claims: "[Exact claim] — [URL]". Omit Category A claims from the list unless they failed verification.
+
+⛔ URL HALLUCINATION RULE: Do NOT invent URLs. Do NOT carry forward URLs from upstream agents without re-verifying them yourself. A URL that was generated for a different concept is a fabricated source.
 
 Quality Guardrails:
 - Output ONLY these 5 sections — no additional sections, no A/V scripts, no logistics, no market analysis, no scientific backbone, no franchise logic
 - The logline must match what the full treatment delivers
 - The summary must be cinematic and compelling, not clinical
 - Platform recommendations must be specific and justified
-- The Sources section must use real URLs OR explicit ⚠️ Unverified flags — never fabricated DOIs or invented journal references
+- The Sources section must use real, search-verified URLs — never fabricated DOIs or invented journal references
 - NEVER invent or fabricate names for people (scientists, chiefs, elders, filmmakers, narrators). If you are not 100% certain a person is real, describe their role generically instead (e.g., "a Haíɫzaqv Nation elder" not "Chief Ts'elesta"). Fabricated names destroy credibility.
 
 Use clean, professional markdown formatting.`,
