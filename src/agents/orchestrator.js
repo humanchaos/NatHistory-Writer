@@ -9,9 +9,6 @@ import {
     ADVERSARY,
     DISCOVERY_SCOUT,
     DRIFT_GATE,
-    FACT_EXTRACTOR,
-    SOURCE_HUNTER,
-    STORY_RECONCILER,
     GENRE_STRATEGIST,
     ALL_AGENTS,
 } from './personas.js';
@@ -1055,102 +1052,6 @@ Issue SURGICAL revision directives. Focus ONLY on the specific failings the Edit
     cbs.onPhaseComplete(4);
 
     // ═══════════════════════════════════════════════════════
-    // PHASE 4.5 — STORY-FIRST VERIFICATION
-    // Fact Extractor → Source Hunter → Story Reconciler
-    // Disassembles the final draft, verifies every factual claim,
-    // and rebuilds the narrative with only sourced facts.
-    // ═══════════════════════════════════════════════════════
-    const finalDraft = ctx.draftV2;
-    let reconciledNarrative = finalDraft; // fallback if verification fails
-    let sourceMap = null;
-    let reconciliationReport = null;
-
-    try {
-        cbs.onPhaseStart(4.5, '🔬 Fact Extractor — Building Claim Registry');
-
-        // Step 1: Extract all factual claims from the final draft
-        const claimRegistryRaw = await mutatedAgentStep(
-            FACT_EXTRACTOR,
-            `Seed idea: "${seedIdea}"\n\nStory Producer's Draft Narrative:\n${finalDraft}`,
-            cbs
-            // No Google Search — pure extraction
-        );
-
-        // Parse the claim registry JSON
-        let claimRegistry = null;
-        try {
-            const jsonMatch = claimRegistryRaw.match(/\{[\s\S]*\}/);
-            if (jsonMatch) claimRegistry = JSON.parse(jsonMatch[0]);
-        } catch (e) {
-            console.warn('Fact Extractor: could not parse JSON, skipping verification.', e.message);
-        }
-
-        if (claimRegistry && claimRegistry.claim_registry?.length > 0) {
-            cbs.onPhaseComplete(4.5);
-            cbs.onPhaseStart(4.5, `🕵️ Source Hunter — Verifying ${claimRegistry.claim_registry.length} Claims`);
-
-            // Step 2: Source Hunter searches for each claim
-            const sourcedRegistryRaw = await mutatedAgentStep(
-                SOURCE_HUNTER,
-                `Claim Registry (${claimRegistry.extraction_summary.total_claims} claims):\n${JSON.stringify(claimRegistry, null, 2)}`,
-                cbs,
-                { tools: [{ googleSearch: {} }] } // Source Hunter MUST search
-            );
-
-            // Parse the sourced registry JSON
-            let sourcedRegistry = null;
-            try {
-                const jsonMatch = sourcedRegistryRaw.match(/\{[\s\S]*\}/);
-                if (jsonMatch) sourcedRegistry = JSON.parse(jsonMatch[0]);
-            } catch (e) {
-                console.warn('Source Hunter: could not parse JSON, skipping reconciliation.', e.message);
-            }
-
-            if (sourcedRegistry) {
-                cbs.onPhaseComplete(4.5);
-                cbs.onPhaseStart(4.5, '✍️ Story Reconciler — Rebuilding Verified Narrative');
-
-                // Step 3: Story Reconciler rebuilds the narrative with only verified facts
-                const reconciledRaw = await mutatedAgentStep(
-                    STORY_RECONCILER,
-                    `Original Draft Narrative:\n${finalDraft}\n\nSourced Registry:\n${JSON.stringify(sourcedRegistry, null, 2)}`,
-                    cbs
-                    // No Google Search — pure reconciliation
-                );
-
-                // The Reconciler outputs Part 1 (narrative) + Part 2 (JSON report)
-                // Split them: narrative is everything before the JSON block
-                const jsonSplit = reconciledRaw.match(/([\s\S]*?)(\{[\s\S]*\}\s*)$/);
-                if (jsonSplit) {
-                    reconciledNarrative = jsonSplit[1].trim();
-                    try {
-                        reconciliationReport = JSON.parse(jsonSplit[2]);
-                        sourceMap = reconciliationReport.source_map || null;
-                        console.log(`Story Reconciler: ${reconciliationReport.narrative_health?.overall_assessment}`);
-                    } catch (e) {
-                        console.warn('Story Reconciler: could not parse report JSON.', e.message);
-                        reconciledNarrative = reconciledRaw; // use full output as narrative
-                    }
-                } else {
-                    reconciledNarrative = reconciledRaw;
-                }
-
-                cbs.onPhaseComplete(4.5);
-            }
-        } else {
-            console.warn('Fact Extractor returned no claims — skipping verification.');
-            cbs.onPhaseComplete(4.5);
-        }
-    } catch (e) {
-        console.warn('Story-first verification failed, proceeding with unverified draft:', e.message);
-    }
-
-    // Store reconciled narrative and report in context
-    ctx.reconciledNarrative = reconciledNarrative;
-    ctx.reconciliationReport = reconciliationReport;
-    ctx.sourceMap = sourceMap;
-
-    // ═══════════════════════════════════════════════════════
     // PHASE 5 — FINAL OUTPUT
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(5, 'Final Output — Master Pitch Deck');
@@ -1229,19 +1130,6 @@ ${draftOutline}
         return sections.length > 0 ? sections.join('\n\n') : ctx.marketMandate.substring(0, 1000) + '\n\n[… truncated for context efficiency]';
     })();
 
-    // Build source map block for Showrunner (from Story Reconciler output)
-    const sourceMapBlock = (() => {
-        if (!ctx.sourceMap || ctx.sourceMap.length === 0) return '';
-        const sourced = ctx.sourceMap.filter(s => s.status !== 'removed' && s.source_url);
-        if (sourced.length === 0) return '';
-        const lines = sourced.map(s => `- [${s.claim_id}] ${s.source_url}`);
-        return `\n\n### Verified Source Map (from Story Reconciler)\n${lines.join('\n')}`;
-    })();
-
-    // Build reconciliation health note for Showrunner
-    const healthNote = ctx.reconciliationReport?.narrative_health?.overall_assessment
-        ? `\n\n> **Story Reconciler assessment:** ${ctx.reconciliationReport.narrative_health.overall_assessment}`
-        : '';
 
     if (!shouldSkip('finalPitchDeck')) {
         ctx.finalPitchDeck = await mutatedAgentStep(
@@ -1254,10 +1142,8 @@ ${statePayload}
 ### Market Mandate (Key Directives)
 ${compactMandate}
 
-### Reconciled Narrative (VERIFIED — use this as your primary source for the Summary)
-This narrative has been verified by the Fact Extractor, Source Hunter, and Story Reconciler. Every [CLAIM-XXX] marker indicates a sourced fact.${healthNote}
-
-${ctx.reconciledNarrative || ctx.draftV2}${sourceMapBlock}
+### Story Producer's Draft Narrative
+${ctx.draftV2}
 
 ### Full Editor Review (FALLBACK)
 ${ctx.greenlightReview}
@@ -1268,20 +1154,22 @@ Output ONLY these 5 sections — nothing else:
 
 1. **Title** — As a prominent ## heading. Evocative, marketable, unique.
 2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
-3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Draw from the Reconciled Narrative. Format: **Summary:** followed by the paragraph.
+3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
-5. **Sources** — Two types of claims, handled differently:
-   - **Seed facts** (names, roles, affiliations from the user's original seed): Search to verify the person is real and the affiliation is correct. If verified, no citation needed. If wrong, flag it: "⚠️ Seed fact unverified: [claim]".
-   - **Pipeline-introduced facts**: These have ALREADY been verified by the Source Hunter. Convert the [CLAIM-XXX] markers in the Reconciled Narrative into a clean numbered Sources list using the Verified Source Map above. Format each entry as: "[Paraphrased claim] — [URL] ([Publisher])". Group by theme if there are many (e.g., "Population & Conservation," "Habitat & Ecology"). Do NOT re-verify these — trust the registry. Do NOT invent URLs.
-   - If the Story Reconciler flagged any ⚠️ STRUCTURAL GAP or ⚠️ UNVERIFIED items, include them in a brief "⚠️ Editorial Notes" section after Sources.
+5. **Sources** — Apply the three-tier model from your system prompt:
+   - **Tier 1 hard claims** in the Summary (specific numbers, statistics, population counts, precise dates): search-verify each one. Cite with URL. If you can't find a source, rewrite or remove.
+   - **Tier 2 contextual texture** (general ecological context, widely-understood patterns): no source needed.
+   - **Tier 3 narrative framing** (emotional language, metaphors): no source needed.
+   - **Seed facts** (names, roles, affiliations from the user's original seed): verify via search. If verified, no citation. If wrong, flag: "⚠️ Seed fact unverified: [claim]".
 
 CRITICAL FORMAT RULES:
-- Output ONLY these 5 sections (plus optional Editorial Notes) — no A/V scripts, no logistics, no market analysis
+- Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis
 - No agent commentary, no preamble, no "Okay, Showrunner here", no "INCORPORATING PROVOCATION" lines
 - Start directly with the ## Title heading
 - This must be clean, compact, and presentation-ready.`,
             cbs,
-            { tools: [{ googleSearch: {} }] } // Still needs search for seed fact verification
+            { tools: [{ googleSearch: {} }] } // Needs search for Tier 1 claim verification and seed fact verification
+
         );
         checkpoint_('finalPitchDeck', 5);
     }
