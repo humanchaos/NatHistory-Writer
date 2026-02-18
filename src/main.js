@@ -1129,6 +1129,22 @@ if (chaosModeToggle) {
     });
 }
 
+// ─── Story Mode Toggle ──────────────────────────────────────────
+// 'discovery' = Discovery Scout runs (default)
+// 'narrative'  = Grand Narrative Mode — Discovery Scout skipped
+let grandNarrativeMode = false;
+const storyModeToggle = document.getElementById('story-mode-toggle');
+if (storyModeToggle) {
+    storyModeToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chaos-mode-btn');
+        if (!btn || !btn.dataset.story) return;
+        storyModeToggle.querySelectorAll('.chaos-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        grandNarrativeMode = btn.dataset.story === 'narrative';
+    });
+}
+
+
 // Toggle custom genre input visibility
 genrePreferenceInput.addEventListener('change', () => {
     if (genrePreferenceInput.value === 'custom') {
@@ -1576,6 +1592,7 @@ seedForm.addEventListener('submit', async (e) => {
                     genrePreference: genre.genreKey,
                     maxRevisions,
                     chaosMode: selectedChaosMode,
+                    grandNarrativeMode,
                 });
 
                 batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck, genreName: genre.genreName });
@@ -1657,7 +1674,7 @@ seedForm.addEventListener('submit', async (e) => {
 
                 const finalPitchDeck = isAssessment
                     ? await runAssessment(seedText, pipelineCallbacks, prodYear)
-                    : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions, chaosMode: selectedChaosMode });
+                    : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions, chaosMode: selectedChaosMode, grandNarrativeMode });
 
                 batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
                 completeAgentRing();

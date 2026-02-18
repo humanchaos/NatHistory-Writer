@@ -335,7 +335,7 @@ export async function suggestGenres(seedIdea) {
 }
 
 export async function runPipeline(seedIdea, cbs, opts = {}) {
-    const { platform = null, year = null, directive = null, checkpoint = null, maxRevisions = 3, genrePreference = null, chaosMode = 'precision' } = opts;
+    const { platform = null, year = null, directive = null, checkpoint = null, maxRevisions = 3, genrePreference = null, chaosMode = 'precision', grandNarrativeMode = false } = opts;
 
     // ─── Resume support: hydrate ctx from checkpoint and determine resume point ──
     const ctx = checkpoint?.ctx ? { ...checkpoint.ctx, seedIdea } : { seedIdea };
@@ -465,8 +465,9 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
     // ═══════════════════════════════════════════════════════
     // PHASE 0 — DISCOVERY SCOUT
+    // Skipped in Grand Narrative Mode — story leads, science follows.
     // ═══════════════════════════════════════════════════════
-    if (!shouldSkip('discovery')) {
+    if (!grandNarrativeMode && !shouldSkip('discovery')) {
         cbs.onPhaseStart(0, '🔬 Scouting Recent Discoveries');
 
         let discoveryBrief = '';
@@ -554,9 +555,11 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // ⚠️ ANTI-DRIFT WARNING injected with every Discovery Brief:
     // The Brief provides scientific depth — it must NOT be treated as a concept replacement.
     // If the Brief introduces species or locations not present in the original seed, IGNORE those elements.
-    const discoveryBlock = discoveryBrief
-        ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n⚠️ DOWNSTREAM AGENTS: This Brief provides scientific depth to SUPPORT the seed idea. If it mentions species, locations, or concepts NOT present in the original seed, treat those as background context only — do NOT build your output around them. The seed is the anchor.\n\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n`
-        : '';
+    const discoveryBlock = grandNarrativeMode
+        ? `\n\n--- GRAND NARRATIVE MODE ---\n🌍 The Discovery Scout has been bypassed. This pipeline is operating in Grand Narrative Mode: the story leads, and science follows.\n\nDownstream agents: do NOT anchor the pitch to recent discoveries or "what was published in the last 12 months." Instead, build from the full depth of established science — deep time, evolutionary history, ecological systems, long-arc behavioral research. The narrative should feel timeless and monumental, not newsy.\n\nScience must still be hard-sourced. All specific claims (numbers, dates, species counts, named researchers, comparative superlatives) require verifiable sources. The difference is that those sources can be foundational texts, long-term studies, or established consensus — not just recent publications.\n\n--- END GRAND NARRATIVE MODE ---\n\n`
+        : discoveryBrief
+            ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n⚠️ DOWNSTREAM AGENTS: This Brief provides scientific depth to SUPPORT the seed idea. If it mentions species, locations, or concepts NOT present in the original seed, treat those as background context only — do NOT build your output around them. The seed is the anchor.\n\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n`
+            : '';
 
     // ═══════════════════════════════════════════════════════
     // PHASE 1 — THE BRAINSTORM
