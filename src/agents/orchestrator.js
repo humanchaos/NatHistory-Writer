@@ -459,7 +459,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
     // ─── SEED FIDELITY GUARD ─────────────────────────────
     // Prevents concept drift: every agent is anchored to the user's original idea
-    const seedAnchor = `\n⚠️ SEED FIDELITY — ABSOLUTE RULE: The user's original concept is the ANCHOR for this entire pipeline. Your job is to ENHANCE, RESEARCH, and DEEPEN this seed idea — NOT replace it with a different concept. If the user names a specific book, title, species, location, narrator, or visual approach, those are NON-NEGOTIABLE. You may add scientific depth, production detail, and creative texture, but the core concept must remain recognizably the user's idea. Do NOT pivot to a tangentially related but different topic just because your research surfaced it.\n\nOriginal seed: "${seedIdea}"\n`;
+    const seedAnchor = `\n⚠️ SEED FIDELITY — ABSOLUTE RULE: The user's original concept is the ANCHOR for this entire pipeline. Your job is to ENHANCE, RESEARCH, and DEEPEN this seed idea — NOT replace it with a different concept. If the user names a specific book, title, species, location, narrator, presenter, or visual approach, those are NON-NEGOTIABLE. You may add scientific depth, production detail, and creative texture, but the core concept must remain recognizably the user's idea. Do NOT pivot to a tangentially related but different topic just because your research surfaced it.\n\nOriginal seed: "${seedIdea}"\n`;
 
     // ═══════════════════════════════════════════════════════
     // PHASE 0 — DISCOVERY SCOUT
@@ -471,7 +471,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         try {
             discoveryBrief = await mutatedAgentStep(
                 DISCOVERY_SCOUT,
-                `${seedAnchor}Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented.${genreLabel ? ` Prioritize discoveries relevant to the **${genreLabel}** genre lens.` : ''} Your discoveries must SUPPORT and DEEPEN the user's seed idea, not redirect it to a different topic. Return a structured Discovery Brief.`,
+                `${seedAnchor}Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented.${genreLabel ? ` Prioritize discoveries relevant to the **${genreLabel}** genre lens.` : ''}\n\n⛔ ANTI-DRIFT RULE (CRITICAL): Your Discovery Brief must ONLY surface findings that DIRECTLY support the user's stated seed concept. If the seed names a specific presenter, host, or person (e.g., a YouTube creator, journalist, filmmaker), search for what THEY are known for and what subjects THEY cover — do NOT invent a random species or location they have never been associated with. If the seed names a specific species or location, your findings must be about THAT species or location — not a tangentially related one your search happened to surface. If you cannot find relevant discoveries for the exact seed concept, return a Null Result — do NOT substitute a different concept. A Discovery Brief that introduces a new species or location not present in the seed is a PIPELINE FAILURE.\n\nReturn a structured Discovery Brief.`,
                 cbs,
                 { tools: [{ googleSearch: {} }] }
             );
@@ -485,7 +485,12 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     }
 
     const discoveryBrief = ctx._discoveryBrief || '';
-    const discoveryBlock = discoveryBrief ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n` : '';
+    // ⚠️ ANTI-DRIFT WARNING injected with every Discovery Brief:
+    // The Brief provides scientific depth — it must NOT be treated as a concept replacement.
+    // If the Brief introduces species or locations not present in the original seed, IGNORE those elements.
+    const discoveryBlock = discoveryBrief
+        ? `\n\n--- DISCOVERY BRIEF (Recent Scientific Findings) ---\n⚠️ DOWNSTREAM AGENTS: This Brief provides scientific depth to SUPPORT the seed idea. If it mentions species, locations, or concepts NOT present in the original seed, treat those as background context only — do NOT build your output around them. The seed is the anchor.\n\n${discoveryBrief}\n--- END DISCOVERY BRIEF ---\n\n`
+        : '';
 
     // ═══════════════════════════════════════════════════════
     // PHASE 1 — THE BRAINSTORM
