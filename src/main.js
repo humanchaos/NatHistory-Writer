@@ -783,29 +783,46 @@ async function handleSharedFiles(fileList) {
                 sharedProgressFill.style.width = '0%';
                 sharedProgressText.textContent = `Reading PDF "${file.name}"…`;
 
-                // Convert PDF to base64 (chunked — safe for large files)
-                if (file.size > 4 * 1024 * 1024) {
-                    throw new Error(`PDF too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 4 MB.`);
-                }
+                // Extract PDF text client-side using PDF.js (avoids Vercel 10s timeout)
+                sharedProgressText.textContent = `Extracting text from "${file.name}"…`;
                 const arrayBuffer = await file.arrayBuffer();
-                const bytes = new Uint8Array(arrayBuffer);
-                let binary = '';
-                const CHUNK = 8192;
-                for (let i = 0; i < bytes.length; i += CHUNK) {
-                    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+
+                try {
+                    // Dynamically import PDF.js from CDN
+                    const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs');
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const pageTexts = [];
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        pageTexts.push(content.items.map(item => item.str).join(' '));
+                    }
+                    text = pageTexts.join('\n\n');
+                    if (!text.trim()) throw new Error('No text extracted from PDF');
+                } catch (pdfErr) {
+                    console.warn('PDF.js extraction failed, falling back to server:', pdfErr.message);
+                    // Fallback: server-side Gemini extraction (for scanned/image PDFs)
+                    const bytes = new Uint8Array(arrayBuffer);
+                    let binary = '';
+                    const CHUNK = 8192;
+                    for (let i = 0; i < bytes.length; i += CHUNK) {
+                        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+                    }
+                    const base64 = btoa(binary);
+                    const extractRes = await fetch('/api/extract', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'pdf', data: base64 }),
+                    });
+                    if (!extractRes.ok) {
+                        const errBody = await extractRes.json().catch(() => ({}));
+                        throw new Error(errBody.error || 'PDF extraction failed');
+                    }
+                    const { text: extracted } = await extractRes.json();
+                    text = extracted;
                 }
-                const base64 = btoa(binary);
-                const extractRes = await fetch('/api/extract', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'pdf', data: base64 }),
-                });
-                if (!extractRes.ok) {
-                    const errBody = await extractRes.json().catch(() => ({}));
-                    throw new Error(errBody.error || 'PDF extraction failed');
-                }
-                const { text: extracted } = await extractRes.json();
-                text = extracted;
             } else {
                 text = await file.text();
             }
