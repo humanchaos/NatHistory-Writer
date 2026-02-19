@@ -20,14 +20,14 @@ export function initGemini() {
  * Optionally accepts tools (e.g. Google Search grounding).
  * Returns the response text.
  */
-export async function callAgent(systemPrompt, userMessage, { retries = 2, tools = [], signal } = {}) {
+export async function callAgent(systemPrompt, userMessage, { retries = 2, tools = [], responseFormat, signal } = {}) {
     for (let attempt = 0; attempt <= retries; attempt++) {
         if (signal?.aborted) throw new DOMException('Agent call aborted', 'AbortError');
         try {
             const res = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ systemPrompt, userMessage, tools }),
+                body: JSON.stringify({ systemPrompt, userMessage, tools, responseFormat }),
                 signal,
             });
 

@@ -832,6 +832,13 @@ The pipeline iterates, it does not kill. Find a way.`,
                 `The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the REVISED Animal Fact Sheet from the Chief Scientist (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment and crew recommendations MUST serve the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
                 cbs
             );
+
+            // ─── FIX 3: Synchronize Market Mandate on Pivot ──────────
+            ctx.marketMandate = await mutatedAgentStep(
+                MARKET_ANALYST,
+                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${wildlifeFocusGuard}${genreLock}\n\nThe Chief Scientist and Field Producer have PIVOTED the core concept to address ethical/scientific concerns.\n\nHere is their REVISED Animal Fact Sheet:\n${ctx.animalFactSheet}\n\nRe-evaluate the market viability of this NEW pivoted approach. Do your target platforms and narrative form recommendations change? Output your revised Market Mandate based on this new reality.`,
+                cbs
+            );
         }
     }
 
@@ -842,10 +849,37 @@ The pipeline iterates, it does not kill. Find a way.`,
     // ═══════════════════════════════════════════════════════
     cbs.onPhaseStart(2, 'Draft V1');
 
+    // ─── LATE-BINDING RAG: Re-query with finalized science (Fix 5) ─────
+    if (ctx.animalFactSheet) {
+        try {
+            const draftKbContext = await retrieveContext(ctx.animalFactSheet.slice(0, 500));
+            if (draftKbContext) {
+                kbBlock = `\n\n${draftKbContext}\n\n`; // Override global kbBlock with pivoted science
+            }
+        } catch (e) {
+            console.warn('Draft RAG update failed:', e.message);
+        }
+    }
+
     // ─── SPECIES DRIFT GUARD ─────────────────────────────
     // Extract the hero species from the Scientist's output to enforce Zero Species Drift
-    const speciesMatch = ctx.animalFactSheet.match(/(?:Primary Species|Hero Species|Hero Animal)[^:]*:\s*\**([^(*\n]+)/i);
-    const heroSpecies = speciesMatch ? speciesMatch[1].trim().replace(/\*+$/, '').trim() : null;
+    let heroSpecies = null;
+    try { // Fix 4: Structured Data (JSON) for Guards
+        const speciesExtraction = await callAgent(
+            'You are a strict data extractor. Read the provided text and identify the primary/hero animal species. Return ONLY valid JSON with a single key "primarySpecies" containing the name of the animal. Example: {"primarySpecies": "Snow Leopard"}',
+            ctx.animalFactSheet,
+            { responseFormat: 'json' }
+        );
+        const parsed = JSON.parse(speciesExtraction);
+        if (parsed.primarySpecies && parsed.primarySpecies.toLowerCase() !== 'none') {
+            heroSpecies = parsed.primarySpecies;
+        }
+    } catch (e) {
+        console.warn('Structured species extraction failed, falling back to regex:', e.message);
+        const speciesMatch = ctx.animalFactSheet.match(/(?:Primary Species|Hero Species|Hero Animal)[^:]*:\s*\**([^(*\n]+)/i);
+        heroSpecies = speciesMatch ? speciesMatch[1].trim().replace(/\*+$/, '').trim() : null;
+    }
+
     const speciesGuard = heroSpecies
         ? `\n\n⚠️ ZERO SPECIES DRIFT ENFORCEMENT: Your hero species MUST be "${heroSpecies}" as identified by the Chief Scientist. If you change, swap, or substitute this species for a different animal, your output will be flagged as SPECIES DRIFT and REJECTED. You may creatively reinterpret the angle, but the animal stays.\n`
         : '';
@@ -1228,7 +1262,7 @@ Deliver your verdict in the specified format. Be brutal. Be specific. Cite exact
     let verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
     let isHardReject = verdictUpper.includes('BURN IT DOWN') ||
         (verdictUpper.includes('REJECTED') && !verdictUpper.includes('GREENLIT'));
-    let isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
+    let isFatalScore = gatekeeperScore !== null && gatekeeperScore < 80; // Fix 2: < 80 instead of < 40 to close pardon loophole
     let adversaryAttempts = 0;
 
     while ((isHardReject || isFatalScore) && adversaryAttempts < maxRevisions) {
@@ -1286,7 +1320,7 @@ Re-evaluate. Have your core concerns been addressed? Run your full audit again.$
         verdictUpper = ctx.gatekeeperVerdict.toUpperCase();
         isHardReject = verdictUpper.includes('BURN IT DOWN') ||
             (verdictUpper.includes('REJECTED') && !verdictUpper.includes('GREENLIT'));
-        isFatalScore = gatekeeperScore !== null && gatekeeperScore < 40;
+        isFatalScore = gatekeeperScore !== null && gatekeeperScore < 80;
     }
 
     // Pipeline complete — clear checkpoint
