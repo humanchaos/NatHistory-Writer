@@ -1319,6 +1319,24 @@ function sanitizeFinalOutput(text) {
     // Remove "INCORPORATING PROVOCATION" meta-commentary that leaks from the prompt
     cleaned = cleaned.replace(/\n*INCORPORATING PROVOCATION:.*(?:\n(?!##|$|\*\*).*)*/gi, '');
 
+    // Strip trailing meta-sections the LLM sometimes appends after the pitch card.
+    // The pitch card has 5 sections: Title (##), Logline, Summary, Best For, Sources.
+    // Anything that starts a new ## heading after the title (like "Revision Directives",
+    // "Action Items", "Notes", "Key Changes") is meta-commentary and must be stripped.
+    const lines = cleaned.split('\n');
+    let cutIndex = -1;
+    for (let i = 1; i < lines.length; i++) { // Start at 1 to skip the title itself
+        const line = lines[i].trim();
+        if (/^##\s+/.test(line)) {
+            // This is a second ## heading — everything from here is meta-commentary
+            cutIndex = i;
+            break;
+        }
+    }
+    if (cutIndex > 0) {
+        cleaned = lines.slice(0, cutIndex).join('\n');
+    }
+
     // Remove trailing meta-commentary after the pitch card content
     // (e.g., "Let me know if you'd like adjustments..." or "---\n\nAction Items:...")
     cleaned = cleaned.replace(/\n---\n+(?:\*\*Action Items?\b[\s\S]*|(?:Let me know|I hope|Is there|Would you|Do you|Shall I)[\s\S]*)$/i, '');
