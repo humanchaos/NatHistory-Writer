@@ -1,7 +1,7 @@
 import { initGemini, createChat, callAgent, extractPdfText, extractUrlContent } from './agents/gemini.js';
 import { runPipeline, runAssessment, suggestGenres, setPipelineAbortSignal, PipelineCancelled } from './agents/orchestrator.js';
 import { saveRun, getRuns, deleteRun, getRunById, saveDryrunResult, getDryrunResults } from './history.js';
-import { loadCheckpoint, clearCheckpoint } from './pipelineState.js';
+import { loadCheckpoint, clearCheckpoint, saveBatchState, loadBatchState, clearBatchState } from './pipelineState.js';
 // chunkText and embedBatch are handled inside ragWorker.js (Web Worker)
 import { addDocument, listDocuments, deleteDocument } from './knowledge/vectorStore.js';
 import { listSharedDocuments, searchShared, addSharedDocument, deleteSharedDocument, triggerRefresh, listSources } from './knowledge/sharedKB.js';
@@ -1649,6 +1649,19 @@ seedForm.addEventListener('submit', async (e) => {
                 await saveRun({ seedIdea: `${seedText} [${genre.genreName}]`, finalPitchDeck });
                 autoScore(finalPitchDeck, seedText);
 
+                // Save batch state so resume can skip this genre
+                saveBatchState({
+                    seedIdea: seedText,
+                    genreSuggestions,
+                    completedGenres: batchResults.map(r => ({ genreName: r.genreName, genreKey: genreSuggestions.find(g => g.genreName === r.genreName)?.genreKey, pitchDeck: r.pitchDeck })),
+                    currentIndex: i + 1,
+                    platform: targetPlatform,
+                    year: prodYear,
+                    chaosMode: selectedChaosMode,
+                    grandNarrativeMode,
+                    maxRevisions,
+                });
+
                 // ── Build a result card progressively ──
                 const meta = extractMeta(finalPitchDeck);
                 const resultCard = document.createElement('div');
@@ -1692,6 +1705,9 @@ seedForm.addEventListener('submit', async (e) => {
                     lastPitchDeck = finalPitchDeck;
                 }
             }
+
+            // Batch complete — clear batch state
+            clearBatchState();
 
             // Track last seed
             lastSeedIdea = seedText;
@@ -3056,13 +3072,25 @@ async function startDryrun(resume) {
     // ─── CHECKPOINT RESUME ─────────────────────────────
     try {
         const cp = await loadCheckpoint();
-        if (cp && cp.status === 'running') {
-            const elapsed = cp.startedAt
-                ? Math.round((Date.now() - new Date(cp.startedAt).getTime()) / 60000)
+        const batch = await loadBatchState();
+
+        // Determine resume type: batch (multi-genre) or single pipeline
+        const isBatchResume = batch && batch.status === 'running' && batch.completedGenres?.length > 0;
+        const hasSingleCheckpoint = cp && cp.status === 'running';
+
+        if (isBatchResume || hasSingleCheckpoint) {
+            const seedIdea = isBatchResume ? batch.seedIdea : cp.seedIdea;
+            const startedAt = isBatchResume ? batch.startedAt : cp.startedAt;
+            const elapsed = startedAt
+                ? Math.round((Date.now() - new Date(startedAt).getTime()) / 60000)
                 : null;
-            const seedShort = (cp.seedIdea || '').length > 60
-                ? cp.seedIdea.slice(0, 57) + '…'
-                : cp.seedIdea;
+            const seedShort = (seedIdea || '').length > 60
+                ? seedIdea.slice(0, 57) + '…'
+                : seedIdea;
+
+            const stepInfo = isBatchResume
+                ? `${batch.completedGenres.length}/${batch.genreSuggestions.length} genres complete`
+                : `Last step: ${cp.step || 'unknown'}`;
 
             const banner = document.createElement('div');
             banner.className = 'resume-banner';
@@ -3073,7 +3101,7 @@ async function startDryrun(resume) {
                         <strong>Unfinished pipeline</strong>
                         <span class="resume-banner-seed"></span>
                         ${elapsed ? `<span class="resume-banner-time">Interrupted ${elapsed < 60 ? elapsed + 'm' : Math.round(elapsed / 60) + 'h'} ago</span>` : ''}
-                        <span class="resume-banner-step">Last step: ${cp.step || 'unknown'}</span>
+                        <span class="resume-banner-step">${stepInfo}</span>
                     </div>
                     <div class="resume-banner-actions">
                         <button class="resume-btn resume-btn-go">▶ Resume</button>
@@ -3087,6 +3115,7 @@ async function startDryrun(resume) {
 
             banner.querySelector('.resume-btn-discard').addEventListener('click', async () => {
                 await clearCheckpoint();
+                await clearBatchState();
                 banner.classList.remove('visible');
                 setTimeout(() => banner.remove(), 300);
             });
@@ -3096,16 +3125,15 @@ async function startDryrun(resume) {
                 setTimeout(() => banner.remove(), 300);
 
                 // Pre-populate seed input
-                seedInput.value = cp.seedIdea || '';
+                seedInput.value = seedIdea || '';
 
-                // Wire up the pipeline with the checkpoint
+                // Wire up the pipeline
                 pipelineRunning = true;
                 launchBtn.disabled = true;
                 launchBtn.querySelector('.btn-text').textContent = 'Resuming…';
 
                 simulationEl.classList.remove('hidden');
                 timelineEl.innerHTML = '';
-                // Pitch deck stays visible if already open
                 scorecardEl.classList.add('hidden');
                 simulationEl.scrollIntoView({ behavior: 'smooth' });
 
@@ -3123,46 +3151,222 @@ async function startDryrun(resume) {
                 cancelBtn.addEventListener('click', doCancel);
                 simulationEl.insertBefore(cancelBtn, simulationEl.firstChild);
 
-                const statusBar = createPipelineStatusBar(cp.seedIdea || 'Resumed pipeline');
+                const statusBar = createPipelineStatusBar(seedIdea || 'Resumed pipeline');
                 statusBar.querySelector('.psb-cancel').addEventListener('click', doCancel);
 
-                const totalPhases = 6;
-                buildPhaseIndicator(totalPhases);
+                if (isBatchResume) {
+                    // ═══════════════════════════════════════════════════
+                    // BATCH RESUME: restore completed genres, run remaining
+                    // ═══════════════════════════════════════════════════
+                    const batchResults = batch.completedGenres.map(g => ({
+                        seed: batch.seedIdea,
+                        pitchDeck: g.pitchDeck,
+                        genreName: g.genreName,
+                    }));
 
-                try {
-                    const finalPitchDeck = await runPipeline(
-                        cp.seedIdea,
-                        pipelineCallbacks,
-                        {
-                            platform: cp.platform,
-                            year: cp.year,
-                            directive: cp.directive,
-                            checkpoint: cp,
-                        }
-                    );
+                    // Helper: extract title and logline from pitch deck markdown
+                    const extractMeta = (pitchDeck) => {
+                        const titleMatch = pitchDeck.match(/^##\s+(.+)$/m);
+                        const loglineMatch = pitchDeck.match(/\*\*Logline[:\s]*\*\*\s*(.+)/i)
+                            || pitchDeck.match(/\*Logline[:\s]*\*\s*(.+)/i)
+                            || pitchDeck.match(/Logline[:\s]+(.+)/i);
+                        return {
+                            title: titleMatch?.[1]?.trim() || 'Untitled Pitch',
+                            logline: loglineMatch?.[1]?.trim() || '',
+                        };
+                    };
 
-                    pitchDeckContent.innerHTML = md(finalPitchDeck);
-                    pitchDeckEl.classList.remove('hidden');
-                    updateGatekeeperBadges(finalPitchDeck);
-                    pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
-                    initChatSession(finalPitchDeck);
-                    lastPitchDeck = finalPitchDeck;
-                    lastSeedIdea = cp.seedIdea;
+                    // Restore strategy cards
+                    const genreStrategyCard = document.getElementById('genre-strategy-card');
+                    const genreStrategyBody = document.getElementById('genre-strategy-body');
+                    genreStrategyBody.innerHTML = batch.genreSuggestions.map((g, i) => {
+                        const isDone = i < batch.currentIndex;
+                        return `
+                            <div class="genre-lens-card" id="genre-card-${i}">
+                                <div class="genre-lens-name">🎭 ${g.genreName}</div>
+                                <div class="genre-lens-rationale">${g.rationale}</div>
+                                <div class="genre-lens-status ${isDone ? 'done' : ''}" id="genre-status-${i}">${isDone ? '✅ Complete' : '⏳ Queued'}</div>
+                            </div>
+                        `;
+                    }).join('');
+                    genreStrategyCard.classList.remove('hidden');
 
-                    await saveRun({ seedIdea: cp.seedIdea, finalPitchDeck });
-                    autoScore(finalPitchDeck, cp.seedIdea);
-                } catch (err) {
-                    if (err instanceof PipelineCancelled) {
-                        showError('Pipeline cancelled.');
-                    } else {
-                        showError(`Pipeline failed: ${err.message}`);
+                    // Restore completed result cards
+                    const genreResultsGrid = document.getElementById('genre-results-grid');
+                    const genreResultsBody = document.getElementById('genre-results-body');
+                    genreResultsBody.innerHTML = '';
+
+                    for (let r = 0; r < batchResults.length; r++) {
+                        const result = batchResults[r];
+                        const meta = extractMeta(result.pitchDeck);
+                        const resultCard = document.createElement('div');
+                        resultCard.className = 'genre-result-card';
+                        resultCard.dataset.index = r;
+                        resultCard.innerHTML = `
+                            <span class="genre-result-badge">${result.genreName}</span>
+                            <div class="genre-result-title">${meta.title}</div>
+                            ${meta.logline ? `<div class="genre-result-logline">${meta.logline}</div>` : ''}
+                            <div class="genre-result-cta">Click to view full pitch →</div>
+                        `;
+                        const idx = r;
+                        resultCard.addEventListener('click', () => {
+                            genreResultsBody.querySelectorAll('.genre-result-card').forEach(c => c.classList.remove('selected'));
+                            resultCard.classList.add('selected');
+                            simulationEl.classList.add('hidden');
+                            pitchDeckEl.querySelector('.batch-tabs')?.remove();
+                            pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
+                            updateGatekeeperBadges(batchResults[idx].pitchDeck);
+                            initChatSession(batchResults[idx].pitchDeck);
+                            lastPitchDeck = batchResults[idx].pitchDeck;
+                            pitchDeckEl.classList.remove('hidden');
+                            if (pipelineRunning) backToPipelineBtn.classList.remove('hidden');
+                            pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                        });
+                        genreResultsBody.appendChild(resultCard);
                     }
-                } finally {
-                    pipelineRunning = false;
-                    launchBtn.disabled = false;
-                    launchBtn.querySelector('.btn-text').textContent = 'Generate';
-                    cancelBtn.remove();
-                    removePipelineStatusBar();
+                    genreResultsGrid.classList.remove('hidden');
+
+                    // Auto-select first completed card
+                    if (batchResults.length > 0) {
+                        genreResultsBody.querySelector('.genre-result-card')?.classList.add('selected');
+                        pitchDeckContent.innerHTML = md(batchResults[0].pitchDeck);
+                        pitchDeckEl.classList.remove('hidden');
+                        updateGatekeeperBadges(batchResults[0].pitchDeck);
+                        lastPitchDeck = batchResults[0].pitchDeck;
+                    }
+
+                    try {
+                        // Run remaining genres
+                        for (let i = batch.currentIndex; i < batch.genreSuggestions.length; i++) {
+                            const genre = batch.genreSuggestions[i];
+                            const statusEl = document.getElementById(`genre-status-${i}`);
+                            const cardEl = document.getElementById(`genre-card-${i}`);
+
+                            statusEl.textContent = '⚡ Running pipeline…';
+                            statusEl.className = 'genre-lens-status running';
+                            cardEl.classList.add('active-pipeline');
+                            launchBtn.querySelector('.btn-text').textContent = `Running ${i + 1}/${batch.genreSuggestions.length}…`;
+
+                            const totalPhases = 6;
+                            buildPhaseIndicator(totalPhases);
+                            timelineEl.innerHTML = '';
+                            resetAgentRing();
+
+                            const finalPitchDeck = await runPipeline(batch.seedIdea, pipelineCallbacks, {
+                                platform: batch.platform,
+                                year: batch.year,
+                                genrePreference: genre.genreKey,
+                                maxRevisions: batch.maxRevisions || 3,
+                                chaosMode: batch.chaosMode || 'precision',
+                                grandNarrativeMode: batch.grandNarrativeMode || false,
+                            });
+
+                            batchResults.push({ seed: batch.seedIdea, pitchDeck: finalPitchDeck, genreName: genre.genreName });
+                            completeAgentRing();
+
+                            statusEl.textContent = '✅ Complete';
+                            statusEl.className = 'genre-lens-status done';
+                            cardEl.classList.remove('active-pipeline');
+
+                            await saveRun({ seedIdea: `${batch.seedIdea} [${genre.genreName}]`, finalPitchDeck });
+                            autoScore(finalPitchDeck, batch.seedIdea);
+
+                            // Update batch state
+                            saveBatchState({
+                                ...batch,
+                                completedGenres: batchResults.map(r => ({ genreName: r.genreName, genreKey: batch.genreSuggestions.find(g => g.genreName === r.genreName)?.genreKey, pitchDeck: r.pitchDeck })),
+                                currentIndex: i + 1,
+                            });
+
+                            // Build result card
+                            const meta = extractMeta(finalPitchDeck);
+                            const resultCard = document.createElement('div');
+                            resultCard.className = 'genre-result-card';
+                            resultCard.dataset.index = batchResults.length - 1;
+                            resultCard.innerHTML = `
+                                <span class="genre-result-badge">${genre.genreName}</span>
+                                <div class="genre-result-title">${meta.title}</div>
+                                ${meta.logline ? `<div class="genre-result-logline">${meta.logline}</div>` : ''}
+                                <div class="genre-result-cta">Click to view full pitch →</div>
+                            `;
+                            const idx = batchResults.length - 1;
+                            resultCard.addEventListener('click', () => {
+                                genreResultsBody.querySelectorAll('.genre-result-card').forEach(c => c.classList.remove('selected'));
+                                resultCard.classList.add('selected');
+                                simulationEl.classList.add('hidden');
+                                pitchDeckEl.querySelector('.batch-tabs')?.remove();
+                                pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
+                                updateGatekeeperBadges(batchResults[idx].pitchDeck);
+                                initChatSession(batchResults[idx].pitchDeck);
+                                lastPitchDeck = batchResults[idx].pitchDeck;
+                                pitchDeckEl.classList.remove('hidden');
+                                if (pipelineRunning) backToPipelineBtn.classList.remove('hidden');
+                                pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                            });
+                            genreResultsBody.appendChild(resultCard);
+                        }
+
+                        // Batch complete
+                        clearBatchState();
+                        clearCheckpoint();
+                        lastSeedIdea = batch.seedIdea;
+
+                    } catch (err) {
+                        if (err instanceof PipelineCancelled) {
+                            showError('Pipeline cancelled.');
+                        } else {
+                            showError(`Pipeline failed: ${err.message}`);
+                        }
+                    } finally {
+                        pipelineRunning = false;
+                        launchBtn.disabled = false;
+                        launchBtn.querySelector('.btn-text').textContent = 'Generate';
+                        cancelBtn.remove();
+                        removePipelineStatusBar();
+                    }
+
+                } else {
+                    // ═══════════════════════════════════════════════════
+                    // SINGLE PIPELINE RESUME (existing behavior)
+                    // ═══════════════════════════════════════════════════
+                    const totalPhases = 6;
+                    buildPhaseIndicator(totalPhases);
+
+                    try {
+                        const finalPitchDeck = await runPipeline(
+                            cp.seedIdea,
+                            pipelineCallbacks,
+                            {
+                                platform: cp.platform,
+                                year: cp.year,
+                                directive: cp.directive,
+                                checkpoint: cp,
+                            }
+                        );
+
+                        pitchDeckContent.innerHTML = md(finalPitchDeck);
+                        pitchDeckEl.classList.remove('hidden');
+                        updateGatekeeperBadges(finalPitchDeck);
+                        pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
+                        initChatSession(finalPitchDeck);
+                        lastPitchDeck = finalPitchDeck;
+                        lastSeedIdea = cp.seedIdea;
+
+                        await saveRun({ seedIdea: cp.seedIdea, finalPitchDeck });
+                        autoScore(finalPitchDeck, cp.seedIdea);
+                    } catch (err) {
+                        if (err instanceof PipelineCancelled) {
+                            showError('Pipeline cancelled.');
+                        } else {
+                            showError(`Pipeline failed: ${err.message}`);
+                        }
+                    } finally {
+                        pipelineRunning = false;
+                        launchBtn.disabled = false;
+                        launchBtn.querySelector('.btn-text').textContent = 'Generate';
+                        cancelBtn.remove();
+                        removePipelineStatusBar();
+                    }
                 }
             });
         }
