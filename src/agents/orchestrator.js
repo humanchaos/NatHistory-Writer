@@ -1331,8 +1331,8 @@ function sanitizeFinalOutput(text) {
 }
 
 /**
- * Run the Script Assessment pipeline.
- * Takes an existing script/draft, assesses it, then optimizes it.
+ * Run the Treatment Assessment pipeline.
+ * Takes an existing treatment/draft, assesses it, then optimizes it.
  *
  * 4 Phases:
  *   1. Analysis  — Market Analyst, Chief Scientist, Field Producer assess the script

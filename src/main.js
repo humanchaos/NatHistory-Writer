@@ -1114,6 +1114,18 @@ const productionYearInput = document.getElementById('production-year');
 const targetPlatformInput = document.getElementById('target-platform');
 const genrePreferenceInput = document.getElementById('genre-preference');
 const genreCustomInput = document.getElementById('genre-custom');
+const backToPipelineBtn = document.getElementById('btn-back-to-pipeline');
+
+// ─── Back to Pipeline Button ──────────────────────────
+if (backToPipelineBtn) {
+    backToPipelineBtn.addEventListener('click', () => {
+        pitchDeckEl.classList.add('hidden');
+        scorecardEl.classList.add('hidden');
+        simulationEl.classList.remove('hidden');
+        simulationEl.scrollIntoView({ behavior: 'smooth' });
+        backToPipelineBtn.classList.add('hidden');
+    });
+}
 const maxIterationsInput = document.getElementById('max-iterations');
 
 // ─── Chaos Mode Toggle ──────────────────────────────────────────
@@ -1132,7 +1144,7 @@ if (chaosModeToggle) {
 // ─── Story Mode Toggle ──────────────────────────────────────────
 // 'discovery' = Discovery Scout runs (default)
 // 'narrative'  = Grand Narrative Mode — Discovery Scout skipped
-let grandNarrativeMode = false;
+let grandNarrativeMode = true;
 const storyModeToggle = document.getElementById('story-mode-toggle');
 if (storyModeToggle) {
     storyModeToggle.addEventListener('click', (e) => {
@@ -1243,7 +1255,7 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
         currentMode = tab.dataset.mode;
 
         if (currentMode === 'script') {
-            seedInput.placeholder = 'Paste your existing wildlife script or draft here…';
+            seedInput.placeholder = 'Paste your existing wildlife treatment or draft here…';
             seedInput.rows = 10;
             launchBtn.querySelector('.btn-text').textContent = 'Assess & Optimize →';
         } else {
@@ -1625,13 +1637,15 @@ seedForm.addEventListener('submit', async (e) => {
                     // Highlight selected card
                     genreResultsBody.querySelectorAll('.genre-result-card').forEach(c => c.classList.remove('selected'));
                     resultCard.classList.add('selected');
-                    // Load pitch deck
+                    // Hide pipeline, show pitch deck as overlay
+                    simulationEl.classList.add('hidden');
                     pitchDeckEl.querySelector('.batch-tabs')?.remove();
                     pitchDeckContent.innerHTML = md(batchResults[idx].pitchDeck);
                     updateGatekeeperBadges(batchResults[idx].pitchDeck);
                     initChatSession(batchResults[idx].pitchDeck);
                     lastPitchDeck = batchResults[idx].pitchDeck;
                     pitchDeckEl.classList.remove('hidden');
+                    if (pipelineRunning) backToPipelineBtn.classList.remove('hidden');
                     pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
                 });
 
@@ -1767,6 +1781,7 @@ seedForm.addEventListener('submit', async (e) => {
         setPipelineAbortSignal(null);
         simulationEl.querySelector('.cancel-pipeline-btn')?.remove();
         removePipelineStatusBar();
+        backToPipelineBtn.classList.add('hidden');
 
         launchBtn.disabled = false;
         updateLaunchButton();

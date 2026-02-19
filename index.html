@@ -180,12 +180,12 @@
               <!-- Mode Toggle -->
               <div class="mode-toggle">
                 <button type="button" class="mode-tab active" data-mode="seed">🌱 Seed Idea</button>
-                <button type="button" class="mode-tab" data-mode="script">📝 Assess Script</button>
+                <button type="button" class="mode-tab" data-mode="script">📝 Assess Treatment</button>
               </div>
 
               <div class="optional-params">
                 <div class="param-field">
-                  <label for="target-platform">📺 Platform <span class="param-hint">(optional)</span></label>
+                  <label for="target-platform">Platform <span class="param-hint">(optional)</span></label>
                   <select id="target-platform">
                     <option value="">Auto-detect best fit</option>
                     <option value="Netflix">Netflix</option>
@@ -200,11 +200,11 @@
                   </select>
                 </div>
                 <div class="param-field">
-                  <label for="production-year">📅 Delivery Year <span class="param-hint">(optional)</span></label>
+                  <label for="production-year">Delivery Year <span class="param-hint">(optional)</span></label>
                   <input type="number" id="production-year" min="2020" max="2035" placeholder="e.g., 2028">
                 </div>
                 <div class="param-field">
-                  <label for="genre-preference">🎭 Genre Lens <span class="param-hint">(locks to 1 genre)</span></label>
+                  <label for="genre-preference">Genre Lens <span class="param-hint">(locks to 1 genre)</span></label>
                   <select id="genre-preference">
                     <option value="">Auto — Hands-Free (3 genres)</option>
                     <option value="scientific-procedural"
@@ -249,7 +249,7 @@
                     placeholder="e.g., sci-fi nat-history noir">
                 </div>
                 <div class="param-field param-field-full">
-                  <label>🔥 Creative Mode</label>
+                  <label>Creative Mode</label>
                   <div class="chaos-mode-toggle" id="chaos-mode-toggle">
                     <button type="button" class="chaos-mode-btn" data-chaos="precision"
                       title="Standard structured pipeline — no surprises">
@@ -266,13 +266,13 @@
                   </div>
                 </div>
                 <div class="param-field param-field-full">
-                  <label>🌍 Story Mode</label>
+                  <label>Story Mode</label>
                   <div class="chaos-mode-toggle" id="story-mode-toggle">
-                    <button type="button" class="chaos-mode-btn active" data-story="discovery"
+                    <button type="button" class="chaos-mode-btn" data-story="discovery"
                       title="Phase 0: Discovery Scout searches for recent scientific findings to anchor the pitch">
                       <span class="chaos-mode-icon">🔬</span> Discovery-Led
                     </button>
-                    <button type="button" class="chaos-mode-btn" data-story="narrative"
+                    <button type="button" class="chaos-mode-btn active" data-story="narrative"
                       title="Skip the Discovery Scout — lead with grand narrative. Science is still hard-sourced, but not constrained to recent findings.">
                       <span class="chaos-mode-icon">🌍</span> Grand Narrative
                     </button>
@@ -348,6 +348,7 @@
 
   <!-- ═══════ Final Pitch Deck ═══════ -->
   <section id="pitch-deck" class="hidden">
+    <button id="btn-back-to-pipeline" class="back-to-pipeline-btn hidden">← Back to Pipeline</button>
     <div class="pitch-deck-header">
       <h2>📋 Master Pitch Deck <span id="deck-version-badge" class="deck-version-badge"></span></h2>
       <div id="gatekeeper-badges" class="gatekeeper-badges hidden">

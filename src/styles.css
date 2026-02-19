@@ -333,20 +333,24 @@ h4 {
 
 /* ─── Optional Parameters ──────────────────────────── */
 .optional-params {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
   margin-top: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .param-field {
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .param-field-full {
-  flex-basis: 100%;
-  max-width: 420px;
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
+
+/* Genre Lens spans full width on its own row */
+.param-field:nth-child(3) {
+  grid-column: 1 / -1;
 }
 
 .param-field label {
@@ -447,7 +451,7 @@ h4 {
 }
 
 .advanced-options:not(.collapsed) .advanced-options-body {
-  max-height: 400px;
+  max-height: 600px;
   opacity: 1;
   margin-top: 0.75rem;
 }
@@ -1753,6 +1757,30 @@ h4 {
   max-width: var(--container-max);
   margin: 0 auto;
   padding: 0 2rem 6rem;
+}
+
+/* ─── Back to Pipeline Button ──────────────────────── */
+.back-to-pipeline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-to-pipeline-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: var(--accent-gold);
 }
 
 .pitch-deck-header {
