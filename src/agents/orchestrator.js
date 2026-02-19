@@ -463,6 +463,26 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // Prevents concept drift: every agent is anchored to the user's original idea
     const seedAnchor = `\n⚠️ SEED FIDELITY — ABSOLUTE RULE: The user's original concept is the ANCHOR for this entire pipeline. Your job is to ENHANCE, RESEARCH, and DEEPEN this seed idea — NOT replace it with a different concept. If the user names a specific book, title, species, location, narrator, presenter, or visual approach, those are NON-NEGOTIABLE. You may add scientific depth, production detail, and creative texture, but the core concept must remain recognizably the user's idea. Do NOT pivot to a tangentially related but different topic just because your research surfaced it.\n\nOriginal seed: "${seedIdea}"\n`;
 
+    // ─── WILDLIFE FOCUS GUARD ────────────────────────────
+    // Detects when the user explicitly asks for wildlife/animal content and prevents
+    // the pipeline from drifting into a human-centric story.
+    const wildlifeKeywords = /\b(wildlife|animal|species|creature|fauna|beast|predator|prey|mammal|reptile|bird|insect|fish|amphibian|primate|carnivore|herbivore)\b/i;
+    const isWildlifeSeed = wildlifeKeywords.test(seedIdea);
+    const wildlifeFocusGuard = isWildlifeSeed
+        ? `\n\n🐾 WILDLIFE FOCUS GUARD — ACTIVE:
+The user explicitly requested a WILDLIFE story. This means:
+- The **protagonist** of this narrative MUST be an animal (species, individual, or population) — NOT a human.
+- Humans may appear as supporting context (researchers, conservationists, local communities) but they are NEVER the emotional center or dramatic protagonist.
+- The story's dramatic arc, tension, stakes, and resolution must belong to the ANIMAL — its survival, behavior, ecology, or journey.
+- Do NOT replace the wildlife narrative with a human-interest story that merely happens near animals (e.g., a deminer, a ranger, a scientist's personal journey). The human is the lens, the animal is the story.
+- If your research surfaces a compelling human angle that you believe is genuinely stronger than a wildlife-first approach, you MUST:
+  1. Still deliver the WILDLIFE-FIRST version as your primary output
+  2. Flag the human angle as: [HUMAN ANGLE SUGGESTED — AUTHOR APPROVAL REQUIRED] with a brief justification based on market trends
+- Violation of this guard will be flagged as WILDLIFE DRIFT and the output will be rejected.
+`
+        : '';
+
+
     // ═══════════════════════════════════════════════════════
     // PHASE 0 — DISCOVERY SCOUT
     // Skipped in Grand Narrative Mode — story leads, science follows.
@@ -833,7 +853,7 @@ The pipeline iterates, it does not kill. Find a way.`,
     if (!shouldSkip('draftV1')) {
         ctx.draftV1 = await mutatedAgentStep(
             STORY_PRODUCER,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${speciesGuard}${genreLock}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Your ENTIRE output — structure, tone, camera language, pacing, narration style, sound design — must serve this genre. Do NOT import conventions from other genres.` : `The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.`}\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless ${genreLabel ? `the locked genre IS survival thriller` : `the Market Analyst specifically recommended it`}. Adopt the locked genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Your ENTIRE output — structure, tone, camera language, pacing, narration style, sound design — must serve this genre. Do NOT import conventions from other genres.` : `The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.`}\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless ${genreLabel ? `the locked genre IS survival thriller` : `the Market Analyst specifically recommended it`}. Adopt the locked genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
             cbs
         );
         checkpoint_('draftV1', 2);
@@ -978,7 +998,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
 
         ctx.draftV2 = await mutatedAgentStep(
             STORY_PRODUCER,
-            `${accidentBlock}The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${genreLock}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the ${genreLabel ? `LOCKED genre ("${genreLabel}")` : 'DECLARED narrative form'}:\n✓ Commit fully to the ${genreLabel ? 'locked genre\'s' : 'declared form\'s'} cinematic language\n✓ Every key moment must have defined visual AND audio signatures appropriate to the genre\n✓ Narration style must match the genre\n✓ B-Story woven in — the secondary species must serve the chosen genre, not just be backup\n✓ Do NOT drift into survival thriller or any other genre's conventions unless that IS the ${genreLabel ? 'locked genre' : 'declared form'}\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
+            `${accidentBlock}The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the ${genreLabel ? `LOCKED genre ("${genreLabel}")` : 'DECLARED narrative form'}:\n✓ Commit fully to the ${genreLabel ? 'locked genre\'s' : 'declared form\'s'} cinematic language\n✓ Every key moment must have defined visual AND audio signatures appropriate to the genre\n✓ Narration style must match the genre\n✓ B-Story woven in — the secondary species must serve the chosen genre, not just be backup\n✓ Do NOT drift into survival thriller or any other genre's conventions unless that IS the ${genreLabel ? 'locked genre' : 'declared form'}\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
             cbs
         );
         checkpoint_('draftV2', 4);
@@ -1027,7 +1047,7 @@ Issue SURGICAL revision directives. Focus ONLY on the specific failings the Edit
         // Story Producer writes the next draft
         currentDraft = await mutatedAgentStep(
             STORY_PRODUCER,
-            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}${genreLock}${narrativeMandate}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
+            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
             cbs
         );
 
@@ -1137,7 +1157,7 @@ ${draftOutline}
     if (!shouldSkip('finalPitchDeck')) {
         ctx.finalPitchDeck = await mutatedAgentStep(
             SHOWRUNNER,
-            `The Commissioning Editor has completed their review. Compile the final compact pitch card.${kbBlock}${genreLock}
+            `The Commissioning Editor has completed their review. Compile the final compact pitch card.${kbBlock}${wildlifeFocusGuard}${genreLock}
 
 ### 📦 Compressed State Payload (PRIMARY — read this first)
 ${statePayload}
@@ -1186,9 +1206,9 @@ CRITICAL FORMAT RULES:
 
     ctx.gatekeeperVerdict = await mutatedAgentStep(
         ADVERSARY,
-        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${kbBlock}${optionsSuffix}${genreLock}
+        `You are reviewing a COMPLETED Master Pitch Deck. This is the final gate before it goes to commissioners.${kbBlock}${optionsSuffix}${wildlifeFocusGuard}${genreLock}
 
-Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.${genreLabel ? ` Additionally, run a GENRE COMPLIANCE CHECK — verify the pitch consistently serves the locked genre ("${genreLabel}") throughout all sections. Flag any elements that drift into another genre's conventions.` : ''}
+Run your full audit: Canon Audit, YouTuber Check, Lawsuit Check, Boring Check.${genreLabel ? ` Additionally, run a GENRE COMPLIANCE CHECK — verify the pitch consistently serves the locked genre ("${genreLabel}") throughout all sections. Flag any elements that drift into another genre's conventions.` : ''}${isWildlifeSeed ? ` Additionally, run a WILDLIFE PROTAGONIST CHECK — the user explicitly requested a wildlife story. Verify that the pitch's protagonist is an ANIMAL (species, individual, or population), NOT a human. If the pitch centers a human protagonist (e.g., a researcher, ranger, deminer, or conservationist) with animals as background, flag this as WILDLIFE DRIFT and REJECT.` : ''}
 
 ### The Pitch Deck to Review
 ${ctx.finalPitchDeck}
