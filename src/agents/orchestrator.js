@@ -1598,5 +1598,47 @@ CRITICAL FORMAT RULES:
 
     cbs.onPhaseComplete(4);
 
-    return sanitizeFinalOutput(ctx.finalPitchDeck);
+    // ─── Compose full assessment document ─────────────────
+    const fullOutput = [
+        `# Treatment Assessment`,
+        ``,
+        `---`,
+        ``,
+        `## 📊 Market Assessment`,
+        ctx.marketAssessment,
+        ``,
+        `---`,
+        ``,
+        `## 🔬 Science Assessment`,
+        ctx.scienceAssessment,
+        ``,
+        `---`,
+        ``,
+        `## 🎥 Production & Logistics`,
+        ctx.logisticsAssessment,
+        ``,
+        `---`,
+        ``,
+        `## ⚔️ Murder Board`,
+        ctx.critique,
+        ``,
+        `---`,
+        ``,
+        `# Optimized Version`,
+        ``,
+        ctx.optimizedScript,
+        ``,
+        `---`,
+        ``,
+        `## Editor's Final Review`,
+        ctx.finalReview,
+        ``,
+        `---`,
+        ``,
+        `# Final Pitch Card`,
+        ``,
+        ctx.finalPitchDeck,
+    ].join('\n');
+
+    return sanitizeFinalOutput(fullOutput);
 }
