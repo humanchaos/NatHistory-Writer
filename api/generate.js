@@ -60,9 +60,9 @@ export default async function handler(req, res) {
         // Proper Tool Execution Loop (Fix 1)
         // If the model asks to execute a function, we must either execute it or return a fallback.
         // Google Search is native and typically doesn't trigger this, but custom tools will.
-        while (response.functionCalls && response.functionCalls().length > 0 && callCount < 5) {
+        let calls = response.functionCalls ? response.functionCalls() : null;
+        while (calls && calls.length > 0 && callCount < 5) {
             callCount++;
-            const calls = response.functionCalls();
             const functionResponses = [];
 
             for (const call of calls) {
@@ -87,6 +87,7 @@ export default async function handler(req, res) {
                 ]);
             }
             response = await result.response;
+            calls = response.functionCalls ? response.functionCalls() : null;
         }
 
         const text = response.text();
