@@ -995,12 +995,24 @@ async function refreshHistoryList() {
     });
 }
 
+// Stash for saving pipeline state when browsing history mid-run
+let pipelineStash = null;
+
 function showSavedPitchDeck(run) {
-    // Don't hide the simulation if a pipeline is actively running —
-    // just scroll to the pitch deck and let the user return via the status bar
+    // If a pipeline is actively running, stash its current state
+    // so we can restore it when the user returns
+    if (pipelineRunning && !pipelineStash) {
+        pipelineStash = {
+            pitchDeckHTML: pitchDeckContent.innerHTML,
+            lastPitchDeck: lastPitchDeck,
+            chatSession: chatSession,
+        };
+    }
+
     if (!pipelineRunning) {
         simulationEl.classList.add('hidden');
     }
+
     pitchDeckContent.innerHTML = md(run.finalPitchDeck);
     pitchDeckEl.classList.remove('hidden');
 
@@ -1009,8 +1021,25 @@ function showSavedPitchDeck(run) {
 
     pitchDeckEl.scrollIntoView({ behavior: 'smooth' });
 
-    // Initialize Q&A chat for the saved run
-    initChatSession(run.finalPitchDeck);
+    // Only update chat/lastPitchDeck if no pipeline is running
+    if (!pipelineRunning) {
+        lastPitchDeck = run.finalPitchDeck;
+        initChatSession(run.finalPitchDeck);
+    } else {
+        // Show back-to-pipeline button so user can return to the active run
+        backToPipelineBtn.classList.remove('hidden');
+    }
+}
+
+/**
+ * Restore stashed pipeline state after browsing history mid-run.
+ */
+function restorePipelineStash() {
+    if (!pipelineStash) return;
+    pitchDeckContent.innerHTML = pipelineStash.pitchDeckHTML;
+    lastPitchDeck = pipelineStash.lastPitchDeck;
+    chatSession = pipelineStash.chatSession;
+    pipelineStash = null;
 }
 
 // ─── Mode Toggle ──────────────────────────────────────
@@ -1119,6 +1148,7 @@ const backToPipelineBtn = document.getElementById('btn-back-to-pipeline');
 // ─── Back to Pipeline Button ──────────────────────────
 if (backToPipelineBtn) {
     backToPipelineBtn.addEventListener('click', () => {
+        restorePipelineStash();
         pitchDeckEl.classList.add('hidden');
         scorecardEl.classList.add('hidden');
         simulationEl.classList.remove('hidden');
@@ -1781,6 +1811,7 @@ seedForm.addEventListener('submit', async (e) => {
         setPipelineAbortSignal(null);
         simulationEl.querySelector('.cancel-pipeline-btn')?.remove();
         removePipelineStatusBar();
+        restorePipelineStash();
         backToPipelineBtn.classList.add('hidden');
 
         launchBtn.disabled = false;
