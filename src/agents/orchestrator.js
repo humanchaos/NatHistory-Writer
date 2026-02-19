@@ -1347,6 +1347,17 @@ function sanitizeFinalOutput(text) {
 export async function runAssessment(existingScript, cbs, productionYear = null) {
     const ctx = { existingScript };
 
+    // ─── Anti-hallucination directive (injected into every prompt) ─────
+    const FACTUAL_GROUNDING = `
+
+⛔ ABSOLUTE RULE — ZERO HALLUCINATION:
+- You may ONLY reference people, locations, organizations, species, and facts that are EXPLICITLY stated in the submitted treatment. Do NOT invent names, researchers, experts, locations, or production details.
+- If the treatment mentions "a YouTuber" without naming them, refer to them as "the YouTuber" — do NOT fabricate a name.
+- When suggesting new angles, scientists, or techniques in recommendations, you MUST flag them as: [SUGGESTED — VERIFY BEFORE USE]. Never present invented details as established fact.
+- If you don't know something, say "the treatment does not specify" — do NOT fill gaps with fabricated information.
+- Violation of this rule renders the entire assessment useless.
+`;
+
     // Retrieve relevant knowledge
     let knowledgeContext = '';
     try {
@@ -1377,7 +1388,7 @@ Do NOT evaluate this as a new ${currentYear} pitch. Evaluate it as a ${productio
 
     ctx.marketAssessment = await agentStep(
         MARKET_ANALYST,
-        `You are reviewing an EXISTING wildlife script/draft. Do NOT generate a new concept — analyze what's already here.${calibration}${kbBlock}
+        `You are reviewing an EXISTING wildlife script/draft. Do NOT generate a new concept — analyze what's already here.${FACTUAL_GROUNDING}${calibration}${kbBlock}
 
 ### The Submitted Script
 ${existingScript}
@@ -1395,7 +1406,7 @@ Use markdown formatting.`,
 
     ctx.scienceAssessment = await agentStep(
         CHIEF_SCIENTIST,
-        `You are reviewing an EXISTING wildlife script/draft for scientific accuracy and novelty.${calibration}
+        `You are reviewing an EXISTING wildlife script/draft for scientific accuracy and novelty.${FACTUAL_GROUNDING}${calibration}
 
 ### The Submitted Script
 ${existingScript}
@@ -1416,7 +1427,7 @@ Use markdown formatting.`,
 
     ctx.logisticsAssessment = await agentStep(
         FIELD_PRODUCER,
-        `You are reviewing an EXISTING wildlife script/draft for production feasibility.${calibration}
+        `You are reviewing an EXISTING wildlife script/draft for production feasibility.${FACTUAL_GROUNDING}${calibration}
 
 ### The Submitted Script
 ${existingScript}
@@ -1445,7 +1456,7 @@ Use markdown formatting.`,
 
     ctx.critique = await agentStep(
         COMMISSIONING_EDITOR,
-        `You are reviewing an EXISTING wildlife script submitted for assessment. This is NOT a generated draft — it was written externally.${calibration}
+        `You are reviewing an EXISTING wildlife script submitted for assessment. This is NOT a generated draft — it was written externally.${FACTUAL_GROUNDING}${calibration}
 
 ### The Submitted Script
 ${existingScript}
@@ -1492,7 +1503,7 @@ Be ruthless but constructive.`,
 
     ctx.revisionPlan = await agentStep(
         SHOWRUNNER,
-        `The Commissioning Editor has critiqued the submitted script. Your job is to create a clear optimization plan that elevates this to BLUE-CHIP CINEMATIC standard.${calibration}
+        `The Commissioning Editor has critiqued the submitted script. Your job is to create a clear optimization plan that elevates this to BLUE-CHIP CINEMATIC standard.${FACTUAL_GROUNDING}${calibration}
 
 ### Original Script
 ${existingScript}
@@ -1520,7 +1531,9 @@ Be specific and actionable.`,
 
     ctx.optimizedScript = await agentStep(
         STORY_PRODUCER,
-        `You are OPTIMIZING an existing wildlife script to BLUE-CHIP CINEMATIC standard. Preserve the core vision while transforming the storytelling.${calibration}
+        `You are OPTIMIZING an existing wildlife script to BLUE-CHIP CINEMATIC standard. Preserve the core vision while transforming the storytelling.${FACTUAL_GROUNDING}${calibration}
+
+CRITICAL: You are rewriting, NOT inventing. Every person, place, and species in your output must come from the original treatment. If you suggest adding a new character, expert, or location that is NOT in the original, you MUST mark it as [SUGGESTED — VERIFY] and explain why it would strengthen the pitch. Never present invented additions as if they were part of the original.
 
 ### Original Script
 ${existingScript}
@@ -1549,7 +1562,7 @@ Use markdown formatting.`,
 
     ctx.finalReview = await agentStep(
         COMMISSIONING_EDITOR,
-        `You previously critiqued the original submitted script with this assessment:
+        `You previously critiqued the original submitted script with this assessment:${FACTUAL_GROUNDING}
 
 ${ctx.critique}
 
@@ -1579,7 +1592,7 @@ Review the optimization:
 
     ctx.finalPitchDeck = await agentStep(
         SHOWRUNNER,
-        `Compile the final compact pitch card from the assessment and revision process.${calibration}
+        `Compile the final compact pitch card from the assessment and revision process.${FACTUAL_GROUNDING}${calibration}
 
 ### Optimized Script
 ${ctx.optimizedScript}
