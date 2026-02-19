@@ -1459,18 +1459,24 @@ ${ctx.scienceAssessment}
 ### Logistics Assessment
 ${ctx.logisticsAssessment}
 
-Stress-test this script across ALL 6 vectors:
+Stress-test this script across ALL 7 vectors:
 1. **Cliché Detector** — any visual, narrative beat, or narration line ${productionYear ? `that was already overused by ${productionYear}` : 'the audience has seen before'}? Quote the line.
 2. **Cinematic Genre Test** — does the script treat animals as cinematic protagonists (thriller, survival epic, heist) or as biological specimens? A blue-chip pitch needs GENRE energy.
 3. **Proximity & POV** — does the camera language create subjective audience experience, or is it clinical observation from a distance?
 4. **Narrative Integrity** — 3-act escalation? Genuine ticking clock? B-Story integration (not just backup)?
 5. **Sonic Identity** — does the script define a unique soundscape, or is it silent on audio design?
 6. **Budget & Ethics** — do the numbers add up? Any animal welfare concerns?
+7. **Market Reality Check** — this is MANDATORY:
+   - Name specific market trends that favor OR work against this concept (e.g., "ethical wildlife filmmaking is trending on Netflix post-Seaspiracy" or "African wild dog fatigue — 4 similar pitches in the last 3 years")
+   - Cite similar past productions by name and their commercial outcome (commissioned, shelved, audience reception)
+   - If the market is saturated with similar concepts, say so plainly: "There have been X similar concepts recently — consider differentiating by..."
+   - If a trend supports it, say so: "Market trends in [direction] suggest this could land because..."
 
 Output:
 - **Overall Score** (1-100)
 - Detailed critique organized by vector, quoting specific passages
 - **The Genre Gap** — what cinematic genre should this script embody, and how far is it from that?
+- **Market Position** — one paragraph synthesizing your Market Reality Check into a clear strategic recommendation (pursue / pivot / differentiate)
 - **Verdict** — specific directives for what must change
 
 Be ruthless but constructive.`,
