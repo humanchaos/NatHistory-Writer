@@ -1599,6 +1599,10 @@ CRITICAL FORMAT RULES:
     cbs.onPhaseComplete(4);
 
     // ─── Compose full assessment document ─────────────────
+    // Sanitize only the pitch card (sanitizer strips everything before first ## heading,
+    // which would destroy the assessment sections if run on the full document)
+    const cleanPitchCard = sanitizeFinalOutput(ctx.finalPitchDeck);
+
     const fullOutput = [
         `# Treatment Assessment`,
         ``,
@@ -1637,8 +1641,8 @@ CRITICAL FORMAT RULES:
         ``,
         `# Final Pitch Card`,
         ``,
-        ctx.finalPitchDeck,
+        cleanPitchCard,
     ].join('\n');
 
-    return sanitizeFinalOutput(fullOutput);
+    return fullOutput;
 }
