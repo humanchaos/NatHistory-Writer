@@ -1617,35 +1617,45 @@ CRITICAL FORMAT RULES:
 
     cbs.onPhaseComplete(4);
 
-    // ─── Compose full assessment document ─────────────────
-    // Sanitize only the pitch card (sanitizer strips everything before first ## heading,
-    // which would destroy the assessment sections if run on the full document)
+    // ─── Compose final document: 3 sections ─────────────────
     const cleanPitchCard = sanitizeFinalOutput(ctx.finalPitchDeck);
 
+    // Extract scores for the quality scorecard
+    const beforeMatch = ctx.critique.match(/overall\s*score[:\s]*(\d{1,3})/i);
+    const afterMatch = ctx.finalReview.match(/score[:\s]*(\d{1,3})/i);
+    const beforeScore = beforeMatch ? parseInt(beforeMatch[1], 10) : null;
+    const afterScore = afterMatch ? parseInt(afterMatch[1], 10) : null;
+
+    // Build quality scorecard
+    let scorecard = '';
+    if (beforeScore !== null && afterScore !== null) {
+        const beforeColor = beforeScore >= 70 ? '#37b24d' : beforeScore >= 50 ? '#f59f00' : '#e03131';
+        const afterColor = afterScore >= 70 ? '#37b24d' : afterScore >= 50 ? '#f59f00' : '#e03131';
+        scorecard = `
+
+---
+
+## Quality Scorecard
+
+| | Score | |
+|---|---|---|
+| **Original Treatment** | **${beforeScore}/100** | ${'█'.repeat(Math.round(beforeScore / 5))}${'░'.repeat(20 - Math.round(beforeScore / 5))} |
+| **Optimized Version** | **${afterScore}/100** | ${'█'.repeat(Math.round(afterScore / 5))}${'░'.repeat(20 - Math.round(afterScore / 5))} |
+
+**Improvement: +${afterScore - beforeScore} points**`;
+    }
+
     const fullOutput = [
-        `# Treatment Assessment`,
+        `# Assessment`,
         ``,
-        `---`,
-        ``,
-        `## ⚔️ Murder Board`,
         ctx.critique,
         ``,
         `---`,
         ``,
-        `# Optimized Version`,
-        ``,
-        ctx.optimizedScript,
-        ``,
-        `---`,
-        ``,
-        `## Editor's Final Review`,
-        ctx.finalReview,
-        ``,
-        `---`,
-        ``,
-        `# Final Pitch Card`,
+        `# Optimized Pitch Card`,
         ``,
         cleanPitchCard,
+        scorecard,
     ].join('\n');
 
     return fullOutput;
