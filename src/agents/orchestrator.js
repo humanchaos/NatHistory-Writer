@@ -1356,6 +1356,12 @@ export async function runAssessment(existingScript, cbs, productionYear = null) 
 - When suggesting new angles, scientists, or techniques in recommendations, you MUST flag them as: [SUGGESTED — VERIFY BEFORE USE]. Never present invented details as established fact.
 - If you don't know something, say "the treatment does not specify" — do NOT fill gaps with fabricated information.
 - Violation of this rule renders the entire assessment useless.
+
+🛡️ CHARACTER INTEGRITY — DO NOT REFRAME PROTAGONISTS:
+- If the treatment presents someone as a protagonist, you MUST preserve that framing. Do NOT turn a protagonist into a villain, antagonist, or morally suspect character for dramatic effect.
+- Tension between characters must remain as the treatment describes it — if the treatment frames it as "clashing styles" or "ethical debate", it stays as a nuanced difference in perspective, NOT as one person being reckless/manipulative and the other being righteous.
+- You may sharpen dramatic tension, but NEVER by demonizing one side. Both perspectives must be treated with the complexity the treatment gives them.
+- If you suggest reframing a character arc, flag it as [CHARACTER REFRAME — AUTHOR APPROVAL REQUIRED].
 `;
 
     // Retrieve relevant knowledge
