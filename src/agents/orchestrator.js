@@ -1357,11 +1357,12 @@ export async function runAssessment(existingScript, cbs, productionYear = null) 
 - If you don't know something, say "the treatment does not specify" — do NOT fill gaps with fabricated information.
 - Violation of this rule renders the entire assessment useless.
 
-🛡️ CHARACTER INTEGRITY — DO NOT REFRAME PROTAGONISTS:
-- If the treatment presents someone as a protagonist, you MUST preserve that framing. Do NOT turn a protagonist into a villain, antagonist, or morally suspect character for dramatic effect.
-- Tension between characters must remain as the treatment describes it — if the treatment frames it as "clashing styles" or "ethical debate", it stays as a nuanced difference in perspective, NOT as one person being reckless/manipulative and the other being righteous.
-- You may sharpen dramatic tension, but NEVER by demonizing one side. Both perspectives must be treated with the complexity the treatment gives them.
-- If you suggest reframing a character arc, flag it as [CHARACTER REFRAME — AUTHOR APPROVAL REQUIRED].
+🛡️ CHARACTER INTEGRITY — ABSOLUTE RULE:
+- ASSUME ALL PEOPLE IN THE TREATMENT ARE GOOD PEOPLE. Every person mentioned is a professional with valid motivations and genuine passion. They may disagree, have different methods, or create tension — but they are fundamentally good.
+- NEVER use pejorative language for anyone in the treatment. The following words are BANNED when describing people from the treatment: reckless, manipulative, villain, antagonist, deceitful, unethical, irresponsible, fame-hungry, fame-driven, exploitative, suspect, suspicious.
+- Tension between characters must be framed as a difference in philosophy, methodology, or priorities — NOT as good vs. bad. Both sides have legitimate perspectives.
+- If the treatment describes a YouTuber and a cinematographer with different approaches, BOTH are professionals whose methods have merit. Frame the tension as a generational or philosophical clash, not a moral failing.
+- You may sharpen dramatic tension, but NEVER by demonizing anyone. If you suggest reframing a character arc, flag it as [CHARACTER REFRAME — AUTHOR APPROVAL REQUIRED].
 `;
 
     // Retrieve relevant knowledge
