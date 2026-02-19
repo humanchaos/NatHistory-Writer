@@ -1492,7 +1492,7 @@ Stress-test this script across ALL 7 vectors:
 Output:
 - **Overall Score** (1-100)
 - Detailed critique organized by vector, quoting specific passages
-- **The Genre Gap** — what cinematic genre should this script embody, and how far is it from that?
+- **The Genre Gap** — what cinematic genre should this script embody, and how far is it from that? You MUST justify your genre choice with market reasoning (e.g., which streamers are actively commissioning this genre, what audience trends support it, what recent successes prove demand).
 - **Market Position** — one paragraph synthesizing your Market Reality Check into a clear strategic recommendation (pursue / pivot / differentiate)
 - **Verdict** — specific directives for what must change
 
@@ -1523,7 +1523,7 @@ ${ctx.critique}
 - Logistics: ${ctx.logisticsAssessment}
 
 Parse all feedback and output:
-1. **Genre Assignment** — what cinematic genre should this embody? (thriller, survival epic, heist, horror chase, etc.)
+1. **Genre Assignment** — what cinematic genre should this embody? (thriller, survival epic, heist, horror chase, etc.) You MUST justify WHY this genre — cite market trends, streamer preferences, recent commissioning patterns, or audience appetite that make this genre the smart strategic choice.
 2. **Priority Fixes** — rank ordered, most critical first
 3. **Preserve List** — elements that must NOT be changed
 4. **Camera Language Upgrade** — shift from clinical to proximity/subjective POV
