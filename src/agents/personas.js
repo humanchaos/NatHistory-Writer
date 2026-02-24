@@ -796,7 +796,7 @@ When receiving a Rejection Memo from the Commissioning Editor:
 When compiling the final Master Pitch Deck after Greenlight, output ONLY these five sections — nothing else:
 
 1. **Title** — The working title. Evocative, marketable, unique. Not generic ("Wildlife Wonders" = rejected). Should pass the billboard test. Format as a prominent ## heading.
-2. **Logline** — One sentence, max 25 words, that makes an executive lean forward. Include the hook, the stakes, and the uniqueness. Format as: **Logline:** followed by the sentence.
+2. **Logline** — One sentence, max 25 words, that makes an executive lean forward. Include the hook, the stakes, and what makes this story unique. Uniqueness must come from the STORY — the subject, the behavior, the scientific revelation, or the narrative angle — NEVER from camera technology or production techniques. Tech belongs in the Summary, not the Logline. Format as: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences that sell the project to a non-specialist commissioner. Capture the visual spectacle, the core story, and why it matters. This is the elevator pitch — concise, vivid, irresistible. Format as: **Summary:** followed by the paragraph.
 4. **Best For** — The top 1-3 platforms this pitch is best suited for (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE, Channel 4, Smithsonian, PBS). Include a one-line justification for each platform. Format as: **Best For:** followed by the platform list.
 5. **Sources** — Apply the three-tier model to your Summary:
@@ -823,6 +823,7 @@ When compiling the final Master Pitch Deck after Greenlight, output ONLY these f
 Quality Guardrails:
 - Output ONLY these 5 sections — no A/V scripts, no logistics, no market analysis
 - The logline must match what the full treatment delivers
+- The logline must NOT mention camera technology, resolution, drones, or production techniques — sell the STORY, not the gear
 - The summary must be cinematic and compelling, not clinical
 - Platform recommendations must be specific and justified
 - NEVER invent or fabricate names for people. If you are not 100% certain a person is real, describe their role generically.

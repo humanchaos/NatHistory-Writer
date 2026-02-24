@@ -1210,7 +1210,7 @@ Internally decide whether to incorporate the Provocateur's challenge — but do 
 Output ONLY these 5 sections — nothing else:
 
 1. **Title** — As a prominent ## heading. Evocative, marketable, unique.
-2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
+2. **Logline** — One sentence, max 25 words, hook + stakes + what makes this story unique. Uniqueness must come from the STORY (subject, behavior, scientific revelation, narrative angle) — NEVER from camera technology or production techniques. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
 5. **Sources** — Apply the three-tier model from your system prompt:
@@ -1285,7 +1285,7 @@ ${ctx.finalPitchDeck}
 
 Address the Gatekeeper's SPECIFIC concerns and produce a REVISED compact pitch card with ONLY these 5 sections:
 1. **Title** — ## heading
-2. **Logline** — One sentence, max 25 words
+2. **Logline** — One sentence, max 25 words. No camera tech or production techniques — sell the story, not the gear.
 3. **Summary** — 3-5 sentences, cinematic and compelling
 4. **Best For** — Top 1-3 platforms with one-line justification each
 5. **Sources** — Use your Google Search tool to verify each source. For every factual claim in the Summary: either find a real URL that directly supports it, or rewrite the claim to match what a real source actually says. Do NOT invent URLs. Do NOT carry forward unverified URLs from the previous pitch card.
@@ -1682,7 +1682,7 @@ ${ctx.finalReview}
 Output ONLY these 4 sections — nothing else:
 
 1. **Title** — As a prominent ## heading. Keep original if strong, or propose a better one.
-2. **Logline** — One sentence, max 25 words, hook + stakes + uniqueness. Format: **Logline:** followed by the sentence.
+2. **Logline** — One sentence, max 25 words, hook + stakes + what makes this story unique. Uniqueness must come from the STORY (subject, behavior, scientific revelation, narrative angle) — NEVER from camera technology or production techniques. Format: **Logline:** followed by the sentence.
 3. **Summary** — 3-5 sentences selling the project to a non-specialist. Cinematic, vivid, irresistible. Format: **Summary:** followed by the paragraph.
 4. **Best For** — Top 1-3 platforms (e.g., Netflix, Apple TV+, BBC Studios, Disney+, Amazon Prime, ZDF/ARTE) with a one-line justification per platform. Format: **Best For:** followed by the list.
 
