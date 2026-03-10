@@ -94,13 +94,22 @@ Output format:
                 continue;
             }
 
-            // ── Step 3: Embed all chunks ──────────────────────
+            // ── Step 3: Embed all chunks (batched, concurrency-limited) ──
+            // Auto-Heal: Fixed N+1 sequential embedding pattern.
+            // Before: N sequential awaits (1 API call per chunk).
+            // After:  Parallel batches of BATCH_SIZE via Promise.all.
             const embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
+            const BATCH_SIZE = 5;
             const embeddings = [];
 
-            for (const chunk of chunks) {
-                const embResult = await embeddingModel.embedContent(chunk);
-                embeddings.push(embResult.embedding.values);
+            for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+                const batch = chunks.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(
+                    batch.map(chunk => embeddingModel.embedContent(chunk))
+                );
+                for (const result of batchResults) {
+                    embeddings.push(result.embedding.values);
+                }
             }
 
             // ── Step 4: Delete old version if exists ──────────

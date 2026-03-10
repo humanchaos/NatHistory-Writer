@@ -1,0 +1,26 @@
+{
+    "timestamp": "2026-02-24T22:54:42Z",
+    "trigger": "npm run build",
+    "exitCode": 0,
+    "status": "PASS",
+    "buildTool": "vite v6.4.1",
+    "duration": "610ms",
+    "modules": 24,
+    "output": {
+        "dist/assets/ragWorker-jCNwsAvU.js": "1.36 kB",
+        "dist/index.html": "24.35 kB (gzip: 6.37 kB)",
+        "dist/assets/index-DaJJy-ET.css": "64.57 kB (gzip: 11.96 kB)",
+        "dist/assets/index-ClJujnMx.js": "714.84 kB (gzip: 221.72 kB)"
+    },
+    "warnings": [
+        {
+            "type": "CHUNK_SIZE",
+            "file": "dist/assets/index-ClJujnMx.js",
+            "size": "714.84 kB",
+            "threshold": "500 kB",
+            "suggestion": "Code-split with dynamic import() or manualChunks"
+        }
+    ],
+    "errors": [],
+    "diagnosis": "Build succeeded. No errors. One non-blocking chunk size warning (714.84 kB > 500 kB limit). No auto-heal action required."
+}
