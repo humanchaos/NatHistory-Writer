@@ -65,7 +65,12 @@ export function setPipelineAbortSignal(signal) {
 async function agentStep(agent, prompt, { onAgentThinking, onAgentOutput }, agentOpts = {}) {
     if (_abortSignal?.aborted) throw new PipelineCancelled();
     onAgentThinking(agent);
-    const result = await callAgent(agent.systemPrompt, prompt, agentOpts);
+
+    // Resolve functional system prompts
+    const docMode = agentOpts.docMode || 'wildlife';
+    const systemPromptText = typeof agent.systemPrompt === 'function' ? agent.systemPrompt(docMode) : agent.systemPrompt;
+
+    const result = await callAgent(systemPromptText, prompt, agentOpts);
     if (_abortSignal?.aborted) throw new PipelineCancelled();
     onAgentOutput(agent, result);
     return result;
@@ -238,15 +243,16 @@ function extractScore(agentOutput) {
  * @param {string} seedIdea — the user's seed idea
  * @returns {Promise<Array<{genreKey: string, genreName: string, rationale: string}>>}
  */
-export async function suggestGenres(seedIdea) {
+export async function suggestGenres(seedIdea, opts = {}) {
+    const docMode = opts.docMode || 'wildlife';
 
     // 1. Retrieve knowledge base context (topic + narrative form signals in parallel)
     let knowledgeContext = '';
     let narrativeContext = '';
     try {
         [knowledgeContext, narrativeContext] = await Promise.all([
-            retrieveContext(seedIdea),
-            retrieveNarrativeContext(),
+            retrieveContext(seedIdea, 3, docMode),
+            retrieveNarrativeContext(3, docMode),
         ]);
     } catch (e) {
         console.warn('Knowledge retrieval skipped for genre suggestion:', e.message);
@@ -297,8 +303,9 @@ export async function suggestGenres(seedIdea) {
 
     // 2. Attempt 1: Call with Google Search grounding
     try {
+        const systemPromptToUse = typeof GENRE_STRATEGIST.systemPrompt === 'function' ? GENRE_STRATEGIST.systemPrompt(docMode) : GENRE_STRATEGIST.systemPrompt;
         const raw = await callAgent(
-            GENRE_STRATEGIST.systemPrompt,
+            systemPromptToUse,
             prompt,
             { tools: [{ googleSearch: {} }] }
         );
@@ -312,8 +319,9 @@ export async function suggestGenres(seedIdea) {
 
     // 3. Attempt 2: Retry WITHOUT Google Search (plain LLM call — more reliable JSON output)
     try {
+        const systemPromptToUse = typeof GENRE_STRATEGIST.systemPrompt === 'function' ? GENRE_STRATEGIST.systemPrompt(docMode) : GENRE_STRATEGIST.systemPrompt;
         const raw = await callAgent(
-            GENRE_STRATEGIST.systemPrompt,
+            systemPromptToUse,
             prompt,
             { tools: [] }
         );
@@ -335,7 +343,22 @@ export async function suggestGenres(seedIdea) {
 }
 
 export async function runPipeline(seedIdea, cbs, opts = {}) {
-    const { platform = null, year = null, directive = null, checkpoint = null, maxRevisions = 3, genrePreference = null, chaosMode = 'precision', grandNarrativeMode = false } = opts;
+    const { platform = null, year = null, directive = null, checkpoint = null, maxRevisions = 3, genrePreference = null, chaosMode = 'precision', grandNarrativeMode = false, docMode = 'wildlife' } = opts;
+
+    // ─── DOC MODE TERMINOLOGY ─────────────────────────────────
+    // Dynamic labels used throughout agent prompts to avoid hardcoded wildlife language
+    const isFactual = docMode === 'factual';
+    const factSheetLabel = isFactual ? 'Research Fact Sheet' : 'Animal Fact Sheet';
+    const scientistInstruction = isFactual
+        ? 'Based on this, conduct deep research with verified sources. You MUST include: the primary subject with historical/scientific context and key claims, a mandatory B-Story secondary angle, exact locations/time periods, ethical considerations, and the visual payoff. Output your full Research Fact Sheet.'
+        : 'Based on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.';
+    const producerParallelNote = isFactual
+        ? 'You are running IN PARALLEL with the Chief Investigator — you do not yet have their Research Fact Sheet. Assess production feasibility based on the seed idea and the Market Mandate. Focus on the subject, locations, and access described in the seed text. If specific details are ambiguous, make reasonable production assumptions and flag them.'
+        : 'You are running IN PARALLEL with the Chief Scientist — you do not yet have their Animal Fact Sheet. Assess production feasibility based on the seed idea and the Market Mandate. Focus on the species, location, and behavior described in the seed text. If specific scientific details are ambiguous, make reasonable production assumptions and flag them.';
+    const producerSoloNote = isFactual
+        ? `Here is the Research Fact Sheet from the Chief Investigator:\n\n`
+        : `Here is the Animal Fact Sheet from the Chief Scientist:\n\n`;
+    const docTypeLabel = isFactual ? 'factual documentary' : 'wildlife documentary';
 
     // ─── Resume support: hydrate ctx from checkpoint and determine resume point ──
     const ctx = checkpoint?.ctx ? { ...checkpoint.ctx, seedIdea } : { seedIdea };
@@ -392,11 +415,14 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // Wraps the standard agentStep to inject mutation prompts
     async function mutatedAgentStep(agent, prompt, callbacks, agentOpts = {}) {
         const override = promptOverrides.get(agent.id);
+        const resolvedPrompt = typeof agent.systemPrompt === 'function' ? agent.systemPrompt(docMode) : agent.systemPrompt;
+        
         if (override) {
             const mutatedAgent = { ...agent, systemPrompt: override };
             return agentStep(mutatedAgent, prompt, callbacks, agentOpts);
         }
-        return agentStep(agent, prompt, callbacks, agentOpts);
+        const mutatedAgent = { ...agent, systemPrompt: resolvedPrompt };
+        return agentStep(mutatedAgent, prompt, callbacks, agentOpts);
     }
 
     // Build optional context strings
@@ -416,8 +442,17 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         'ecological-biography': 'Ecological Biography — Decades-long "Deep Time" tracking of single organisms via autonomous units',
         'extreme-micro': 'Extreme Micro — Visual "Alien" content using nano-tech and electron microscopy at the cellular level',
         'astro-ecology': 'Astro-Ecology — "The Orbital View" using planetary data/satellites to show global system cycles',
-        'process-doc': 'The "Process" Doc — Meta-commentary on the difficulty and ethics of the shoot as proof-of-work',
-        'symbiotic-pov': 'Symbiotic POV — Extreme immersion via on-animal cameras and bio-logging data',
+        // Shared
+        'process-doc': 'The "Process" Doc — Meta-commentary on the difficulty and ethics of the shoot/investigation as proof-of-work',
+
+        // Factual
+        'true-crime': 'True Crime — Serialized investigation uncovering crimes, mysteries, or fraud with high suspense',
+        'historical-biography': 'Historical Biography — Prestige narrative focusing on a pivotal historical figure or era',
+        'science-tech': 'Science & Tech — Access-driven tech or scientific breakthroughs shaping the future',
+        'pop-culture': 'Pop Culture — Nostalgia, scandal, or phenomena driving cultural conversations',
+        'social-issue': 'Social Issue — Urgent, character-driven narratives highlighting systemic global issues',
+        'investigative': 'Investigative Journalism — Journalistic deep dive exposing corruption, cover-ups, or systemic failures',
+        'survival': 'Survival — Real-life survival stories pushing human limits against the odds',
     };
     const genreLabel = genrePreference ? genreLabels[genrePreference] || genrePreference : null;
     const genreNote = genreLabel
@@ -426,7 +461,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
 
     // ─── GENRE LOCK: Enforced across ALL agents when user selects a genre ──────
     const genreLock = genreLabel
-        ? `\n\n🔒 GENRE LOCK (DEFAULT — USER-SELECTED FROM UI):\nThe user has locked this pitch to the **${genreLabel}** genre via the UI dropdown. This is the default genre unless the seed text explicitly specifies a different genre.\n- ALL narrative structure, tone, camera language, pacing, sound design, and scoring criteria MUST serve this genre.\n- Do NOT drift into survival thriller, underdog, or any other genre convention unless it IS the locked genre.\n- If you reference narrative techniques, they must come from the locked genre's playbook — not from generic wildlife documentary conventions.\n- The Market Analyst's Narrative Mandate is SUBORDINATE to this genre lock. If the Analyst recommended a different form, OVERRIDE it with the locked genre.\n- Violation of the genre lock will be flagged as GENRE DRIFT and rejected.\n- EXCEPTION: If the seed text explicitly names a different genre (e.g. "make this a comedy"), the seed text takes priority over this UI lock.\n`
+        ? `\n\n🔒 GENRE LOCK (DEFAULT — USER-SELECTED FROM UI):\nThe user has locked this pitch to the **${genreLabel}** genre via the UI dropdown. This is the default genre unless the seed text explicitly specifies a different genre.\n- ALL narrative structure, tone, camera language, pacing, sound design, and scoring criteria MUST serve this genre.\n- Do NOT drift into survival thriller, underdog, or any other genre convention unless it IS the locked genre.\n- If you reference narrative techniques, they must come from the locked genre's playbook — not from generic ${docTypeLabel} conventions.\n- The Market Analyst's Narrative Mandate is SUBORDINATE to this genre lock. If the Analyst recommended a different form, OVERRIDE it with the locked genre.\n- Violation of the genre lock will be flagged as GENRE DRIFT and rejected.\n- EXCEPTION: If the seed text explicitly names a different genre (e.g. "make this a comedy"), the seed text takes priority over this UI lock.\n`
         : '';
     // ─── SEED OVERRIDE RULE ──────────────────────────────────
     // The seed text is the user's free-form creative input and is the HIGHEST
@@ -436,7 +471,31 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // corresponding UI-derived settings (platform, year, genre dropdown, etc.).
     const seedOverrideNote = `\n\n⚡ SEED OVERRIDE RULE: The user's seed text is the highest-priority creative brief. If the seed text explicitly specifies a genre, platform, delivery year, target audience, scientific premise, species, location, or any other production parameter, those directives OVERRIDE the corresponding UI settings below. The UI settings (platform, year, genre) are defaults — the seed text is the final word.\n`;
 
-    const optionsSuffix = seedOverrideNote + platformNote + yearNote + directiveNote + genreNote;
+    // ─── LANGUAGE DETECTION ────────────────────────────────────
+    // Detect the input language of the seed idea and instruct all agents
+    // to respond in the same language.
+    const detectLanguage = (text) => {
+        const lower = text.toLowerCase();
+        // German
+        if (/\b(und|der|die|das|ist|ein|eine|von|mit|den|des|dem|für|auf|nicht|sich|über|auch|nach|wie|oder|aber|wenn|noch|mehr|hat|sind|wird|kann|werden|haben|bei|aus|nur|als)\b/.test(lower)) return 'German';
+        // French
+        if (/\b(les|des|une|est|dans|pour|qui|sur|avec|par|sont|pas|ont|mais|cette|tout|aux|ses|leurs|nous|vous|ils|elle|lui|leur|été|peut|fait|comme|aussi|dont|très|où|sans)\b/.test(lower)) return 'French';
+        // Spanish
+        if (/\b(los|las|una|del|por|con|para|que|como|más|pero|esta|ese|son|han|fue|hay|ser|está|tiene|puede|todo|desde|también|donde|entre|cuando|sobre|muy|sin)\b/.test(lower)) return 'Spanish';
+        // Italian
+        if (/\b(gli|una|del|della|dei|delle|per|con|che|sono|nella|nel|dalla|sul|alla|questo|questa|anche|come|più|tra|fra|dove|quando|perché|molto|ogni|tutto|stato|essere)\b/.test(lower)) return 'Italian';
+        // Portuguese
+        if (/\b(uma|dos|das|para|com|que|por|como|mais|mas|esta|são|tem|foi|pode|todo|desde|também|onde|entre|quando|sobre|muito|sem|cada|outro)\b/.test(lower)) return 'Portuguese';
+        // Dutch
+        if (/\b(een|het|van|voor|met|dat|zijn|niet|ook|maar|worden|heeft|kan|deze|naar|uit|bij|nog|wel|hun|alle|over|meer|dan|als|geen|moet|hier|daar)\b/.test(lower)) return 'Dutch';
+        return null; // Default: English (no instruction needed)
+    };
+    const detectedLanguage = detectLanguage(seedIdea);
+    const languageNote = detectedLanguage
+        ? `\n\n🌐 OUTPUT LANGUAGE (MANDATORY): The user's seed idea is written in **${detectedLanguage}**. You MUST write your ENTIRE output in **${detectedLanguage}**. This applies to ALL sections — analysis, headers, recommendations, creative writing, everything. Technical terms, proper nouns, and industry-standard English terminology (e.g., "Blue Chip", "Netflix", "pitch deck") may remain in English, but all prose, analysis, and creative content MUST be in ${detectedLanguage}. This is NON-NEGOTIABLE.\n`
+        : '';
+
+    const optionsSuffix = seedOverrideNote + platformNote + yearNote + directiveNote + genreNote + languageNote;
 
     // Retrieve relevant knowledge from the vector store (no-op if empty)
     // Two parallel queries: (1) topic-matched content, (2) narrative form signals
@@ -451,7 +510,7 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
         console.warn('Knowledge retrieval skipped:', e.message);
     }
 
-    const kbBlock = knowledgeContext ? `\n\n${knowledgeContext}\n\n` : '';
+    let kbBlock = knowledgeContext ? `\n\n${knowledgeContext}\n\n` : '';
 
     // narrativeKbBlock is injected specifically into Market Analyst and Genre Strategist
     // — the agents responsible for setting narrative form for all downstream agents
@@ -466,8 +525,9 @@ export async function runPipeline(seedIdea, cbs, opts = {}) {
     // ─── WILDLIFE FOCUS GUARD ────────────────────────────
     // Detects when the user explicitly asks for wildlife/animal content and prevents
     // the pipeline from drifting into a human-centric story.
+    // Only active in wildlife mode — factual mode handles human subjects by design.
     const wildlifeKeywords = /\b(wildlife|animal|species|creature|fauna|beast|predator|prey|mammal|reptile|bird|insect|fish|amphibian|primate|carnivore|herbivore)\b/i;
-    const isWildlifeSeed = wildlifeKeywords.test(seedIdea);
+    const isWildlifeSeed = !isFactual && wildlifeKeywords.test(seedIdea);
     const wildlifeFocusGuard = isWildlifeSeed
         ? `\n\n🐾 WILDLIFE FOCUS GUARD — ACTIVE:
 The user explicitly requested a WILDLIFE story. This means:
@@ -494,7 +554,7 @@ The user explicitly requested a WILDLIFE story. This means:
         try {
             discoveryBrief = await mutatedAgentStep(
                 DISCOVERY_SCOUT,
-                `${seedAnchor}Search for recent scientific discoveries, novel behaviors, and new species related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\nFocus on findings from the last 12 months that could make a wildlife documentary genuinely unprecedented.${genreLabel ? ` Prioritize discoveries relevant to the **${genreLabel}** genre lens.` : ''}\n\n⛔ ANTI-DRIFT RULE (CRITICAL): Your Discovery Brief must ONLY surface findings that DIRECTLY support the user's stated seed concept. If the seed names a specific presenter, host, or person (e.g., a YouTube creator, journalist, filmmaker), search for what THEY are known for and what subjects THEY cover — do NOT invent a random species or location they have never been associated with. If the seed names a specific species or location, your findings must be about THAT species or location — not a tangentially related one your search happened to surface. If you cannot find relevant discoveries for the exact seed concept, return a Null Result — do NOT substitute a different concept. A Discovery Brief that introduces a new species or location not present in the seed is a PIPELINE FAILURE.\n\nReturn a structured Discovery Brief.`,
+                `${seedAnchor}Search for recent ${isFactual ? 'research, investigations, and developments' : 'scientific discoveries, novel behaviors, and new species'} related to: "${seedIdea}"${optionsSuffix}${genreLock}\n\nFocus on findings from the last 12 months that could make a ${docTypeLabel} genuinely unprecedented.${genreLabel ? ` Prioritize discoveries relevant to the **${genreLabel}** genre lens.` : ''}\n\n⛔ ANTI-DRIFT RULE (CRITICAL): Your Discovery Brief must ONLY surface findings that DIRECTLY support the user's stated seed concept. If the seed names a specific presenter, host, or person (e.g., a YouTube creator, journalist, filmmaker), search for what THEY are known for and what subjects THEY cover — do NOT invent a random ${isFactual ? 'subject' : 'species or location'} they have never been associated with. If the seed names a specific ${isFactual ? 'subject, person, or event' : 'species or location'}, your findings must be about THAT ${isFactual ? 'subject' : 'species or location'} — not a tangentially related one your search happened to surface. If you cannot find relevant discoveries for the exact seed concept, return a Null Result — do NOT substitute a different concept. A Discovery Brief that introduces a ${isFactual ? 'new subject' : 'new species or location'} not present in the seed is a PIPELINE FAILURE.\n\nReturn a structured Discovery Brief.`,
                 cbs,
                 { tools: [{ googleSearch: {} }] }
             );
@@ -616,7 +676,7 @@ The user explicitly requested a WILDLIFE story. This means:
         if (marketPick && creativePick && marketPick !== creativePick) {
             options.push(`  • COLLISION: Merge "${creativePick}" + "${marketPick}" — combine the creative novelty of the Genre Strategist with the market intelligence of the Analyst.`);
         }
-        options.push(`  • SAFE DEFAULT: "Blue Chip 2.0" — classic prestige wildlife documentary format.`);
+        options.push(`  • SAFE DEFAULT: "${isFactual ? 'Investigative Journalism' : 'Blue Chip 2.0'}" — classic prestige ${docTypeLabel} format.`);
 
         // Auto-select: Genre Lock wins, then COLLISION if available, else MARKET PICK
         let selected;
@@ -656,13 +716,13 @@ The user explicitly requested a WILDLIFE story. This means:
         const [scientistResult, producerResult] = await Promise.all([
             mutatedAgentStep(
                 CHIEF_SCIENTIST,
-                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${genreLock}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${genreLock}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\n${scientistInstruction}`,
                 cbs,
                 { tools: [{ googleSearch: {} }] }
             ),
             mutatedAgentStep(
                 FIELD_PRODUCER,
-                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nYou are running IN PARALLEL with the Chief Scientist — you do not yet have their Animal Fact Sheet. Assess production feasibility based on the seed idea and the Market Mandate. Focus on the species, location, and behavior described in the seed text. If specific scientific details are ambiguous, make reasonable production assumptions and flag them.\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment, crew, and shooting approach recommendations MUST serve the declared genre — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
+                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\n${producerParallelNote}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment, crew, and shooting approach recommendations MUST serve the declared genre — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
                 cbs
             )
         ]);
@@ -673,7 +733,7 @@ The user explicitly requested a WILDLIFE story. This means:
     } else if (needScientist) {
         ctx.animalFactSheet = await mutatedAgentStep(
             CHIEF_SCIENTIST,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${genreLock}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\nBased on this, propose novel animal behaviors with peer-reviewed citations. You MUST include: the primary species with scientific name and biological mechanism, a mandatory B-Story backup species, exact location/seasonality, ethical considerations, and the visual payoff. Output your full Animal Fact Sheet.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${genreLock}${narrativeMandate}Here is the Market Mandate from the Market Analyst:\n\n${ctx.marketMandate}\n\n${scientistInstruction}`,
             cbs,
             { tools: [{ googleSearch: {} }] }
         );
@@ -681,7 +741,7 @@ The user explicitly requested a WILDLIFE story. This means:
     } else if (needProducer) {
         ctx.logisticsBreakdown = await mutatedAgentStep(
             FIELD_PRODUCER,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the Animal Fact Sheet from the Chief Scientist:\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment, crew, and shooting approach recommendations MUST serve the declared genre — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\n${producerSoloNote}${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment, crew, and shooting approach recommendations MUST serve the declared genre — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
             cbs
         );
         checkpoint_('logisticsBreakdown', 1);
@@ -727,7 +787,7 @@ The pipeline does NOT kill ideas — it ITERATES them. Your job now:
 1. **Identify what IS scientifically valid** in the seed idea — what elements can be preserved?
 2. **Propose the CLOSEST viable alternative** — keep the spirit/theme of the original idea but make it scientifically sound. If the user wanted "deep ocean survival," find a real deep ocean survival behavior. If they wanted "predator-prey in the Arctic," find one that exists.
 3. **Maintain the user's intent** — they chose this topic for a reason. Don't pivot to something completely unrelated.
-4. **Produce a complete Animal Fact Sheet** with all required sections (Primary Species, Antagonist, Vulnerability Window, Novelty, B-Story, Biome, Ethics, Visual Payoff)${genreLabel ? `
+4. **Produce a complete ${factSheetLabel}** with all required sections${isFactual ? '' : ' (Primary Species, Antagonist, Vulnerability Window, Novelty, B-Story, Biome, Ethics, Visual Payoff)'}${genreLabel ? `
 5. **Respect the genre lock** — your proposed alternative MUST serve the **${genreLabel}** genre. Select behaviors and framing that fit this genre's conventions.` : ''}
 
 You are a CREATIVE SCIENTIST, not a gatekeeper. Find a way to make it work.`,
@@ -742,7 +802,7 @@ You are a CREATIVE SCIENTIST, not a gatekeeper. Find a way to make it work.`,
         cbs.onPhaseStart(1, '🔄 Updating Logistics for Science Pivot');
         ctx.logisticsBreakdown = await mutatedAgentStep(
             FIELD_PRODUCER,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nThe Chief Scientist revised the science after a pivot. Here is the UPDATED Animal Fact Sheet:\n\n${ctx.animalFactSheet}\n\nUpdate your logistics assessment to match the revised species, location, and behavior. Assess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your REVISED Logistics & Feasibility Breakdown.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\n${isFactual ? 'The Chief Investigator revised the research after a pivot. Here is the UPDATED Research Fact Sheet' : 'The Chief Scientist revised the science after a pivot. Here is the UPDATED Animal Fact Sheet'}:\n\n${ctx.animalFactSheet}\n\nUpdate your logistics assessment to match the revised ${isFactual ? 'subject, locations, and access requirements' : 'species, location, and behavior'}. Assess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Output your REVISED Logistics & Feasibility Breakdown.`,
             cbs
         );
         checkpoint_('logisticsBreakdown', 1);
@@ -818,7 +878,7 @@ Your job:
 1. **Keep the core idea** — same general theme, location, or species if possible
 2. **Remove or replace any methods the Field Producer flagged** — propose filming approaches that use ONLY observational techniques (remote cameras, hides, long lenses, autonomous drones, probe lenses)
 3. **If the specific behavior is the problem**, propose a DIFFERENT behavior of the same or closely related species that achieves the same cinematic effect without ethical issues
-4. **Produce a revised complete Animal Fact Sheet** — ensure the ethical red flags section explicitly addresses the Field Producer's concerns with specific mitigation protocols${genreLabel ? `
+4. **Produce a revised complete ${factSheetLabel}** — ensure the ethical red flags section explicitly addresses the Field Producer's concerns with specific mitigation protocols${genreLabel ? `
 5. **Respect the genre lock** — your revised approach MUST still serve the **${genreLabel}** genre.` : ''}
 
 The pipeline iterates, it does not kill. Find a way.`,
@@ -829,14 +889,14 @@ The pipeline iterates, it does not kill. Find a way.`,
             // Re-run Field Producer on the revised approach
             ctx.logisticsBreakdown = await mutatedAgentStep(
                 FIELD_PRODUCER,
-                `The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the REVISED Animal Fact Sheet from the Chief Scientist (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment and crew recommendations MUST serve the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
+                `The seed idea is: "${seedIdea}"${kbBlock}${genreLock}${narrativeMandate}\n\nHere is the REVISED ${factSheetLabel} from the ${isFactual ? 'Chief Investigator' : 'Chief Scientist'} (revised to address your previous ethical concerns):\n\n${ctx.animalFactSheet}\n\nAssess the feasibility with PRODUCER-GRADE specificity. You MUST include: exact camera equipment with model names, crew composition, shoot duration with seasonal windows, itemized budget estimate with actual dollar ranges, permit requirements, risk/contingency plans, and a Unicorn Test probability score. Your equipment and crew recommendations MUST serve the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} — different genres demand different production setups. Output your full Logistics & Feasibility Breakdown.`,
                 cbs
             );
 
             // ─── FIX 3: Synchronize Market Mandate on Pivot ──────────
             ctx.marketMandate = await mutatedAgentStep(
                 MARKET_ANALYST,
-                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${wildlifeFocusGuard}${genreLock}\n\nThe Chief Scientist and Field Producer have PIVOTED the core concept to address ethical/scientific concerns.\n\nHere is their REVISED Animal Fact Sheet:\n${ctx.animalFactSheet}\n\nRe-evaluate the market viability of this NEW pivoted approach. Do your target platforms and narrative form recommendations change? Output your revised Market Mandate based on this new reality.`,
+                `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${wildlifeFocusGuard}${genreLock}\n\nThe ${isFactual ? 'Chief Investigator' : 'Chief Scientist'} and Field Producer have PIVOTED the core concept to address ethical/scientific concerns.\n\nHere is their REVISED ${factSheetLabel}:\n${ctx.animalFactSheet}\n\nRe-evaluate the market viability of this NEW pivoted approach. Do your target platforms and narrative form recommendations change? Output your revised Market Mandate based on this new reality.`,
                 cbs
             );
         }
@@ -887,7 +947,7 @@ The pipeline iterates, it does not kill. Find a way.`,
     if (!shouldSkip('draftV1')) {
         ctx.draftV1 = await mutatedAgentStep(
             STORY_PRODUCER,
-            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Your ENTIRE output — structure, tone, camera language, pacing, narration style, sound design — must serve this genre. Do NOT import conventions from other genres.` : `The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.`}\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt).\n\nDo NOT default to survival thriller unless ${genreLabel ? `the locked genre IS survival thriller` : `the Market Analyst specifically recommended it`}. Adopt the locked genre's conventions fully.\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.`,
+            `${seedAnchor}The seed idea is: "${seedIdea}"${kbBlock}${discoveryBlock}${optionsSuffix}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nHere are the team's inputs:\n\n### Market Mandate\n${ctx.marketMandate}\n\n### ${factSheetLabel}\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\nSynthesize all of this into a complete pitch narrative.\n\nCRITICAL: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Your ENTIRE output — structure, tone, camera language, pacing, narration style, sound design — must serve this genre. Do NOT import conventions from other genres.` : `The Market Analyst has recommended a **Narrative Form** in their Market Mandate (Section 7: Narrative Strategy Recommendation). You MUST follow it. Read their Primary and Alternative recommendations, choose one, and build your entire output around it.`}\n\nDeliver ALL elements specified in your output format instructions for the chosen narrative form, plus ALL universal elements (${isFactual ? 'Societal Impact, Visual Signature Moments, Technology Justification, A/V Script Excerpt' : 'Anthropocene Reality, Visual Signature Moments, Technology Justification, A/V Script Excerpt'}).\n\nDo NOT default to survival thriller unless ${genreLabel ? `the locked genre IS survival thriller` : `the Market Analyst specifically recommended it`}. Adopt the locked genre's conventions fully.${isFactual ? '' : '\n\nEnsure the B-Story species is woven into the narrative, not just mentioned as a footnote.'}`,
             cbs
         );
         checkpoint_('draftV1', 2);
@@ -901,7 +961,7 @@ The pipeline iterates, it does not kill. Find a way.`,
     if (chaosConfig.provocateur && !shouldSkip('provocation')) {
         cbs.onPhaseStart(2.5, '🔥 The Provocateur');
 
-        ctx.provocation = await agentStep(
+        ctx.provocation = await mutatedAgentStep(
             PROVOCATEUR,
             `You are reviewing this Draft V1 pitch. Read it. Find the lie. Break it open.
 
@@ -974,7 +1034,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
     if (!shouldSkip('rejectionMemo')) {
         ctx.rejectionMemo = await mutatedAgentStep(
             COMMISSIONING_EDITOR,
-            `Review the following Draft V1 pitch package:${kbBlock}${genreLock}${narrativeMandate}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### Animal Fact Sheet\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 14 vectors.\n\nCRITICAL FOR VECTORS 7 & 8: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Evaluate the draft EXCLUSIVELY against this genre's cinematic standards. If the draft drifts into another genre's conventions, flag it as GENRE DRIFT — this is a FATAL FLAW.` : `The Market Analyst declared a narrative form in the Market Mandate. Use THAT form's cinematic standard for your Narrative Integrity Test and Commission Test — do NOT default to survival thriller criteria unless that IS the declared form.`}\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
+            `Review the following Draft V1 pitch package:${kbBlock}${genreLock}${narrativeMandate}\n\n### Seed Idea\n"${seedIdea}"\n\n### Market Mandate\n${ctx.marketMandate}\n\n### ${factSheetLabel}\n${ctx.animalFactSheet}\n\n### Logistics & Feasibility\n${ctx.logisticsBreakdown}\n\n### Draft Script (V1)\n${ctx.draftV1}\n\nThis is the FIRST review. Attack across all 14 vectors.\n\nCRITICAL FOR VECTORS 7 & 8: ${genreLabel ? `The user has LOCKED the genre to "${genreLabel}". Evaluate the draft EXCLUSIVELY against this genre's cinematic standards. If the draft drifts into another genre's conventions, flag it as GENRE DRIFT — this is a FATAL FLAW.` : `The Market Analyst declared a narrative form in the Market Mandate. Use THAT form's cinematic standard for your Narrative Integrity Test and Commission Test — do NOT default to survival thriller criteria unless that IS the declared form.`}\n\nQuote specific failing passages. Find at LEAST two substantive flaws. Score honestly — most first drafts land 60-80, but greenlight (85+) if genuinely broadcast-ready.`,
             cbs
         );
         checkpoint_('rejectionMemo', 3);
@@ -994,7 +1054,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
 
         ctx.revisionDirectives = await mutatedAgentStep(
             SHOWRUNNER,
-            `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}${provocateurBlock}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}${genreLock}${narrativeMandate}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible.\n\nCRITICAL: ${genreLabel ? `The genre is LOCKED to "${genreLabel}". ALL revision directives MUST enforce this genre. If the draft drifted into another genre, your primary directive is to pull it back. Issue camera, sound, and narration directives specific to this genre.` : `Review the Market Analyst's Narrative Mandate. Ensure ALL revision directives are consistent with the declared narrative form.`} Do NOT push the draft toward survival thriller unless that IS the ${genreLabel ? 'locked genre' : 'mandate'}. Issue camera, sound, and narration directives appropriate to the form.\n\nOutput clear revision directives for each agent.`,
+            `The Commissioning Editor has REJECTED Draft V1 with this memo:\n\n${ctx.rejectionMemo}${provocateurBlock}\n\nOriginal team outputs:\n- Market Mandate: ${ctx.marketMandate}\n- ${factSheetLabel}: ${ctx.animalFactSheet}\n- Logistics: ${ctx.logisticsBreakdown}\n- Draft V1 Script: ${ctx.draftV1}${genreLock}${narrativeMandate}\n\nParse the rejection. Identify exactly what needs to change and which agents are responsible.\n\nCRITICAL: ${genreLabel ? `The genre is LOCKED to "${genreLabel}". ALL revision directives MUST enforce this genre. If the draft drifted into another genre, your primary directive is to pull it back. Issue camera, sound, and narration directives specific to this genre.` : `Review the Market Analyst's Narrative Mandate. Ensure ALL revision directives are consistent with the declared narrative form.`} Do NOT push the draft toward survival thriller unless that IS the ${genreLabel ? 'locked genre' : 'mandate'}. Issue camera, sound, and narration directives appropriate to the form.\n\nOutput clear revision directives for each agent.`,
             cbs
         );
         checkpoint_('revisionDirectives', 4);
@@ -1003,7 +1063,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
     if (!shouldSkip('revisedScience')) {
         ctx.revisedScience = await mutatedAgentStep(
             CHIEF_SCIENTIST,
-            `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${genreLock}\n\nYour original Animal Fact Sheet was:\n${ctx.animalFactSheet}\n\nRevise your output to address the critique. Include a reliable B-Story backup species if demanded. Ensure the visual payoff description supports CINEMATIC proximity shooting, not just scientific observation.${genreLabel ? ` Your revised fact sheet MUST serve the locked genre ("${genreLabel}") — select behaviors and framing that fit this genre's conventions.` : ''} Output a REVISED Animal Fact Sheet.`,
+            `The Showrunner has issued these revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${genreLock}\n\nYour original ${factSheetLabel} was:\n${ctx.animalFactSheet}\n\nRevise your output to address the critique. ${isFactual ? 'Strengthen sourcing and deepen the investigative angle.' : 'Include a reliable B-Story backup species if demanded. Ensure the visual payoff description supports CINEMATIC proximity shooting, not just scientific observation.'}${genreLabel ? ` Your revised ${isFactual ? 'fact sheet' : 'fact sheet'} MUST serve the locked genre ("${genreLabel}") — select ${isFactual ? 'angles and framing' : 'behaviors and framing'} that fit this genre's conventions.` : ''} Output a REVISED ${factSheetLabel}.`,
             cbs
         );
         checkpoint_('revisedScience', 4);
@@ -1023,7 +1083,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
         let accidentBlock = '';
         if (chaosConfig.accidents) {
             const accident = generateAccident(ctx);
-            accidentBlock = `\n\n═══════════════════════════════════════════\n🎲 CREATIVE ACCIDENT (from the Chaos Engine)\n═══════════════════════════════════════════\n\nBefore you revise, consider this challenge. You don't HAVE to use it. But if it triggers something — if it opens a door you hadn't seen — follow it.\n\n**${accident.layer}${accident.reference ? ` — inspired by ${accident.reference}` : ''}**\n\n${accident.prompt}\n\n⚠️ SCIENCE FIREWALL: This accident may ONLY influence your narrative structure, tone, format, or storytelling approach. It must NEVER cause you to alter, exaggerate, or invent biological facts, animal behavior, or ecological science. The science is sacred — only the WAY you tell the story can change.\n\nRemember: you are free to ignore this. But the best revisions come from the collision of discipline and surprise.\n═══════════════════════════════════════════\n\n`;
+            accidentBlock = `\n\n═══════════════════════════════════════════\n🎲 CREATIVE ACCIDENT (from the Chaos Engine)\n═══════════════════════════════════════════\n\nBefore you revise, consider this challenge. You don't HAVE to use it. But if it triggers something — if it opens a door you hadn't seen — follow it.\n\n**${accident.layer}${accident.reference ? ` — inspired by ${accident.reference}` : ''}**\n\n${accident.prompt}\n\n⚠️ RESEARCH FIREWALL: This accident may ONLY influence your narrative structure, tone, format, or storytelling approach. It must NEVER cause you to alter, exaggerate, or invent ${isFactual ? 'factual claims, historical events, or verified data' : 'biological facts, animal behavior, or ecological science'}. The ${isFactual ? 'research' : 'science'} is sacred — only the WAY you tell the story can change.\n\nRemember: you are free to ignore this. But the best revisions come from the collision of discipline and surprise.\n═══════════════════════════════════════════\n\n`;
 
             if (cbs.onChaosEvent) {
                 cbs.onChaosEvent('accident', accident);
@@ -1032,7 +1092,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
 
         ctx.draftV2 = await mutatedAgentStep(
             STORY_PRODUCER,
-            `${accidentBlock}The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised Animal Fact Sheet: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the ${genreLabel ? `LOCKED genre ("${genreLabel}")` : 'DECLARED narrative form'}:\n✓ Commit fully to the ${genreLabel ? 'locked genre\'s' : 'declared form\'s'} cinematic language\n✓ Every key moment must have defined visual AND audio signatures appropriate to the genre\n✓ Narration style must match the genre\n✓ B-Story woven in — the secondary species must serve the chosen genre, not just be backup\n✓ Do NOT drift into survival thriller or any other genre's conventions unless that IS the ${genreLabel ? 'locked genre' : 'declared form'}\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
+            `${accidentBlock}The Showrunner has issued revision directives based on a Commissioning Editor rejection:\n\n${ctx.revisionDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Revised ${factSheetLabel}: ${ctx.revisedScience}\n- Revised Logistics: ${ctx.revisedLogistics}\n\nYour original Draft V1 was:\n${ctx.draftV1}\n\nRewrite the script addressing ALL critique points. FORM-SPECIFIC UPGRADE CHECKLIST — apply the standards for the ${genreLabel ? `LOCKED genre ("${genreLabel}")` : 'DECLARED narrative form'}:\n✓ Commit fully to the ${genreLabel ? 'locked genre\'s' : 'declared form\'s'} cinematic language\n✓ Every key moment must have defined visual AND audio signatures appropriate to the genre\n✓ Narration style must match the genre\n✓ B-Story woven in — the secondary species must serve the chosen genre, not just be backup\n✓ Do NOT drift into survival thriller or any other genre's conventions unless that IS the ${genreLabel ? 'locked genre' : 'declared form'}\n\nOutput a REVISED 3-Act narrative and dual-column A/V script with sound design notes (Draft V2).`,
             cbs
         );
         checkpoint_('draftV2', 4);
@@ -1041,7 +1101,7 @@ Output your response in the EXACT format specified in your instructions: Kill Sh
     if (!shouldSkip('greenlightReview')) {
         ctx.greenlightReview = await mutatedAgentStep(
             COMMISSIONING_EDITOR,
-            `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}${genreLock}${narrativeMandate}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised Animal Fact Sheet\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does the pitch NOW commit fully to the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} (not defaulting to thriller)?\n3. Camera, sound, and narration language — are they appropriate for the ${genreLabel ? 'LOCKED genre' : 'DECLARED form'}?\n4. B-Story: woven into the genre, not just listed as backup?\n${genreLabel ? `5. GENRE DRIFT CHECK: Flag ANY element that belongs to a different genre\'s conventions.\n` : ''}\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
+            `You previously rejected the Draft V1 with this memo:\n\n${ctx.rejectionMemo}${genreLock}${narrativeMandate}\n\nThe team has revised their work. Here is Draft V2:\n\n### Revised ${factSheetLabel}\n${ctx.revisedScience}\n\n### Revised Logistics\n${ctx.revisedLogistics}\n\n### Draft Script (V2)\n${ctx.draftV2}\n\nReview the revisions. Check:\n1. Have the fatal flaws been addressed?\n2. Does the pitch NOW commit fully to the ${genreLabel ? `locked genre ("${genreLabel}")` : 'declared narrative form'} (not defaulting to thriller)?\n3. Camera, sound, and narration language — are they appropriate for the ${genreLabel ? 'LOCKED genre' : 'DECLARED form'}?\n4. B-Story: woven into the genre, not just listed as backup?\n${genreLabel ? `5. GENRE DRIFT CHECK: Flag ANY element that belongs to a different genre\'s conventions.\n` : ''}\nScore the revised pitch. If genuinely resolved, Greenlight (85+). If not, explain what still needs work.`,
             cbs
         );
         checkpoint_('greenlightReview', 4);
@@ -1081,7 +1141,7 @@ Issue SURGICAL revision directives. Focus ONLY on the specific failings the Edit
         // Story Producer writes the next draft
         currentDraft = await mutatedAgentStep(
             STORY_PRODUCER,
-            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- Animal Fact Sheet: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
+            `Draft V${draftNumber - 1} scored ${currentScore}/100 — below threshold. Here are the Showrunner's targeted revision directives:\n\n${tighterDirectives}${speciesGuard}${wildlifeFocusGuard}${genreLock}${narrativeMandate}\n\nYour previous draft:\n${currentDraft}\n\nRevised inputs:\n- Market Mandate: ${ctx.marketMandate}\n- ${factSheetLabel}: ${ctx.revisedScience || ctx.animalFactSheet}\n- Logistics: ${ctx.revisedLogistics || ctx.logisticsBreakdown}\n\nFix the SPECIFIC issues identified. Do not regress on elements that were already working. Output Draft V${draftNumber}.`,
             cbs
         );
 

@@ -70,9 +70,20 @@
               <span>Drop files or <button id="shared-browse-btn" class="link-btn">browse</button></span>
             </div>
           </div>
+          <div class="url-input-row docmode-input-row">
+            <select id="shared-kb-docmode" class="url-input shared-docmode-select" aria-label="Knowledge Domain Filter">
+              <option value="wildlife">Domain: Wildlife</option>
+              <option value="factual">Domain: Factual</option>
+              <option value="general">Domain: General (Both)</option>
+            </select>
+          </div>
           <div class="url-input-row">
             <input type="text" id="shared-url-input" class="url-input" placeholder="Paste a URL to add to shared KB…" />
             <button id="shared-url-add-btn" class="url-add-btn">🔗 Add</button>
+          </div>
+          <div class="url-input-row">
+            <input type="text" id="shared-notebooklm-input" class="url-input" placeholder="Paste a NotebookLM URL or Audio link…" />
+            <button id="shared-notebooklm-add-btn" class="url-add-btn notebooklm-btn">📓 Add</button>
           </div>
           <div id="shared-upload-progress" class="upload-progress hidden">
             <div class="progress-bar">
@@ -125,6 +136,10 @@
           <input type="text" id="url-input" class="url-input" placeholder="Paste a URL to add as knowledge…" />
           <button id="url-add-btn" class="url-add-btn">🔗 Add</button>
         </div>
+        <div class="url-input-row">
+          <input type="text" id="notebooklm-input" class="url-input" placeholder="Paste a NotebookLM URL or Audio link…" />
+          <button id="notebooklm-add-btn" class="url-add-btn notebooklm-btn">📓 Add</button>
+        </div>
         <div id="upload-progress" class="upload-progress hidden">
           <div class="progress-bar">
             <div id="progress-fill" class="progress-fill"></div>
@@ -159,8 +174,14 @@
     <div class="hero-content">
       <div class="hero-badge">Multi-Agent AI System</div>
       <h1><span class="title-accent">Script</span>Writer</h1>
-      <p class="hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
-      <p class="hero-description">
+      
+      <div class="mode-toggle" id="global-doc-mode-toggle" style="margin: 1.5rem auto 2rem; max-width: 320px; display: flex;">
+        <button type="button" class="mode-tab active" data-doc-mode="wildlife" style="flex: 1; padding: 0.75rem 0; font-size: 1.05rem;">🌍 Wildlife</button>
+        <button type="button" class="mode-tab" data-doc-mode="factual" style="flex: 1; padding: 0.75rem 0; font-size: 1.05rem;">🏛️ Factual</button>
+      </div>
+
+      <p class="hero-subtitle" id="global-hero-subtitle">Blue-Chip Wildlife Scriptment Engine</p>
+      <p class="hero-description" id="global-hero-description">
         Enter a seed idea. Eight AI agents will debate, reject, revise, and greenlight your wildlife film pitch
         — in <strong>3 different genre lenses</strong> automatically.
       </p>
@@ -194,6 +215,16 @@
                     <option value="Disney+">Disney+ / National Geographic</option>
                     <option value="Amazon Prime">Amazon Prime</option>
                     <option value="ZDF / ARTE">ZDF / ARTE</option>
+                    <option value="ARD / Das Erste">ARD / Das Erste</option>
+                    <option value="NDR / Doclights">NDR / Doclights</option>
+                    <option value="ORF / Universum">ORF / Universum</option>
+                    <option value="SRF">SRF</option>
+                    <option value="ServusTV / Terra Mater">ServusTV / Terra Mater</option>
+                    <option value="3sat">3sat</option>
+                    <option value="Phoenix">Phoenix</option>
+                    <option value="Sky Deutschland">Sky Deutschland</option>
+                    <option value="Joyn">Joyn</option>
+                    <option value="RTL+ / Geo Television">RTL+ / Geo Television</option>
                     <option value="Channel 4">Channel 4</option>
                     <option value="Smithsonian Channel">Smithsonian Channel</option>
                     <option value="PBS">PBS</option>

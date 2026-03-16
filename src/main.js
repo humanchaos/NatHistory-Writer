@@ -325,7 +325,7 @@ function createAgentCard(agent) {
     } else {
         timelineEl.appendChild(card);
     }
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); // Disabled requested by user
     return card;
 }
 
@@ -668,7 +668,22 @@ async function refreshSharedDocList() {
 
 // ─── Knowledge Base: URL Ingestion ────────────────────
 const urlInput = document.getElementById('url-input');
+const notebookLmInput = document.getElementById('notebooklm-input');
+const notebookLmAddBtn = document.getElementById('notebooklm-add-btn');
+const sharedNotebookLmInput = document.getElementById('shared-notebooklm-input');
+const sharedNotebookLmAddBtn = document.getElementById('shared-notebooklm-add-btn');
+
 const urlAddBtn = document.getElementById('url-add-btn');
+
+
+if (notebookLmAddBtn) {
+    notebookLmAddBtn.addEventListener('click', () => handleUrl(notebookLmInput, ' notebooks'));
+}
+if (notebookLmInput) {
+    notebookLmInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleUrl(notebookLmInput, ' notebooks'); }
+    });
+}
 
 if (urlAddBtn) {
     urlAddBtn.addEventListener('click', () => handleUrl());
@@ -679,8 +694,8 @@ if (urlInput) {
     });
 }
 
-async function handleUrl() {
-    const url = urlInput?.value.trim();
+async function handleUrl(inputEl = urlInput, typeLabel = '') {
+    const url = inputEl?.value.trim();
     if (!url) return;
 
     // Basic URL validation
@@ -720,7 +735,7 @@ async function handleUrl() {
         await addDocument(`🔗 ${url}`, chunks, embeddings);
 
         uploadProgress.classList.add('hidden');
-        urlInput.value = '';
+        inputEl.value = '';
         refreshDocList();
     } catch (err) {
         uploadProgress.classList.add('hidden');
@@ -837,7 +852,8 @@ async function handleSharedFiles(fileList) {
             sharedProgressText.textContent = 'Uploading to shared knowledge base…';
             sharedProgressFill.style.width = '90%';
 
-            await addSharedDocument(adminPassword, file.name, chunks, embeddings);
+            const docMode = document.getElementById('shared-kb-docmode')?.value || 'general';
+            await addSharedDocument(adminPassword, file.name, chunks, embeddings, docMode);
 
             sharedUploadProgress.classList.add('hidden');
             refreshSharedDocList();
@@ -862,19 +878,29 @@ async function handleSharedFiles(fileList) {
 if (sharedUrlAddBtn) {
     sharedUrlAddBtn.addEventListener('click', () => handleSharedUrl());
 }
+
+if (sharedNotebookLmAddBtn) {
+    sharedNotebookLmAddBtn.addEventListener('click', () => handleSharedUrl(sharedNotebookLmInput, ' notebooks'));
+}
+if (sharedNotebookLmInput) {
+    sharedNotebookLmInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleSharedUrl(sharedNotebookLmInput, ' notebooks'); }
+    });
+}
+
 if (sharedUrlInput) {
     sharedUrlInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); handleSharedUrl(); }
     });
 }
 
-async function handleSharedUrl() {
+async function handleSharedUrl(inputEl = sharedUrlInput, typeLabel = '') {
     if (!adminPassword) {
         showError('Enter the admin password first to add URLs to the shared KB.');
         return;
     }
 
-    const url = sharedUrlInput?.value.trim();
+    const url = inputEl?.value.trim();
     if (!url) return;
 
     try { new URL(url); } catch {
@@ -910,10 +936,11 @@ async function handleSharedUrl() {
         sharedProgressFill.style.width = '90%';
         sharedProgressText.textContent = 'Uploading to shared knowledge base…';
 
-        await addSharedDocument(adminPassword, `🔗 ${url}`, chunks, embeddings);
+        const docMode = document.getElementById('shared-kb-docmode')?.value || 'general';
+        await addSharedDocument(adminPassword, `🔗 ${url}`, chunks, embeddings, docMode);
 
         sharedUploadProgress.classList.add('hidden');
-        sharedUrlInput.value = '';
+        inputEl.value = '';
         refreshSharedDocList();
         refreshDocList();
     } catch (err) {
@@ -1187,6 +1214,119 @@ if (storyModeToggle) {
 }
 
 
+// ─── Global Doc Mode Toggle ──────────────────────────────
+window.docMode = 'wildlife';
+const globalDocModeToggle = document.getElementById('global-doc-mode-toggle');
+const heroSubtitle = document.getElementById('global-hero-subtitle');
+const heroDescription = document.getElementById('global-hero-description');
+const seedInputEl = document.getElementById('seed-input');
+
+if (globalDocModeToggle) {
+    globalDocModeToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.mode-tab');
+        if (!btn) return;
+        
+        globalDocModeToggle.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        window.docMode = btn.dataset.docMode;
+        
+        if (window.docMode === 'factual') {
+            if (heroSubtitle) heroSubtitle.textContent = 'Premium Factual Scriptment Engine';
+            if (heroDescription) heroDescription.innerHTML = 'Enter a seed idea. Eight AI agents will debate, reject, revise, and greenlight your doc pitch — in <strong>3 different pivot lenses</strong> automatically.';
+            if (seedInputEl) seedInputEl.placeholder = 'Describe your factual documentary idea…\ne.g., The rise and fall of a notorious 1980s stockbroker';
+            
+            // Update platforms
+            if (targetPlatformInput) {
+                targetPlatformInput.innerHTML = `
+                    <option value="">Auto-detect best fit</option>
+                    <option value="Netflix">Netflix</option>
+                    <option value="HBO Documentary Films">HBO Documentary Films</option>
+                    <option value="Investigation Discovery">Investigation Discovery</option>
+                    <option value="History Channel">History Channel</option>
+                    <option value="A&E">A&E</option>
+                    <option value="Channel 4">Channel 4 (Factual)</option>
+                    <option value="PBS">PBS / Frontline</option>
+                    <option value="ARD / Das Erste">ARD / Das Erste</option>
+                    <option value="ZDF / ARTE">ZDF / ARTE</option>
+                    <option value="NDR / Doclights">NDR / Doclights</option>
+                    <option value="ORF / Universum">ORF / Universum</option>
+                    <option value="SRF">SRF</option>
+                    <option value="ServusTV / Terra Mater">ServusTV / Terra Mater</option>
+                    <option value="3sat">3sat</option>
+                    <option value="Phoenix">Phoenix</option>
+                    <option value="Sky Deutschland">Sky Deutschland</option>
+                    <option value="Joyn">Joyn</option>
+                    <option value="RTL+ / Geo Television">RTL+ / Geo Television</option>
+                `;
+            }
+            // Update genres
+            if (genrePreferenceInput) {
+                genrePreferenceInput.innerHTML = `
+                    <option value="">Auto — Hands-Free (3 genres)</option>
+                    <option value="true-crime" title="ROI: High. Serialized investigation.">🕵️ True Crime</option>
+                    <option value="historical-biography" title="ROI: Mid. Prestige narrative.">📜 Historical Biography</option>
+                    <option value="science-tech" title="ROI: High. Access-driven tech.">🔬 Science & Tech</option>
+                    <option value="pop-culture" title="ROI: High. Nostalgia and scandal.">🍿 Pop Culture</option>
+                    <option value="social-issue" title="ROI: Mid. Urgent social narrative.">🌍 Social Issue</option>
+                    <option value="investigative" title="ROI: High. Journalistic deep dive.">🔍 Investigative Journalism</option>
+                    <option value="survival" title="ROI: Mid. Real life survival.">🏕️ Survival</option>
+                    <option value="process-doc" title="ROI: Mid. Behind the scenes.">🎬 Process Doc</option>
+                    <option value="custom">✏️ Custom…</option>
+                `;
+            }
+        } else {
+            if (heroSubtitle) heroSubtitle.textContent = 'Blue-Chip Wildlife Scriptment Engine';
+            if (heroDescription) heroDescription.innerHTML = 'Enter a seed idea. Eight AI agents will debate, reject, revise, and greenlight your wildlife film pitch — in <strong>3 different genre lenses</strong> automatically.';
+            if (seedInputEl) seedInputEl.placeholder = 'Describe your wildlife documentary idea…\ne.g., Octopus intelligence and tool use in Indonesian coral reefs';
+            
+            // Restore platforms
+            if (targetPlatformInput) {
+                targetPlatformInput.innerHTML = `
+                        <option value="">Auto-detect best fit</option>
+                        <option value="Netflix">Netflix</option>
+                        <option value="Apple TV+">Apple TV+</option>
+                        <option value="BBC Studios">BBC Studios</option>
+                        <option value="Disney+">Disney+ / National Geographic</option>
+                        <option value="Amazon Prime">Amazon Prime</option>
+                        <option value="ZDF / ARTE">ZDF / ARTE</option>
+                        <option value="ARD / Das Erste">ARD / Das Erste</option>
+                        <option value="NDR / Doclights">NDR / Doclights</option>
+                        <option value="ORF / Universum">ORF / Universum</option>
+                        <option value="SRF">SRF</option>
+                        <option value="ServusTV / Terra Mater">ServusTV / Terra Mater</option>
+                        <option value="3sat">3sat</option>
+                        <option value="Phoenix">Phoenix</option>
+                        <option value="Sky Deutschland">Sky Deutschland</option>
+                        <option value="Joyn">Joyn</option>
+                        <option value="RTL+ / Geo Television">RTL+ / Geo Television</option>
+                        <option value="Channel 4">Channel 4</option>
+                        <option value="Smithsonian Channel">Smithsonian Channel</option>
+                        <option value="PBS">PBS</option>
+                `;
+            }
+            // Restore genres
+            if (genrePreferenceInput) {
+                genrePreferenceInput.innerHTML = `
+                        <option value="">Auto — Hands-Free (3 genres)</option>
+                        <option value="scientific-procedural" title="ROI: Highest.">🔬 Scientific Procedural</option>
+                        <option value="nature-noir" title="ROI: High.">🕵️ Nature Noir</option>
+                        <option value="speculative-nh" title="ROI: High.">🌐 Speculative NH</option>
+                        <option value="urban-rewilding" title="ROI: Mid-High.">🏙️ Urban Rewilding</option>
+                        <option value="biocultural-history" title="ROI: Moderate.">📜 Biocultural History</option>
+                        <option value="blue-chip-2" title="ROI: Moderate.">💎 Blue Chip 2.0</option>
+                        <option value="indigenous-wisdom" title="ROI: Moderate.">🌿 Indigenous Wisdom</option>
+                        <option value="ecological-biography" title="ROI: Low-Mid.">🌳 Ecological Biography</option>
+                        <option value="extreme-micro" title="ROI: Low-Mid.">🔭 Extreme Micro</option>
+                        <option value="astro-ecology" title="ROI: Low.">🛰️ Astro-Ecology</option>
+                        <option value="process-doc" title="ROI: Ancillary.">🎬 The Process Doc</option>
+                        <option value="symbiotic-pov" title="ROI: Speculative.">🐾 Symbiotic POV</option>
+                        <option value="custom">✏️ Custom…</option>
+                `;
+            }
+        }
+    });
+}
+
 // Toggle custom genre input visibility
 genrePreferenceInput.addEventListener('change', () => {
     if (genrePreferenceInput.value === 'custom') {
@@ -1459,7 +1599,7 @@ const pipelineCallbacks = {
             card.innerHTML = `<span class="chaos-event-icon">🎲</span> <strong>Creative Accident:</strong> ${data.layer}${data.reference ? ` <em>(${data.reference})</em>` : ''}`;
         }
         timelineEl.appendChild(card);
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); // Disabled per user request
     },
 };
 
@@ -1566,7 +1706,11 @@ seedForm.addEventListener('submit', async (e) => {
             } catch (err) {
                 if (err instanceof PipelineCancelled || err.name === 'PipelineCancelled') throw err;
                 console.warn('Genre suggestion failed, using fallbacks:', err.message);
-                genreSuggestions = [
+                genreSuggestions = window.docMode === 'factual' ? [
+                    { genreKey: 'investigative-thriller', genreName: 'Investigative Thriller', rationale: 'High-stakes investigative format.', _isFallback: true },
+                    { genreKey: 'pop-science', genreName: 'Pop-Science', rationale: 'Accessible science-driven storytelling.', _isFallback: true },
+                    { genreKey: 'true-crime', genreName: 'True Crime', rationale: 'Character-driven investigation.', _isFallback: true },
+                ] : [
                     { genreKey: 'blue-chip-2', genreName: 'Blue Chip 2.0', rationale: 'Classic prestige format.', _isFallback: true },
                     { genreKey: 'scientific-procedural', genreName: 'Scientific Procedural', rationale: 'Tech-driven investigation angle.', _isFallback: true },
                     { genreKey: 'ecological-biography', genreName: 'Ecological Biography', rationale: 'Character-driven format.', _isFallback: true },
@@ -1635,6 +1779,7 @@ seedForm.addEventListener('submit', async (e) => {
                     maxRevisions,
                     chaosMode: selectedChaosMode,
                     grandNarrativeMode,
+                    docMode: window.docMode,
                 });
 
                 batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck, genreName: genre.genreName });
@@ -1734,7 +1879,7 @@ seedForm.addEventListener('submit', async (e) => {
 
                 const finalPitchDeck = isAssessment
                     ? await runAssessment(seedText, pipelineCallbacks, prodYear)
-                    : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions, chaosMode: selectedChaosMode, grandNarrativeMode });
+                    : await runPipeline(seedText, pipelineCallbacks, { platform: targetPlatform, year: prodYear, genrePreference, maxRevisions, chaosMode: selectedChaosMode, grandNarrativeMode, docMode: window.docMode });
 
                 batchResults.push({ seed: seedText, pitchDeck: finalPitchDeck });
                 completeAgentRing();
@@ -1851,7 +1996,9 @@ const AGENT_COMMANDS = {
 };
 
 function buildRefinementPrompt(deck) {
-    return `You are a senior wildlife documentary consultant helping refine a Master Pitch Deck.
+    const isFactual = window.docMode === 'factual';
+    const consultantType = isFactual ? 'senior factual documentary consultant' : 'senior wildlife documentary consultant';
+    return `You are a ${consultantType} helping refine a Master Pitch Deck.
 You operate in THREE modes based on the user's input:
 
 ═══════════════════════════════════════════
@@ -1897,7 +2044,7 @@ USE MODE 3 when the user's request involves ANY of these:
 - Changing the narrative perspective or angle
 - Adding or changing a presenter/host character
 - Fundamentally changing the story structure
-- Switching primary species or location
+- Switching primary subject${isFactual ? '' : '/species'} or location
 - Pivoting the entire concept direction
 - Any change that would affect MORE than 3 sections of the deck
 - The user says "implement all suggestions" or asks for sweeping changes
@@ -1908,12 +2055,12 @@ YOUR OUTPUT MUST contain this EXACT XML tag — this is machine-parsed, not huma
 <rerun>your one-paragraph directive summarizing the creative change</rerun>
 
 EXAMPLE 1 — User says "Add a host who confronts the wild":
-<rerun>Restructure the entire pitch around a charismatic presenter-host who leaves the studio and enters the field. All sections must be rewritten to feature the host's journey as the narrative spine, with species encounters framed through the host's perspective rather than pure observational wildlife filmmaking.</rerun>
+<rerun>Restructure the entire pitch around a charismatic presenter-host who leaves the studio and enters the field. All sections must be rewritten to feature the host's journey as the narrative spine, ${isFactual ? 'with investigative discoveries framed through the host\'s perspective rather than pure journalistic exposition' : 'with species encounters framed through the host\'s perspective rather than pure observational wildlife filmmaking'}.</rerun>
 
 This requires a full rerun because adding a host changes the narrative structure, scriptment, visual approach, and talent requirements across every section.
 
 EXAMPLE 2 — User says "implement all the suggestions to reach score 85":
-<rerun>Apply all identified improvements: strengthen the ecological imperative with verified conservation data, elevate existential stakes beyond simple survival, substantiate key animal behaviors with peer-reviewed sources, and ensure the host/presenter profile is compelling for the target platform. Target overall quality score of 85+.</rerun>
+<rerun>Apply all identified improvements: ${isFactual ? 'strengthen the investigative rigor with verified sources, elevate stakes beyond surface-level controversy, substantiate key claims with primary evidence' : 'strengthen the ecological imperative with verified conservation data, elevate existential stakes beyond simple survival, substantiate key animal behaviors with peer-reviewed sources'}, and ensure the host/presenter profile is compelling for the target platform. Target overall quality score of 85+.</rerun>
 
 This requires a full rerun because the changes span every section of the deck.
 
@@ -1923,7 +2070,7 @@ DECISION GUIDE — REWRITE vs RERUN:
 - "Sharpen the logline" → REWRITE (one section, cosmetic)
 - "Make Act 2 more tense" → REWRITE (one section, tone)
 - "Add a host who explores the wild" → RERUN (fundamental narrative shift)
-- "Change the species to snow leopards" → RERUN (changes everything)
+- ${isFactual ? '"Change the main subject to Watergate" → RERUN (changes everything)' : '"Change the species to snow leopards" → RERUN (changes everything)'}
 - "Frame it as a survival thriller" → RERUN (genre pivot, affects all sections)
 - "Make the narration more poetic" → REWRITE (style, localized)
 - "Implement all suggestions" → RERUN (sweeping multi-section changes)
@@ -1954,11 +2101,12 @@ function initChatSession(pitchDeck) {
     chatSession.send('I have received the Master Pitch Deck. I am ready to answer questions about it or make refinements. The user can also use slash commands like /gatekeeper, /market, /science, /editor to invoke specific agents.').catch(() => { });
 
     // Add welcome hints
+    const isFactualChat = window.docMode === 'factual';
     const welcomeMsg = document.createElement('div');
     welcomeMsg.className = 'qa-msg assistant chat-welcome';
     welcomeMsg.innerHTML = `
         <div class="welcome-hints">
-            <div class="hint-line">💬 <em>"Why this species?"</em> · <em>"Explain the market positioning"</em></div>
+            <div class="hint-line">💬 <em>"${isFactualChat ? 'Why this subject?' : 'Why this species?'}"</em> · <em>"Explain the market positioning"</em></div>
             <div class="hint-line">✏️ <em>"Sharpen the logline"</em> · <em>"Make Act 2 darker"</em></div>
             <div class="hint-line">🔄 <em>"Add a presenter host"</em> · <em>"Frame it as a thriller"</em></div>
             <div class="hint-line">🤖 <span>/gatekeeper</span> · <span>/market</span> · <span>/score</span> · <span>/rerun</span> · <span>/help</span></div>
@@ -2337,7 +2485,7 @@ qaForm.addEventListener('submit', async (e) => {
 - \`/export\` — Export as DOCX
 
 **Edit directives:** "Rewrite the logline", "Make Act 2 darker", "Sharpen the hook"
-**Questions:** "Why this species?", "Explain the market positioning"`);
+**Questions:** "${window.docMode === 'factual' ? 'Why this subject?' : 'Why this species?'}", "Explain the market positioning"`);
         }
         // Handle /copy
         else if (lowerQ === '/copy') {

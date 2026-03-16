@@ -22,7 +22,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { queryEmbedding, topK = 5 } = req.body;
+    const { queryEmbedding, topK = 5, docMode = null } = req.body;
 
     if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
         return res.status(400).json({ error: 'Missing or invalid queryEmbedding' });
@@ -48,6 +48,16 @@ export default async function handler(req, res) {
                 try {
                     const r = await fetch(blob.url);
                     const doc = await r.json();
+                    
+                    // Filter by docMode if specified
+                    if (docMode && docMode !== 'general') {
+                        // Allow docs that matched docMode, explicitly 'general' docs, or old docs with no docMode
+                        const docTag = doc.docMode || 'general'; // Default un-tagged to general
+                        if (docTag !== 'general' && docTag !== docMode) {
+                            return; // Skip document as it doesn't match the requested mode
+                        }
+                    }
+
                     if (!doc.chunks || !doc.embeddings) return;
 
                     for (let i = 0; i < doc.chunks.length; i++) {
@@ -57,6 +67,7 @@ export default async function handler(req, res) {
                             score,
                             docId: doc.id,
                             filename: doc.filename,
+                            docMode: doc.docMode || 'un-tagged'
                         });
                     }
                 } catch {

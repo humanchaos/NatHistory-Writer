@@ -16,7 +16,7 @@ import { callAgent } from '../agents/gemini.js';
  * Returns { dimensions: [...], overall, recommendations, summary }
  */
 
-const EVALUATOR_PROMPT = `You are a QUALITY EVALUATOR for wildlife film pitch decks. You are NOT one of the creative agents — you are an independent quality assessor.
+const getEvaluatorPrompt = (docMode = 'wildlife') => `You are a QUALITY EVALUATOR for ${docMode === 'factual' ? 'factual television' : 'wildlife film'} pitch decks. You are NOT one of the creative agents — you are an independent quality assessor.
 
 Your job is to score the pitch deck across exactly 8 dimensions, each on a scale of 1-100.
 
@@ -104,9 +104,9 @@ Scoring calibration: Use the award-winning productions in the table above as you
  * @param {string} seedIdea — the original seed/script input
  * @returns {Promise<object>} — parsed scorecard
  */
-export async function evaluatePitchDeck(pitchDeck, seedIdea) {
+export async function evaluatePitchDeck(pitchDeck, seedIdea, docMode = 'wildlife') {
     const response = await callAgent(
-        EVALUATOR_PROMPT,
+        getEvaluatorPrompt(docMode),
         `Evaluate the following pitch deck.\n\n### Original Input\n${seedIdea.slice(0, 500)}\n\n### Pitch Deck to Evaluate\n${pitchDeck}`,
     );
 

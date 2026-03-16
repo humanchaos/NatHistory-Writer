@@ -2281,6 +2281,18 @@ h4 {
   color: var(--text-muted);
 }
 
+.docmode-input-row {
+  margin-bottom: 0.5rem;
+  justify-content: flex-start;
+}
+
+.shared-docmode-select {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-color);
+}
+
 .url-add-btn {
   padding: 0.5rem 0.85rem;
   border-radius: 8px;
@@ -2298,6 +2310,16 @@ h4 {
 .url-add-btn:hover {
   background: var(--accent-gold);
   color: var(--bg-base);
+}
+
+.notebooklm-btn {
+  border-color: #8c82ff;
+  color: #8c82ff;
+}
+
+.notebooklm-btn:hover {
+  background: #8c82ff;
+  color: #fff;
 }
 
 .upload-zone:hover,

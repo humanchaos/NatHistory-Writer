@@ -17,7 +17,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'KB_ADMIN_PASSWORD not configured on server' });
     }
 
-    const { password, filename, chunks, embeddings } = req.body;
+    const { password, filename, chunks, embeddings, docMode = 'general' } = req.body;
 
     if (!password || password !== ADMIN_PASSWORD) {
         return res.status(401).json({ error: 'Invalid admin password' });
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
         chunks,
         embeddings,
         addedAt: new Date().toISOString(),
+        docMode,
     };
 
     try {

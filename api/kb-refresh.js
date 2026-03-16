@@ -124,6 +124,11 @@ Output format:
             }
 
             // ── Step 5: Upsert to Vercel Blob ─────────────────
+            // Determine docMode from source label or category
+            const isFactual = source.label.toLowerCase().includes('factual') || 
+                              source.label.toLowerCase().includes('c21media');
+            const sourceDocMode = isFactual ? 'factual' : 'wildlife';
+
             const doc = {
                 id: `intel_${source.id}`,
                 filename: `🌐 ${source.label}`,
@@ -134,6 +139,7 @@ Output format:
                 fetchedAt: new Date().toISOString(),
                 addedAt: new Date().toISOString(),
                 isIntelligence: true,
+                docMode: sourceDocMode,
             };
 
             await put(blobPath, JSON.stringify(doc), {

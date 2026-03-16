@@ -9,9 +9,10 @@ import { searchShared, hasSharedDocuments } from './sharedKB.js';
  *
  * @param {string} query — the context/question to search for
  * @param {number} topK — number of chunks to retrieve (total, across both sources)
+ * @param {string} [docMode] — the active domain to filter shared results by
  * @returns {Promise<string>}
  */
-export async function retrieveContext(query, topK = 5) {
+export async function retrieveContext(query, topK = 5, docMode = null) {
     const [hasLocal, hasShared] = await Promise.all([hasDocuments(), hasSharedDocuments()]);
     if (!hasLocal && !hasShared) return '';
 
@@ -21,7 +22,7 @@ export async function retrieveContext(query, topK = 5) {
         // Query both sources in parallel
         const [localResults, sharedResults] = await Promise.all([
             hasLocal ? search(queryEmbedding, topK) : [],
-            hasShared ? searchShared(queryEmbedding, topK) : [],
+            hasShared ? searchShared(queryEmbedding, topK, docMode) : [],
         ]);
 
         // Tag source for logging, then merge and re-rank
@@ -61,9 +62,10 @@ export async function retrieveContext(query, topK = 5) {
  * retrieved regardless of what the pitch is about.
  *
  * @param {number} topK — number of chunks to retrieve
+ * @param {string} [docMode] — the active domain to filter shared results by
  * @returns {Promise<string>}
  */
-export async function retrieveNarrativeContext(topK = 6) {
+export async function retrieveNarrativeContext(topK = 6, docMode = null) {
     const hasShared = await hasSharedDocuments();
     if (!hasShared) return '';
 
@@ -77,7 +79,7 @@ export async function retrieveNarrativeContext(topK = 6) {
 
     try {
         const queryEmbedding = await embedText(NARRATIVE_QUERY);
-        const results = await searchShared(queryEmbedding, topK);
+        const results = await searchShared(queryEmbedding, topK, docMode);
 
         // Lower threshold for narrative signals — 0.2 — since format language
         // may not score as high as topically-matched content

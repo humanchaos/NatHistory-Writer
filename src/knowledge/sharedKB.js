@@ -22,14 +22,15 @@ export async function listSharedDocuments() {
  * Search shared KB for relevant chunks using a pre-computed query embedding.
  * @param {number[]} queryEmbedding
  * @param {number} topK
+ * @param {string} [docMode]
  * @returns {Promise<Array<{text, score, docId, filename}>>}
  */
-export async function searchShared(queryEmbedding, topK = 5) {
+export async function searchShared(queryEmbedding, topK = 5, docMode = null) {
     try {
         const res = await fetch('/api/kb-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ queryEmbedding, topK }),
+            body: JSON.stringify({ queryEmbedding, topK, docMode }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { results } = await res.json();
@@ -46,13 +47,14 @@ export async function searchShared(queryEmbedding, topK = 5) {
  * @param {string} filename
  * @param {string[]} chunks
  * @param {number[][]} embeddings
+ * @param {string} [docMode='general']
  * @returns {Promise<{docId, filename, chunkCount}>}
  */
-export async function addSharedDocument(password, filename, chunks, embeddings) {
+export async function addSharedDocument(password, filename, chunks, embeddings, docMode = 'general') {
     const res = await fetch('/api/kb-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, filename, chunks, embeddings }),
+        body: JSON.stringify({ password, filename, chunks, embeddings, docMode }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
