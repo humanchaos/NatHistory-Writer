@@ -265,15 +265,106 @@ export const GOLD_STANDARD_LIBRARY = [
 ];
 
 /**
- * Get the calibration seeds for the current dryrun.
- * Returns TWO seeds: one fixed anchor (My Octopus Teacher) for longitudinal
- * comparison across dryruns, plus one random seed for breadth.
+ * Factual Dryrun benchmark seeds — diverse factual documentary topics.
  */
-export function getCalibrationSeeds() {
+export const FACTUAL_BENCHMARK_SEEDS = [
+    {
+        id: 'factual-chip-wars',
+        name: 'Semiconductor Supply Chain',
+        seed: 'A deep investigative documentary tracing the global semiconductor supply chain — from rare-earth mining in the Congo to TSMC fabs in Taiwan to the geopolitical chess match between the US and China. How a tiny chip smaller than a fingernail became the most fought-over resource on Earth.',
+    },
+    {
+        id: 'factual-cold-war-spies',
+        name: 'Cold War Espionage',
+        seed: 'The untold story of the double agents who shaped the Cold War — using newly declassified MI6 and CIA archives, satellite imagery analysis, and interviews with surviving intelligence officers. A 3-part series reconstructing the spy networks that nearly triggered World War III.',
+    },
+    {
+        id: 'factual-crispr',
+        name: 'CRISPR Gene Editing',
+        seed: 'The race to edit the human genome — CRISPR-Cas9 went from a bacterial immune system to the most powerful biotechnology tool in history. We follow the scientists, the ethical battles, the first human trials, and the question nobody wants to answer: who gets to decide what "fixing" a human being means?',
+    },
+    {
+        id: 'factual-art-forgery',
+        name: 'Art Forgery Investigation',
+        seed: 'A forensic deep-dive into the Beltracchi art forgery ring — the most successful art fraud in modern history. Using UV analysis, paint chemistry, and provenance detective work, we reconstruct how one man fooled the entire art world for decades, and what his success reveals about the art market itself.',
+        platform: 'Netflix',
+    },
+    {
+        id: 'factual-food-system',
+        name: 'Global Food System',
+        seed: 'An urgent investigation into the fragility of the global food system — how monocultures, aquifer depletion, and just-in-time supply chains have created a system where three bad harvests could trigger cascading famine. From the breadbaskets of Ukraine to vertical farms in Singapore.',
+    },
+];
+
+/**
+ * Factual Gold Standard Library — award-winning factual documentaries.
+ * Each entry includes a reconstructed pitch seed, awards context, and ground-truth markers.
+ */
+export const FACTUAL_GOLD_STANDARD_LIBRARY = [
+    {
+        id: 'gs-factual-2017-icarus',
+        year: 2017,
+        name: 'Icarus (Netflix)',
+        awards: 'Oscar Best Documentary',
+        seed: `What starts as a personal experiment in doping — filmmaker Bryan Fogel decides to micro-dose performance-enhancing drugs while amateur cycling — spirals into one of the biggest scandals in sports history. Fogel's contact, Russian scientist Grigory Rodchenkov, becomes the key whistleblower in Russia's state-sponsored Olympic doping programme. This is an accidental investigation that became a geopolitical thriller, with Rodchenkov's life in danger and the entire Olympic system exposed as compromised. Real-time footage, hidden cameras, and a protagonist who didn't know he was making the most important documentary of the decade.`,
+        platform: 'Netflix',
+        expectedRange: [85, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-factual-2015-making-a-murderer',
+        year: 2015,
+        name: 'Making a Murderer (Netflix)',
+        awards: 'Emmy Best Documentary Series',
+        seed: `Steven Avery spent 18 years in prison for a crime he didn't commit. DNA evidence exonerated him. Two years after his release, he was charged with murder again. Filmmakers Laura Ricciardi and Moira Demos spent 10 years documenting this case — a labyrinthine investigation into whether Avery is guilty or whether the Manitowoc County Sheriff's Department framed him to discredit his $36 million wrongful conviction lawsuit. This is true crime as systemic indictment: every episode peels back another layer of institutional failure, prosecutorial overreach, and the terrifying fragility of "justice."`,
+        platform: 'Netflix',
+        expectedRange: [85, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': true, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-factual-2020-social-dilemma',
+        year: 2020,
+        name: 'The Social Dilemma (Netflix)',
+        awards: 'Sundance Official Selection, Emmy Nomination',
+        seed: `The tech insiders who built the most addictive platforms in history are now sounding the alarm. Former engineers and executives from Google, Facebook, Twitter, and Instagram explain — on camera — exactly how their algorithms exploit human psychology for profit. Intercut with a dramatized suburban family falling apart through screen addiction, this is the documentary that turns Silicon Valley's own weapons against it. No anonymous sources, no speculation — the architects of the attention economy explain exactly how the machine works, and why they're terrified of what they built.`,
+        platform: 'Netflix',
+        expectedRange: [83, 93],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-factual-2025-no-other-land',
+        year: 2025,
+        name: 'No Other Land (Oscar)',
+        awards: 'Oscar Best Documentary',
+        seed: `Palestinian activist Basel Adra and Israeli journalist Yuval Abraham co-direct an unprecedented documentary filmed over five years in the occupied West Bank village of Masafer Yatta. As the Israeli military systematically demolishes homes to create a military firing zone, Basel documents his community's resistance with a camera while Yuval amplifies the story to international media. This is not a film about a conflict — it is a film made INSIDE the conflict by people on opposite sides who chose collaboration over silence. Raw, unmediated footage with no narration — the events speak for themselves.`,
+        platform: 'Theatrical',
+        expectedRange: [86, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+    {
+        id: 'gs-factual-2016-13th',
+        year: 2016,
+        name: '13th (Netflix)',
+        awards: 'Oscar Nomination, Emmy Best Documentary, Sundance',
+        seed: `Ava DuVernay's unflinching examination of the 13th Amendment — "Neither slavery nor involuntary servitude, except as a punishment for crime" — and how that exception clause became the foundation of mass incarceration in America. Combining archival footage, academic interviews, and data visualization, this documentary traces a direct line from the abolition of slavery through Jim Crow, the War on Drugs, mandatory minimums, and the private prison industry. It is a systemic argument presented as cinematic essay — every frame is designed to make you see the architecture of a system that was hiding in plain sight.`,
+        platform: 'Netflix',
+        expectedRange: [86, 95],
+        markers: { 'emotional-hook': true, 'franchise-positioning': false, 'talent-attachment': true, 'tech-innovation': false, 'zeitgeist-relevance': true, 'human-element': true, 'tonal-evolution': true, 'commercial-viability': true },
+    },
+];
+
+/**
+ * Get the calibration seeds for the current dryrun.
+ * Returns the fixed anchor plus one random seed for breadth.
+ * In factual mode, uses factual gold standard entries.
+ */
+export function getCalibrationSeeds(docMode = 'wildlife') {
+    const library = docMode === 'factual' ? FACTUAL_GOLD_STANDARD_LIBRARY : GOLD_STANDARD_LIBRARY;
+    const anchorId = docMode === 'factual' ? 'gs-factual-2017-icarus' : 'gs-2020-my-octopus-teacher';
     // Fixed anchor — always the same for longitudinal tracking
-    const anchor = GOLD_STANDARD_LIBRARY.find(e => e.id === 'gs-2020-my-octopus-teacher');
+    const anchor = library.find(e => e.id === anchorId);
     // Random from remaining library
-    const remaining = GOLD_STANDARD_LIBRARY.filter(e => e.id !== 'gs-2020-my-octopus-teacher');
+    const remaining = library.filter(e => e.id !== anchorId);
     const random = remaining[Math.floor(Math.random() * remaining.length)];
     return [anchor, random].map(entry => ({
         ...entry,
@@ -283,8 +374,8 @@ export function getCalibrationSeeds() {
 }
 
 // Legacy compat — returns the fixed anchor only
-export function getCalibrationSeed() {
-    return getCalibrationSeeds()[0];
+export function getCalibrationSeed(docMode = 'wildlife') {
+    return getCalibrationSeeds(docMode)[0];
 }
 
 /**
@@ -408,7 +499,7 @@ const AGENT_DISPLAY_NAMES = {
     'discovery-scout': '🔬 Discovery Scout',
 };
 
-const SYSTEMIC_DIAGNOSIS_PROMPT = `You are a SYSTEMIC QUALITY ANALYST for a multi-agent AI pipeline that generates wildlife documentary pitch decks.
+const getSystemicDiagnosisPrompt = (docMode = 'wildlife') => `You are a SYSTEMIC QUALITY ANALYST for a multi-agent AI pipeline that generates ${docMode === 'factual' ? 'factual television' : 'wildlife documentary'} pitch decks.
 
 You are given the aggregate results of a benchmark dryrun — 5 diverse test seeds were run through the full pipeline and scored. Your job is NOT to improve any individual pitch. Instead, you must diagnose SYSTEMIC weaknesses in the pipeline's agents, prompts, and logic that cause recurring quality issues.
 
@@ -453,7 +544,7 @@ Rules:
  * @param {Array} results — individual seed results
  * @returns {Promise<object>} — { clusteredRecommendations, agentUpgrades, overallAssessment, dimensionHealth }
  */
-export async function generateSystemicDiagnosis(aggregate, calibration, results) {
+export async function generateSystemicDiagnosis(aggregate, calibration, results, docMode = 'wildlife') {
     // Build the context payload for the AI
     const dimSummary = aggregate.dimensions.map(d =>
         `${d.name}: avg=${d.avg}, min=${d.min}, max=${d.max}`
@@ -471,7 +562,7 @@ export async function generateSystemicDiagnosis(aggregate, calibration, results)
 
     const userPrompt = `## Dryrun Aggregate\nOverall avg: ${aggregate.overall}/100\nScored: ${aggregate.scored}/${aggregate.total} (${aggregate.rejected} rejected)\n\n## Dimension Scores\n${dimSummary}\n\n## Individual Results\n${seedDetails}${calContext}\n\n## All Recommendations (per-seed)\n${aggregate.allRecommendations.map(r => `[${r.seed}] ${r.recommendation}`).join('\n')}`;
 
-    const response = await callAgent(SYSTEMIC_DIAGNOSIS_PROMPT, userPrompt);
+    const response = await callAgent(getSystemicDiagnosisPrompt(docMode), userPrompt);
 
     let cleaned = response.trim();
     if (cleaned.startsWith('```')) {
@@ -512,9 +603,11 @@ export async function generateSystemicDiagnosis(aggregate, calibration, results)
     };
 }
 
-const RED_FLAG_CHECK_PROMPT = `You are a RED FLAG CHECKER for a wildlife film pitch deck generator.
+const _redFlagList = RED_FLAG_MARKERS.map(m => `- ${m.id}: ${m.label} — ${m.desc}`).join('\n');
 
-Below is a pitch deck generated by our pipeline. Your job is to check whether the output exhibits any of the following known FAILURE PATTERNS from the worst natural history productions of the past decade.
+const getRedFlagCheckPrompt = (docMode = 'wildlife') => `You are a RED FLAG CHECKER for a ${docMode === 'factual' ? 'factual television' : 'wildlife film'} pitch deck generator.
+
+Below is a pitch deck generated by our pipeline. Your job is to check whether the output exhibits any of the following known FAILURE PATTERNS from the worst ${docMode === 'factual' ? 'factual' : 'natural history'} productions of the past decade.
 
 For each red flag, respond ONLY with valid JSON — no markdown, no code fences, no extra text:
 
@@ -525,7 +618,7 @@ For each red flag, respond ONLY with valid JSON — no markdown, no code fences,
 }
 
 The red flags to check:
-${RED_FLAG_MARKERS.map(m => `- ${m.id}: ${m.label} — ${m.desc}`).join('\n')}
+${_redFlagList}
 
 Be strict. A red flag is triggered ONLY if the pitch deck clearly exhibits the anti-pattern. Minor tendencies should NOT trigger a flag — only clear, prominent instances.`;
 
@@ -534,9 +627,9 @@ Be strict. A red flag is triggered ONLY if the pitch deck clearly exhibits the a
  * @param {string} pitchDeck — the generated pitch deck
  * @returns {Promise<Array>} — array of { id, label, triggered, note }
  */
-export async function checkRedFlagMarkers(pitchDeck) {
+export async function checkRedFlagMarkers(pitchDeck, docMode = 'wildlife') {
     const response = await callAgent(
-        RED_FLAG_CHECK_PROMPT,
+        getRedFlagCheckPrompt(docMode),
         `### Pitch Deck to Check\n${pitchDeck}`,
     );
 
@@ -573,9 +666,11 @@ export const GOLD_STANDARD_MARKERS = [
     { id: 'commercial-viability', label: 'Commercial Viability', desc: 'Clear buyer appeal, global market fit, and competitive positioning against existing catalogue' },
 ];
 
-const GOLD_STANDARD_CHECK_PROMPT = `You are a CALIBRATION CHECKER for a wildlife film pitch deck generator.
+const _goldStandardList = GOLD_STANDARD_MARKERS.map(m => `- ${m.id}: ${m.label} — ${m.desc}`).join('\n');
 
-Below is the output pitch deck generated from a known gold-standard premise (a proven 2025 hit production). Your job is to check whether the generated pitch deck demonstrates each of the following gold-standard markers.
+const getGoldStandardCheckPrompt = (docMode = 'wildlife') => `You are a CALIBRATION CHECKER for a ${docMode === 'factual' ? 'factual television' : 'wildlife film'} pitch deck generator.
+
+Below is the output pitch deck generated from a known gold-standard premise (a proven hit production). Your job is to check whether the generated pitch deck demonstrates each of the following gold-standard markers.
 
 For each marker, respond ONLY with valid JSON — no markdown, no code fences, no extra text:
 
@@ -586,7 +681,7 @@ For each marker, respond ONLY with valid JSON — no markdown, no code fences, n
 }
 
 The markers to check:
-${GOLD_STANDARD_MARKERS.map(m => `- ${m.id}: ${m.label} — ${m.desc}`).join('\n')}
+${_goldStandardList}
 
 Be strict but fair. A marker passes if the pitch deck clearly demonstrates the quality, even if imperfectly.`;
 
@@ -595,9 +690,9 @@ Be strict but fair. A marker passes if the pitch deck clearly demonstrates the q
  * @param {string} pitchDeck — the generated pitch deck
  * @returns {Promise<Array>} — array of { id, label, pass, note }
  */
-export async function checkGoldStandardMarkers(pitchDeck) {
+export async function checkGoldStandardMarkers(pitchDeck, docMode = 'wildlife') {
     const response = await callAgent(
-        GOLD_STANDARD_CHECK_PROMPT,
+        getGoldStandardCheckPrompt(docMode),
         `### Pitch Deck to Check\n${pitchDeck}`,
     );
 
@@ -672,10 +767,11 @@ function buildRejectionScorecard(pitchDeck) {
 }
 
 export async function runDryrun(runFn, onProgress, opts = {}) {
-    const { skipSeedIds = [], previousResults = [], onSeedComplete } = opts;
+    const { skipSeedIds = [], previousResults = [], onSeedComplete, docMode = 'wildlife' } = opts;
     const results = [...previousResults];
-    const calibrationSeed = getCalibrationSeed();
-    const allSeeds = [calibrationSeed, ...BENCHMARK_SEEDS];
+    const calibrationSeed = getCalibrationSeed(docMode);
+    const benchmarkSeeds = docMode === 'factual' ? FACTUAL_BENCHMARK_SEEDS : BENCHMARK_SEEDS;
+    const allSeeds = [calibrationSeed, ...benchmarkSeeds];
     let calibrationResult = previousResults.find(r => r.seed.isCalibration) || null;
 
     for (let i = 0; i < allSeeds.length; i++) {
@@ -693,7 +789,7 @@ export async function runDryrun(runFn, onProgress, opts = {}) {
         const startTime = Date.now();
 
         // Run pipeline with silent callbacks — pass platform if specified
-        const pipelineOpts = {};
+        const pipelineOpts = { docMode };
         if (seed.platform) pipelineOpts.platform = seed.platform;
 
         const pitchDeck = await runFn(seed.seed, {
@@ -723,16 +819,16 @@ export async function runDryrun(runFn, onProgress, opts = {}) {
 
         onProgress(i + 1, allSeeds.length, seed.name, seed.isCalibration ? '🏆 Scoring calibration…' : 'Evaluating quality…');
 
-        const scorecard = await evaluatePitchDeck(pitchDeck, seed.seed);
+        const scorecard = await evaluatePitchDeck(pitchDeck, seed.seed, docMode);
 
         // For calibration seed, also run gold standard marker check + red flag check
         let markers = null;
         let redFlags = null;
         if (seed.isCalibration) {
             onProgress(i + 1, allSeeds.length, seed.name, '🏆 Checking gold standard markers…');
-            markers = await checkGoldStandardMarkers(pitchDeck);
+            markers = await checkGoldStandardMarkers(pitchDeck, docMode);
             onProgress(i + 1, allSeeds.length, seed.name, '🚩 Checking red flags…');
-            redFlags = await checkRedFlagMarkers(pitchDeck);
+            redFlags = await checkRedFlagMarkers(pitchDeck, docMode);
         }
 
         const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1);

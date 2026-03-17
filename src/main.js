@@ -1274,6 +1274,12 @@ if (globalDocModeToggle) {
                     <option value="custom">✏️ Custom…</option>
                 `;
             }
+
+            // Update dryrun section
+            const dryrunTitle = document.getElementById('dryrun-title');
+            const dryrunDesc = document.getElementById('dryrun-desc');
+            if (dryrunTitle) dryrunTitle.textContent = '\ud83e\uddea Factual Dryrun Benchmark';
+            if (dryrunDesc) dryrunDesc.textContent = 'Runs 5 factual test seeds (Semiconductors, Cold War, CRISPR, Art Forgery, Food Systems) + Icarus calibration through the full pipeline.';
         } else {
             if (heroSubtitle) heroSubtitle.textContent = 'Blue-Chip Wildlife Scriptment Engine';
             if (heroDescription) heroDescription.innerHTML = 'Enter a seed idea. Eight AI agents will debate, reject, revise, and greenlight your wildlife film pitch — in <strong>3 different genre lenses</strong> automatically.';
@@ -1323,6 +1329,12 @@ if (globalDocModeToggle) {
                         <option value="custom">✏️ Custom…</option>
                 `;
             }
+
+            // Restore dryrun section
+            const dryrunTitle = document.getElementById('dryrun-title');
+            const dryrunDesc = document.getElementById('dryrun-desc');
+            if (dryrunTitle) dryrunTitle.textContent = '\ud83e\uddea Dryrun Benchmark';
+            if (dryrunDesc) dryrunDesc.textContent = 'Runs 5 diverse wildlife test seeds + My Octopus Teacher calibration through the full pipeline, evaluates each output across 8 quality dimensions.';
         }
     });
 }
@@ -2921,6 +2933,7 @@ async function startDryrun(resume) {
         }, {
             skipSeedIds,
             previousResults: savedState ? savedState.completedResults : [],
+            docMode: window.docMode || 'wildlife',
             onSeedComplete: (completedResults, calibrationSeedName, totalSeeds) => {
                 saveDryrunState({
                     completedResults,
@@ -2939,7 +2952,7 @@ async function startDryrun(resume) {
         // Generate systemic diagnosis (AI-powered)
         let systemicDiagnosis = null;
         try {
-            systemicDiagnosis = await generateSystemicDiagnosis(aggregate, calibration, results);
+            systemicDiagnosis = await generateSystemicDiagnosis(aggregate, calibration, results, window.docMode || 'wildlife');
         } catch (err) {
             console.warn('Systemic diagnosis failed:', err.message);
         }
